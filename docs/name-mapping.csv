@@ -1,0 +1,106 @@
+種別,元C名,新C#名,出典ファイル,意味
+ソースファイル,FyskEwsMain.c,CircuitAnalyzer.cs / CircuitAnalysisJob.cs,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,回路解析処理(バッチ入口)
+ソースファイル,cmnchar.c,FixedFieldCodec.cs,toku/lib/libfycom/cmnchar.c,SJIS固定長エンコード/デコード
+ソースファイル,getfpath.c/getfname.c,InfConfigLoader.cs,toku/lib/libfycom/getfpath.c,.inf構成ファイル解析
+関数,Fysk10_Main,CircuitAnalyzer.Analyze,libfysek.a,回路解析メイン
+ソースファイル,Fyss11.c,CircuitStringChecker.cs,toku/sekkei/src/Fyss11.c,系統文字列チェック(回路記述→テーブル化)
+関数,Fyss11_Mojiretu_Check,CircuitStringChecker.Check,toku/sekkei/src/Fyss11.c,回路設計エリアの行集約と解析
+関数,Fyss11_Check_Main,CircuitStringChecker.CheckMain,toku/sekkei/src/Fyss11.c,行種別ディスパッチ
+関数,Fyss11_Table_Set,CircuitStringChecker.TableSet,toku/sekkei/src/Fyss11.c,系統/行種/仕様テーブル生成
+関数,Fyss11_Check_NP,CircuitStringChecker.CheckNameplate(スタブ),toku/sekkei/src/Fyss11.c,盤タイトル銘板文チェック
+関数,Fyss11_Check_BN,CircuitStringChecker.CheckBoardName,toku/sekkei/src/Fyss11.c,盤名称文チェック(ban確定)
+関数,Find_BN,CircuitStringChecker.FindBoardWord,toku/sekkei/src/Fyss11.c,盤ワード(BUN/HIK/KAI/SYU/SEI/KEI/BOX/NAI)取り込み
+関数,Fyss11_Check_P,CircuitStringChecker.CheckIncoming + ParseIncomingRating,toku/sekkei/src/Fyss11.c,入線文チェック(電源記述/電線サイズ/芯数/本数/アース → f811)
+関数,Fyss11_Check_PS,CircuitStringChecker.CheckIncomingBranch,toku/sekkei/src/Fyss11.c,入線分岐文チェック(電源記述+CM=)
+関数,Fyss11_Check_UP,CircuitStringChecker.CheckPowered,toku/sekkei/src/Fyss11.c,有電源文チェック(電源種別+CM=)
+関数,Kairo_Bunrui_Set,CircuitStringChecker.ClassifyCircuit,toku/sekkei/src/Fyss11.c,行種区分(G_kind: TM/M/SM→M, S→S, O→O, BO→B, 他→P)
+関数,Kairo_Bangou_Set,CircuitStringChecker.AssignCircuitNumber,toku/sekkei/src/Fyss11.c,回路番号採番(kairono: 相数別カウンタを後置採番し%03d)
+構造体,struct BANGOU,CircuitNumberCounters,toku/sekkei/src/Fyss11.c,回路番号カウンタ(主/分岐/送り/番号 × 単相/三相 + 開閉)
+関数,KAKKO_PROC,CircuitStringChecker.ProcessCommand,toku/sekkei/src/Fyss11.c,"(CM=xxx)"コマンド句の解析
+関数,gyosyu_table_set,CircuitStringChecker.TableSet(GYOSYU部),toku/sekkei/src/Fyss11.c,行種テーブルのG_kind/kairono/K_kind/souden/sousen設定
+テーブル,dengen_kijyutu_table/cp_kijyutu_table,CircuitStringChecker.PowerDescriptionTable,toku/sekkei/src/Fyss11.c,電源記述(1P2W105V等)→定格コード
+テーブル,dengen_syu_table/cp_dengen_table,CircuitStringChecker.PowerKindTable,toku/sekkei/src/Fyss11.c,電源種別(AC100V等)→定格コード
+テーブル,dinf_size_table/dinf_sins_table/dinf_hons_table,CircuitStringChecker.WireSizeTable/WireCoreTable/WireCountTable,toku/sekkei/src/Fyss11.c,電線サイズ/芯数/本数テーブル
+変数,kairostring,CircuitStringChecker.TextCursor,toku/sekkei/src/Fyss11.c,回路文字列ポインタ走査(Check_P系)
+関数,Fyss11_Check_C,CircuitStringChecker.CheckControl(スタブ),toku/sekkei/src/Fyss11.c,コントロール文チェック
+関数,Fyss11_Mojiretu_Find,CircuitStringChecker.MojiretuFind,toku/sekkei/src/Fyss11.c,予約語文(TM/M/SM/B/BO/PM/O/S)を分岐で分解
+関数,Mojiretu_Check,CircuitStringChecker.MojiretuCheck,toku/sekkei/src/Fyss11.c,分岐サブ文チェック(予約語照合・KIKITABLE展開)
+関数,Mojiretu_Check_Main,CircuitStringChecker.MojiretuCheckMain(部分),toku/sekkei/src/Fyss11.c,複合予約語文(G/H/K/MH/S/())の括弧グループ展開
+関数,controlstart/nextchar/firstcontrol/nextcontrol/Find_Control/Select_Control,CircuitStringChecker.ControlScanner,toku/sekkei/src/Fyss11.c,複合予約語文スキャナ(括弧ネスト・カンマ区切)
+列挙,enum SYMBOL(control),ControlScanner.ControlSymbol,toku/sekkei/src/Fyss11.c,複合予約語先頭シンボル(END/OTHER/KANMA/G/H/K/MH/S/LKAKKO)
+関数,kikitable_set,CircuitStringChecker.KikitableSet,toku/sekkei/src/Fyss11.c,機器テーブルエントリ生成(K_No/G_No/S_No/B_No/D_No採番)
+関数,kikitable_add("1"),CircuitStringChecker.ApplyReservedWord,toku/sekkei/src/Fyss11.c,予約語・予約語番号の分解(kubun 1)
+関数,Find_Bangou,CircuitStringChecker.FindBangou,toku/sekkei/src/Fyss11.c,末尾の連続数値(予約語番号)抽出
+関数,Find_Alphabetto,CircuitStringChecker.FindAlphabetto,toku/sekkei/src/Fyss11.c,先頭数字+英字部(予約語)抽出
+テーブル,kei_chk_tbl/syu_tbl,CircuitStringChecker.SystemKindTable,toku/sekkei/src/Fyss11.c,系統起点行種(P/SP/MP/UP)→系統種別(1/2/3/4)
+関数,kairostart/nextkhar/firstkairo/Find_Kairo,CircuitStringChecker.KairoScanner,toku/sekkei/src/Fyss11.c,回路記述文字列スキャナ(分岐トークナイザ)
+列挙,enum SYMBOL,KairoScanner.KairoSymbol,toku/sekkei/src/Fyss11.c,先頭シンボル種別(END/OTHER/BUNKI/BUNKIUKE)
+関数,Fyss11_Check_SEP,CircuitStringChecker.CheckSeparator(スタブ),toku/sekkei/src/Fyss11.c,セパレーター文チェック
+関数,kikitable_set/kikitable_add,CircuitStringChecker.CreateEquipment + EquipmentTableEntry.Attributes,toku/sekkei/src/Fyss11.c,機器テーブル生成/属性付与
+関数,Blankless,CircuitStringChecker.Blankless,toku/sekkei/src/Fyss1a.c,空白除去(漢字保持)
+関数,NULLSTRING,CircuitStringChecker.IsNullString,toku/sekkei/src/Fysscommon.c,空文字列判定
+関数,Find_Alphabetto1,CircuitStringChecker.ExtractAlpha,toku/sekkei/src/Fyss11.c,行種(英字)抽出
+構造体/モデル,KEITOU,SystemTableEntry,toku/include/sekkei/struct.h,系統テーブル
+構造体/モデル,GYOSYU,LineTypeTableEntry,toku/include/sekkei/struct.h,行種テーブル
+構造体/モデル,SPEC,SpecTableEntry,toku/include/sekkei/struct.h,仕様文字列テーブル
+構造体/モデル,KIKITABLE,EquipmentTableEntry,toku/include/sekkei/struct.h,機器テーブル
+構造体/モデル,FYRT820,ControlSpecEntry,toku/include/common/fyrt820.h,制御仕様テーブル
+列挙,enum _BAN,BanKind,toku/sekkei/src/Fyss11.c,盤区分
+関数,Error_Proc,CircuitParseError(レコード),toku/sekkei/src/Fyss11.c,解析エラー(FYRT805)
+ソースファイル,FyskEwsMain.c(行種別前処理群),CircuitLineNormalizer.cs,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,Fysk10_Main前の行種別正規化パイプライン
+関数,Fysk_CheckDuplicationComma,CircuitLineNormalizer.CheckDuplicationComma,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,コンマ重複の除去
+関数,Fysk_LightCirCuitCheck,CircuitLineNormalizer.AddLightCircuitNt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,電灯回路の主幹に+(NT)付与
+関数,Fysk_MPCHeck,CircuitLineNormalizer.CompleteMpDepth,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,MP行の深さ*15補完
+関数,Fysk_TransAfAt,CircuitLineNormalizer.TransformAfAt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,60AF→100AF変換
+関数,Fysk_2ET_Check,CircuitLineNormalizer.RemoveTwoEt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,C行の+(2ET)削除
+関数,Fysk_TM_Consecutive_Check,CircuitLineNormalizer.MergeConsecutiveTm,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,連続TM行の結合
+関数,Fysk_SM_Consecutive_Check,CircuitLineNormalizer.MergeConsecutiveSm,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,SM行の直前行への結合
+関数,Fysk_WL_Consecutive_Check,CircuitLineNormalizer.ConvertWlF1a,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,PM行 F1A→F+(ST)/F変換
+関数,Fysk_BO_below_TM_Check,CircuitLineNormalizer.ChangeTmToMWhenBoFollows,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,TM直下BOでTM→M
+関数,Fysk_Delete_Comma,CircuitLineNormalizer.DeleteCommaBeforeParen,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,丸括弧直前の不要コンマ削除
+関数,Fysk_Add_LWToMGMC,CircuitLineNormalizer.ApplyLwToMgMc,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,-MG/-MCへ直上の(LW=…)反映
+関数,Fysk_Chg_TMtoM_BetweenPandSP,CircuitLineNormalizer.ChangeTmToMBetweenPAndSp,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,P-SP間のTMをMへ変更
+関数,Fysk_Chg_OtoBO_UnderM,CircuitLineNormalizer.ChangeOToBoUnderM,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,P-SP間のM下のOをBOへ変更
+関数,LibCharBackSpaceCut/LibCharBackSpaceSet,FixedFieldCodec.ReadText / WriteText,toku/lib/libfycom/cmnchar.c,固定長CHARの空白トリム/詰め戻し
+関数,Fysk09(数値変換群),NumericConverter.RoundHalfUp / ParseImplicitDecimal,libfysek.a,数値変換・丸め
+関数,CpyNullStop,FixedFieldCodec.ReadText,toku/tool/src/getfpath.c,前後空白除去コピー
+関数,FyGetFileName,InfConfigLoader.LoadDataFileRegistry,toku/tool/src/getfname.c,ファイルID→パス解決
+関数,FyGetFilePath,InfConfigLoader.LoadFilePathMap,toku/lib/libfycom/getfpath.c,パスID→物理パス
+関数,FyIsamRead,IIsamTable.Read,toku/include/common/cmnisam.h,キー一致1件読込
+関数,FyIsamStartR/FyIsamNextR/FyIsamEndR,IIsamTable.ReadSequential,toku/include/common/cmnisam.h,順次読込
+関数,FyIsamAdd,IIsamTable.Add,toku/include/common/cmnisam.h,レコード追加
+関数,FyIsamRewrite,IIsamTable.Rewrite,toku/include/common/cmnisam.h,レコード更新
+関数,FyIsamDelete,IIsamTable.Delete,toku/include/common/cmnisam.h,レコード削除
+構造体/モデル,FYDM805,EquipmentMaster,toku/include/common/fydm805.h,機器マスター
+構造体/モデル,FYDF801,ProjectInfo,toku/include/common/fydf801.h,物件情報
+構造体/モデル,FYDF805,CircuitDescriptionLine,toku/include/common/fydf805.h,回路内容記述
+構造体/モデル,FYRT800,MainCircuitResult,toku/include/common/fyrt800.h,主回路エリア(解析結果)
+構造体/モデル,sk_work,CircuitWork,toku/include/common/fyrt800.h,積算用ワークエリア
+テキストマスタ,bumon.*.cns,DepartmentMaster,確認用/bumon.gai17.cns,部門(営業所/支店)マスター
+設定ファイル,datafile.inf,DataFileRegistryEntry / DataFileRegistry(表),TOKUD/datafile.inf,データファイル構成
+設定ファイル,filepath.inf,InfConfigLoader.LoadFilePathMap,TOKUD/filepath.inf,パスID→物理パス
+定数,ERR_ISAM_NOTHING,IsamStatus.NotFound,toku/include/common/cmnisam.h,指定データ無し(-10)
+定数,ERR_ISAM_EXIST,IsamStatus.AlreadyExists,toku/include/common/cmnisam.h,登録済み(-11)
+定数,EXCLUSIVE_LOCK,LockMode.Lock,toku/include/common/cmnisam.h,ファイルロック(1)
+フィールド,hinban,EquipmentMaster.PartNumber,toku/include/common/fydm805.h,品番
+フィールド,hinmei,EquipmentMaster.PartName,toku/include/common/fydm805.h,品名
+フィールド,pstring,EquipmentMaster.ElectricalParameters,toku/include/common/fydm805.h,電気パラメータ文字列
+フィールド,eigyocd,ProjectInfo.SalesOfficeCode,toku/include/common/fydf801.h,営業所コード
+フィールド,meisaino,ProjectInfo.ItemNumber,toku/include/common/fydf801.h,明細番号
+フィールド,kairoar,CircuitDescriptionLine.CircuitText,toku/include/common/fydf805.h,回路内容記述エリア
+フィールド,gyosyu,CircuitDescriptionLine.LineType,toku/include/common/fydf805.h,行種
+フィールド,gyono,CircuitDescriptionLine.LineNumber,toku/include/common/fydf805.h,行番号
+関数,Check_KikiMeisyou,CircuitStringChecker.CheckKikiMeisyou,toku/sekkei/src/Fyss1b.c,機器名称の予約語マスタ照合(改訂<42>/<46>: 27A/27B/27C→CR、行種Bは入力不可FY-760E)
+関数,Fyss1c_Mojiretu_Check,CircuitStringChecker.CheckKikiMeisyou(部分),toku/sekkei/src/Fyss1c.c,機器名称文字列チェック
+関数,Check_KikimeiC,CircuitStringChecker.CheckKikiMeisyou(部分),toku/sekkei/src/Fyss1c.c,機器名称チェック
+関数,Yoyaku_Check_Main,CircuitStringChecker.ResolveReservedWord,toku/sekkei/src/Fyss1d.c,予約語マスタ照合(接尾数字除去、tokusyu_key一致はfyak_tbl未一致でも成功)
+関数,Find_Delimetor,CircuitStringChecker.SplitReservedToken,toku/sekkei/src/Fyss1c.c,区切り文字(=または*)で分割
+テーブル,fyak_tbl,CircuitStringChecker.ReservedWordMaster,toku/include/sekkei/fyrt810.h,予約語マスタ(コンパイル埋込)
+テーブル,tokusyu_key,CircuitStringChecker.SpecialReservedKeys,toku/sekkei/src/Fyss1d.c,特殊予約語キー(G1-G4/SL/27A/27B/27C改訂<8>/FLT)
+フィールド,s_yoyaku(kikimei),EquipmentTableEntry.ProductName,toku/include/sekkei,確定した予約語(品名)
+関数,Fyss12_Make_Main,MainCircuitBuilder.MakeMain,toku/sekkei/src/Fyss12.c,主回路生成の統括(17段)
+関数,Keitou_Check,MainCircuitBuilder.CheckSystemComposition,toku/sekkei/src/Fyss12.c,系統チェック(系統内行種検証)
+関数,Find_Gyosyu_Sym,MainCircuitBuilder.FindLineTypeSymbol,toku/sekkei/src/Fyss12.c,行種文字列→シンボル分類
+列挙,SYMBOL,MainCircuitBuilder.LineTypeSymbol,toku/sekkei/src/Fyss12.c,行種シンボル(sym_NP等)
+関数,Gyosyu_Check,MainCircuitBuilder.CheckLineTypeHierarchy,toku/sekkei/src/Fyss12.c,行種関連チェック(上下関係, 改訂<15>PM行27A/27B/27C例外)
+関数,Find_Numeric,MainCircuitBuilder.FindNumericPrefix,toku/sekkei/src/Fysscommon.c,語前の数値取り出し
