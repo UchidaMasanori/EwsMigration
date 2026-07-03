@@ -8,62 +8,61 @@ using Ews.Domain.Projects;
 namespace Ews.Analysis;
 
 /// <summary>
-/// 回路解析処理(本体)。
+/// 主回路設計メイン(ライブラリ本体)。
 ///
 /// 【C原典】
-///   - 入口  : toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c (回路解析処理)
-///   - 本体  : libfysek.a の Fysk10_Main (回路解析メイン)
-///   - 入力  : 物件情報 FYDF801 / 回路内容記述 FYDF805 / 機器マスター FYDM805 ほか
+///   - 本体  : libfysek.a の Fysk10_Main (主回路設計メイン, toku/sekkei/src/Fysk10.c)
+///   - 入力  : 物件情報 FYDF801(bukken1/bukken2) / 回路内容記述 FYDF805(imagea) /
+///             メーカー指定 FYDF802(makea) / 機器マスター FYDM805 ほか
 ///   - 出力  : 主回路エリア FYRT800 等 → 複合回路ファイル FYDF807
 ///
-/// 旧 C ではこれらを EWS-ISAM のファイルから直接読み込んでいた。本移行では
-/// データ取得を SQL Server リポジトリ経由に置き換え、解析ロジックは段階的に移植する。
+/// <c>Fysk10_Main</c> はライブラリ関数であり、fyskews だけでなく FySin80 / FySin40s5 /
+/// AutoSinKairo / FyskEwsPnlMain など複数のプログラムから呼び出される。呼び出し側が
+/// データ読込(Fysk_Set_data 相当)と行種別前処理を済ませた <c>imagea</c> を引数で受け取り、
+/// 解析を行うのが原典の責務分担である。
 ///
-/// 【現状】縦断パイロットとしてデータ取得?結果生成の骨組み(オーケストレーション)を実装。
-/// 行種別の詳細解析(機器選定・積算・複合回路展開)は <c>Fysk10_Main</c> の各サブ処理を
+/// したがって、fyskews 固有の行整形前処理(<see cref="CircuitLineNormalizer"/> =
+/// FyskEwsMain.c の Fysk_* 群)や回路記述データのロードは本クラスでは行わず、
+/// 呼び出し側(<c>CircuitAnalysisJob</c> = FyskEwsMain.c main 相当)の責務とする。
+///
+/// 【現状】縦断パイロットとして解析の骨組み(Fyss11 系統文字列チェック + 行単位の骨組み)を
+/// 実装。行種別の詳細解析(機器選定・積算・複合回路展開)は <c>Fysk10_Main</c> の各サブ処理を
 /// 順次移植して肉付けする。
 /// </summary>
 public sealed class CircuitAnalyzer
 {
-    private readonly SqlCircuitDescriptionRepository _circuitRepository;
     private readonly SqlEquipmentMasterRepository _equipmentRepository;
     private readonly CircuitStringChecker _stringChecker;
 
     public CircuitAnalyzer(
-        SqlCircuitDescriptionRepository circuitRepository,
         SqlEquipmentMasterRepository equipmentRepository,
         CircuitStringChecker stringChecker)
     {
-        _circuitRepository = circuitRepository;
         _equipmentRepository = equipmentRepository;
         _stringChecker = stringChecker;
     }
 
     /// <summary>
-    /// 指定の依頼明細番号について回路解析を実行し、主回路結果の一覧を返す。
-    /// 【C原典】Fysk10_Main() のメインループ(回路内容記述を行番号順に走査して解析)。
+    /// 主回路設計メインを実行し、主回路結果の一覧を返す。
+    /// 【C原典】Fysk10_Main()。呼び出し側が読込・前処理済みの回路内容記述(imagea)を受け取る。
     /// </summary>
-    /// <param name="requestNumber">新規登録依頼番号。【C原典】airaino。</param>
-    /// <param name="itemNumber">新規登録明細番号。【C原典】ameisano。</param>
-    public CircuitAnalysisResult Analyze(string requestNumber, string itemNumber)
+    /// <param name="bukken1">物件明細エリア共通。【C原典】bukken1(FYDF801)。</param>
+    /// <param name="bukken2">物件明細エリア明細。【C原典】bukken2(FYDF801)。</param>
+    /// <param name="lines">
+    /// 前処理済みの回路内容記述エリア(呼び出し側で <see cref="CircuitLineNormalizer"/> 適用済み)。
+    /// 【C原典】imagec / imagea(FYDF805)。
+    /// </param>
+    public CircuitAnalysisResult Analyze(
+        ProjectInfo bukken1,
+        ProjectInfo bukken2,
+        IReadOnlyList<CircuitDescriptionLine> lines)
     {
-        var key = new CircuitLineKey(requestNumber, itemNumber);
-
-        // 【C原典】FyIsamStartR(FYDF805) → FyIsamNextR ループ。
-        var lines = _circuitRepository.ReadSequential(key).ToList();
-
-        // 【C原典】FyskEwsMain.c main() が Fysk10_Main を呼ぶ前に実行する
-        //         行種別の前処理(コンマ整理・行結合・行種変換 等)を一括適用する。
-        CircuitLineNormalizer.Normalize(lines);
-
         var results = new List<MainCircuitResult>();
         var warnings = new List<string>();
 
         // 【C原典】Fysk10_Main → Fyss11_Mojiretu_Check。
         //         回路記述を系統/行種/仕様/機器テーブルへ展開し、記述エラーを収集する。
-        // 物件情報(bukken1/bukken2)は本パイロットでは未取得のため暫定の空インスタンスを渡す。
-        var project = new ProjectInfo { NewRequestNumber = requestNumber, NewItemNumber = itemNumber };
-        CircuitParseResult parseResult = _stringChecker.Check(project, project, lines);
+        CircuitParseResult parseResult = _stringChecker.Check(bukken1, bukken2, lines);
         foreach (CircuitParseError error in parseResult.Errors)
         {
             warnings.Add($"回路記述エラー: {error.ErrorCode} 行番号={error.LineNumber} ({error.MessageId})");
@@ -77,7 +76,9 @@ public sealed class CircuitAnalyzer
             results.Add(result);
         }
 
-        return new CircuitAnalysisResult(requestNumber, itemNumber, results, warnings, parseResult);
+        // 【C原典】airaino / ameisano。結果の識別子は物件情報(新規登録依頼明細番号)から取得する。
+        return new CircuitAnalysisResult(
+            bukken2.NewRequestNumber, bukken2.NewItemNumber, results, warnings, parseResult);
     }
 
     /// <summary>
