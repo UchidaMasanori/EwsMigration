@@ -198,6 +198,13 @@ public sealed class EquipmentTableEntry
     public BanKind Ban { get; set; } = BanKind.End;
 
     /// <summary>
+    /// 回路区分。【C原典】K_Kubun。
+    /// Kairo_Kubun_Set(Fyss12 step5)が機器種別・行種・計器パターンに応じて設定する。
+    /// 'K'=計器/付属機器グループ, 'M'=主機器, 'S'=SC分岐, ' '=未設定。
+    /// </summary>
+    public char CircuitDivision { get; set; } = ' ';
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>

@@ -116,7 +116,8 @@ public sealed class MainCircuitBuilder
         ret = CheckEquipmentInformation(parse);
         if (ret != 0) return ret;
 
-        // 5. 回路要素セット。【C原典】Kairo_Kubun_Set()。TODO。
+        // 5. 回路区分セット。【C原典】Kairo_Kubun_Set()。機器の K_Kubun を設定する(エラー返却なし)。
+        SetCircuitDivision(parse);
         // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。TODO。
         // 7. 機器テーブルソート。【C原典】qsort(...,cmp)。TODO。
         // 8. 行種ランクセット。【C原典】Gyosyu_Rank_Set()。TODO。
@@ -843,9 +844,245 @@ public sealed class MainCircuitBuilder
     }
 
     /// <summary>
+    /// 機器種別(計器種別)。【C原典】typedef enum _TYPE(Fyss12.c, 序数はC原典と一致)。
+    /// <see cref="FindEquipmentType"/>(Find_Keiki_Type)が予約語を分類する。
+    /// </summary>
+    private enum EquipmentType : short
+    {
+        /// <summary>その他。【C原典】type_OTHER。</summary>
+        Other = 0,
+        /// <summary>避雷器(LA)。【C原典】type_LA。</summary>
+        La,
+        /// <summary>電力量計(WH)。【C原典】type_WH。</summary>
+        Wh,
+        /// <summary>変流器(CT)。【C原典】type_CT。</summary>
+        Ct,
+        /// <summary>計器用変圧器(VT)。【C原典】type_VT。</summary>
+        Vt,
+        /// <summary>ヒューズ(F)。【C原典】type_F。</summary>
+        F,
+        /// <summary>零相変流器(ZCT)。【C原典】type_ZCT。</summary>
+        Zct,
+        /// <summary>配線用遮断器(MCB)。【C原典】type_MCB。</summary>
+        Mcb,
+        /// <summary>開閉器(SB)。【C原典】type_SB。</summary>
+        Sb,
+        /// <summary>表示灯(WL/GL/RL/OL/BL/HM/FL/CR)。【C原典】type_XL。</summary>
+        Xl,
+        /// <summary>電流計(AM)。【C原典】type_AM。</summary>
+        Am,
+        /// <summary>電流計切替スイッチ(AS)。【C原典】type_AS。</summary>
+        As,
+        /// <summary>避雷器(SC)。【C原典】type_SC。</summary>
+        Sc,
+        /// <summary>電圧計(VM)。【C原典】type_VM。</summary>
+        Vm,
+        /// <summary>電圧計切替スイッチ(VS)。【C原典】type_VS(96.07.26 追加)。</summary>
+        Vs,
+    }
+
+    /// <summary>
+    /// 計器グループパターン(計器の並びパターン → まとめて回路区分'K')。
+    /// 【C原典】typedef struct _PATTERN と静的テーブル def_ptn[](Fyss12.c)。
+    /// C原典の string(カンマ連結予約語)・kazu(構成数)・type のみを保持する
+    /// (id / retu[] / top_flg は本処理 Kairo_Kubun_Set では未使用)。
+    /// </summary>
+    /// <param name="PatternString">パターン文字列(カンマ連結)。【C原典】string。</param>
+    /// <param name="Count">構成機器数。【C原典】kazu。</param>
+    /// <param name="Type">先頭機器種別。【C原典】type。</param>
+    private readonly record struct EquipmentPattern(string PatternString, short Count, EquipmentType Type);
+
+    /// <summary>
+    /// 計器グループパターン表。【C原典】static PATTERN def_ptn[](Fyss12.c)。
+    /// </summary>
+    private static readonly EquipmentPattern[] Patterns =
+    [
+        new("LA", 1, EquipmentType.La),
+        new("WH", 1, EquipmentType.Wh),
+        new("CT,WH", 2, EquipmentType.Ct),
+        new("CT,WH,AM", 3, EquipmentType.Ct),
+        new("CT,WH,AS,AM", 4, EquipmentType.Ct),
+        new("VT,WH", 2, EquipmentType.Vt),
+        new("VT,CT,WH", 3, EquipmentType.Vt),
+        new("VT,CT,WH,AM", 4, EquipmentType.Vt),
+        new("VT,CT,WH,AS,AM", 5, EquipmentType.Vt),
+        new("CT,AM", 2, EquipmentType.Ct),
+        new("CT,AS,AM", 3, EquipmentType.Ct),
+        new("F,VM", 2, EquipmentType.F),
+        new("VT,VM", 2, EquipmentType.Vt),
+        new("F,VT,VM", 3, EquipmentType.F),
+        new("F,VT,VS,VM", 4, EquipmentType.F),
+        new("F,VS,VM,XL", 4, EquipmentType.F),
+        new("F,XL", 2, EquipmentType.F),
+        new("CT,THR", 2, EquipmentType.Ct),
+        new("CT,THR,AM", 3, EquipmentType.Ct),
+        new("CT,THR,AS,AM", 4, EquipmentType.Ct),
+        new("ZCT,LGR", 2, EquipmentType.Zct),
+        new("MCB,LGR", 2, EquipmentType.Mcb),
+        new("ZCT,ELR", 2, EquipmentType.Zct),
+        new("MCB,ELR", 2, EquipmentType.Mcb),
+        new("MCB,ELR", 2, EquipmentType.Mcb),
+        new("SB,LGR", 2, EquipmentType.Sb),
+        new("SB,ELR", 2, EquipmentType.Sb),
+        new("F,ELR", 2, EquipmentType.F),
+    ];
+
+    /// <summary>
+    /// 予約語(計器種別)の分類。【C原典】Find_Keiki_Type(P_CHAR yoyakugo)(Fyss12.c)。
+    /// 表示灯系(WL/GL/RL/OL/BL/HM/FL/CR)はいずれも <see cref="EquipmentType.Xl"/>。
+    /// SB は C原典 Find_Keiki_Type では分類されない(常に type_OTHER)。
+    /// </summary>
+    private static EquipmentType FindEquipmentType(string yoyakugo) => yoyakugo switch
+    {
+        "LA" => EquipmentType.La,
+        "WH" => EquipmentType.Wh,
+        "CT" => EquipmentType.Ct,
+        "VT" => EquipmentType.Vt,
+        "F" => EquipmentType.F,
+        "ZCT" => EquipmentType.Zct,
+        "MCB" => EquipmentType.Mcb,
+        "WL" or "GL" or "RL" or "OL" or "BL" or "HM" or "FL" or "CR" => EquipmentType.Xl,
+        "VM" => EquipmentType.Vm,
+        "AS" => EquipmentType.As,
+        "AM" => EquipmentType.Am,
+        "SC" => EquipmentType.Sc,
+        "VS" => EquipmentType.Vs,
+        _ => EquipmentType.Other,
+    };
+
+    /// <summary>
+    /// 計器名の正規化。表示灯系(WL/GL/OL/RL/FL/BL)はパターン照合上 "XL" に置換する。
+    /// 【C原典】Kairo_Kubun_Set 内の yoyakugo→"XL" 置換(HM/CR は置換対象外)。
+    /// </summary>
+    private static string MeterName(string yoyaku)
+        => yoyaku is "WL" or "GL" or "OL" or "RL" or "FL" or "BL" ? "XL" : yoyaku;
+
+    /// <summary>
+    /// 回路区分セット(機器テーブルの K_Kubun を機器種別・行種・計器パターンに応じて設定)。
+    /// 【C原典】Kairo_Kubun_Set(Fyss12.c:3425)。エラー返却はなく、機器テーブルを直接更新する。
+    ///
+    ///   ・基本  : 行種 PM なら'K'、それ以外は'M'。
+    ///   ・SC    : 直後機器が同一行種グループなら'S'、異なる/末尾なら'M'。
+    ///   ・ZCT   : 'K'。行種 TM/M では直後 LGR/ELR、それ以外では直後 ELR を'K'として取り込む。
+    ///   ・計器  : (VS/LA/CT/VT/WH/F/AM)。基本区分を設定後、計器パターン表と前方の並びを
+    ///             照合し、一致すれば構成機器すべてを'K'にして先頭を進める。
+    ///   ・MCB/SB: 'M'。直後 LGR があれば両者'K'として取り込む。
+    ///   ・XL/VM/AS: 'K'。
+    /// </summary>
+    private static void SetCircuitDivision(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> kiki = parse.MainEquipment;
+        int count = kiki.Count;
+        int i = 0;
+
+        while (i < count)
+        {
+            EquipmentTableEntry s = kiki[i];
+            EquipmentType findtype = FindEquipmentType(s.ReservedWord);
+            // 【C原典】S_Gyosyu = Find_Gyosyu((S_Kiki+i)->G_No, ...); S_Gyosyu->gyosyu。
+            string gyosyu = FindLineType(parse, s.GroupNumber)?.LineType ?? string.Empty;
+
+            // 【C原典】基本的回路区分。
+            s.CircuitDivision = gyosyu == "PM" ? 'K' : 'M';
+
+            // 【C原典】ＳＣ。
+            if (findtype == EquipmentType.Sc)
+            {
+                if (i + 1 < count)
+                {
+                    s.CircuitDivision = s.GroupNumber == kiki[i + 1].GroupNumber ? 'S' : 'M';
+                }
+                else
+                {
+                    s.CircuitDivision = 'M';
+                }
+            }
+            // 【C原典】ＺＣＴ。
+            else if (findtype == EquipmentType.Zct)
+            {
+                s.CircuitDivision = 'K';
+                if (gyosyu is "TM" or "M") // 【C原典】950907
+                {
+                    // 【C原典】ＬＧＲ・ＥＬＲ。
+                    if (i + 1 < count && kiki[i + 1].ReservedWord is "LGR" or "ELR")
+                    {
+                        kiki[i + 1].CircuitDivision = 'K';
+                        i++;
+                    }
+                }
+                else
+                {
+                    if (i + 1 < count && kiki[i + 1].ReservedWord == "ELR")
+                    {
+                        kiki[i + 1].CircuitDivision = 'K';
+                        i++;
+                    }
+                }
+            }
+            // 【C原典】その他の計器(VS/LA/CT/VT/WH/F/AM)。
+            else if (findtype is EquipmentType.Vs or EquipmentType.La or EquipmentType.Ct
+                     or EquipmentType.Vt or EquipmentType.Wh or EquipmentType.F or EquipmentType.Am)
+            {
+                if (findtype is EquipmentType.Vs or EquipmentType.F or EquipmentType.La or EquipmentType.Vt)
+                {
+                    s.CircuitDivision = 'K';
+                }
+                if (findtype is EquipmentType.Ct or EquipmentType.Wh or EquipmentType.Am)
+                {
+                    s.CircuitDivision = 'M';
+                }
+
+                int maxj = 0;
+                // 【C原典】Search_Pattern_Name で findtype に一致する全パターンを走査する。
+                foreach (EquipmentPattern p in Patterns)
+                {
+                    if (p.Type != findtype) continue;
+                    int kazu = p.Count;
+
+                    // 【C原典】先頭から kazu 個の予約語をカンマ連結(表示灯系は "XL" 置換)。
+                    //   途中で機器テーブル末尾に達したら連結を打ち切る(→ 完全一致せず不一致扱い)。
+                    string candidate = MeterName(kiki[i].ReservedWord);
+                    for (int j = 1; j < kazu; j++)
+                    {
+                        if (i + j >= count) break;
+                        candidate += "," + MeterName(kiki[i + j].ReservedWord);
+                    }
+
+                    if (p.PatternString == candidate)
+                    {
+                        for (int j = 0; j < kazu; j++)
+                        {
+                            kiki[i + j].CircuitDivision = 'K';
+                        }
+                        if (maxj < kazu - 1) maxj = kazu - 1;
+                    }
+                }
+                i = maxj + i;
+            }
+            // 【C原典】ＭＣＢ・ＳＢ(直後 LGR の取り込み)。
+            else if (findtype is EquipmentType.Mcb or EquipmentType.Sb)
+            {
+                s.CircuitDivision = 'M';
+                if (i + 1 < count && kiki[i + 1].ReservedWord == "LGR")
+                {
+                    s.CircuitDivision = 'K';
+                    kiki[i + 1].CircuitDivision = 'K';
+                    i++;
+                }
+            }
+            // 【C原典】ＶＭ・ＡＳ・ＸＬ。
+            else if (findtype is EquipmentType.Xl or EquipmentType.Vm or EquipmentType.As)
+            {
+                s.CircuitDivision = 'K';
+            }
+
+            i++;
+        }
+    }
+
+    /// <summary>
     /// 電気パラメータ同一チェック。
-    /// 【C原典】Ele_Equal_Check(short i_Kikic, struct KIKITABLE* P_Kiki, ...)(Fyss12.c:4567)。
-    /// 同一機器認識番号(ysno)を持つ機器の電気パラメータ(key_tbl)が一致するかを検証する。
+    /// 【C原典】Ele_Equal_Check(short i_Kikic, struct KIKITABLE* P_Kiki, ...)(Fyss12.c:4567)。    /// 同一機器認識番号(ysno)を持つ機器の電気パラメータ(key_tbl)が一致するかを検証する。
     ///
     /// 本フェーズ(E.3)では E.2 で移植済みの型 <b>MCDT/CSDT/MC</b> と、
     /// key_tbl 比較を伴わない <b>TSW</b> を移植する。

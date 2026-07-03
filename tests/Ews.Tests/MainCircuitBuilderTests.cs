@@ -607,4 +607,159 @@ public sealed class MainCircuitBuilderTests
 
         Assert.True(result.IsValid);
     }
+
+    // ==== E.5: Kairo_Kubun_Set(回路区分セット) ====
+
+    [Fact]
+    public void KairoKubun_CT_WHパターンは両方K()
+    {
+        // 【C原典】計器パターン "CT,WH" 一致 → 構成機器すべて K_Kubun='K'。
+        var ct = Kiki("CT", "0", 1, 0);
+        var wh = Kiki("WH", "0", 2, 0);
+        var result = RunEleEqual(ct, wh);
+
+        Assert.True(result.IsValid);
+        Assert.Equal('K', ct.CircuitDivision);
+        Assert.Equal('K', wh.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_単独CTはM()
+    {
+        // 【C原典】CT 単独はパターン不一致 → 基本区分 'M'(CT/WH/AM は 'M')。
+        var ct = Kiki("CT", "0", 1, 0);
+        RunEleEqual(ct);
+
+        Assert.Equal('M', ct.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_MCB単独はM_MCB_LGRは両方K()
+    {
+        // 【C原典】MCB は 'M'。直後 LGR があれば両者 'K' として取り込む。
+        var mcbAlone = Kiki("MCB", "0", 1, 0);
+        RunEleEqual(mcbAlone);
+        Assert.Equal('M', mcbAlone.CircuitDivision);
+
+        var mcb = Kiki("MCB", "0", 1, 0);
+        var lgr = Kiki("LGR", "0", 2, 0);
+        RunEleEqual(mcb, lgr);
+        Assert.Equal('K', mcb.CircuitDivision);
+        Assert.Equal('K', lgr.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_ZCT_ELRは両方K()
+    {
+        // 【C原典】ZCT は 'K'。行種 TM/M 以外では直後 ELR を 'K' として取り込む。
+        var zct = Kiki("ZCT", "0", 1, 0);
+        var elr = Kiki("ELR", "0", 2, 0);
+        RunEleEqual(zct, elr);
+
+        Assert.Equal('K', zct.CircuitDivision);
+        Assert.Equal('K', elr.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_ZCT_LGRは行種未指定ではLGRを取り込まない()
+    {
+        // 【C原典】行種 TM/M 以外では直後 LGR は取り込まない(ELR のみ)。ZCT='K', LGR は基本区分 'M'。
+        var zct = Kiki("ZCT", "0", 1, 0);
+        var lgr = Kiki("LGR", "0", 2, 0);
+        RunEleEqual(zct, lgr);
+
+        Assert.Equal('K', zct.CircuitDivision);
+        Assert.Equal('M', lgr.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_ZCT_LGRは行種TMで両方K()
+    {
+        // 【C原典】行種 TM/M では直後 LGR/ELR を 'K' として取り込む(950907)。
+        //   有効な行種構成(系統1: P→TM→M)を用意し、ZCT/LGR を TM グループに属させる。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P",  '1', 1, groupNumber: 1),
+            Gyo(1, "TM", '1', 2, groupNumber: 2),
+            Gyo(1, "M",  '1', 3, groupNumber: 3),
+        };
+        var zct = KikiG("ZCT", "0", groupNumber: 2, row: 2, column: 0);
+        var lgr = KikiG("LGR", "0", groupNumber: 2, row: 2, column: 1);
+        RunYoyakugo(lineTypes, zct, lgr);
+
+        Assert.Equal('K', zct.CircuitDivision);
+        Assert.Equal('K', lgr.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_F_VMパターンは両方K()
+    {
+        // 【C原典】計器パターン "F,VM" 一致 → 両者 'K'(F は既定でも 'K')。
+        var f = Kiki("F", "0", 1, 0);
+        var vm = Kiki("VM", "0", 2, 0);
+        RunEleEqual(f, vm);
+
+        Assert.Equal('K', f.CircuitDivision);
+        Assert.Equal('K', vm.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_表示灯WL単独はK()
+    {
+        // 【C原典】XL(表示灯 WL/GL/RL/OL/BL/HM/FL/CR)は 'K'。
+        var wl = Kiki("WL", "0", 1, 0);
+        var asw = Kiki("AS", "0", 2, 0);
+        RunEleEqual(wl, asw);
+
+        Assert.Equal('K', wl.CircuitDivision);
+        Assert.Equal('K', asw.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_SC直後同一グループはS()
+    {
+        // 【C原典】SC は直後機器が同一行種グループなら 'S'。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P", '1', 1, groupNumber: 1),
+            Gyo(1, "S", '1', 2, groupNumber: 2),
+        };
+        var sc = KikiG("SC", "0", groupNumber: 2, row: 2, column: 0);
+        var mcb = KikiG("MCB", "0", groupNumber: 2, row: 2, column: 1);
+        RunYoyakugo(lineTypes, sc, mcb);
+
+        Assert.Equal('S', sc.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_SC直後別グループはM()
+    {
+        // 【C原典】SC は直後機器が別グループなら 'M'。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P", '1', 1, groupNumber: 1),
+            Gyo(1, "S", '1', 2, groupNumber: 2),
+        };
+        var sc = KikiG("SC", "0", groupNumber: 2, row: 2, column: 0);
+        var mcb = KikiG("MCB", "0", groupNumber: 3, row: 3, column: 0);
+        RunYoyakugo(lineTypes, sc, mcb);
+
+        Assert.Equal('M', sc.CircuitDivision);
+    }
+
+    [Fact]
+    public void KairoKubun_行種PMの機器はK()
+    {
+        // 【C原典】基本的回路区分: 行種 PM の機器は 'K'。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P",  '1', 1, groupNumber: 1),
+            Gyo(1, "PM", '1', 2, groupNumber: 2),
+            Gyo(1, "M",  '1', 3, groupNumber: 3),
+        };
+        var dev = KikiG("MCCB", "0", groupNumber: 2, row: 2, column: 0);
+        RunYoyakugo(lineTypes, dev);
+
+        Assert.Equal('K', dev.CircuitDivision);
+    }
 }

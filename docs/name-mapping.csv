@@ -126,3 +126,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Yoyakugo_Check_SC,MainCircuitBuilder.CheckShuntPosition,toku/sekkei/src/Fyss12.c,SC位置チェック(PM直後同一グループFY-656E/O/B/S/BO可/他FY-649E)
 関数,Yoyakugo_Check_TR,MainCircuitBuilder.CheckTransformerDuplicate,toku/sekkei/src/Fyss12.c,TR番号付き不可(FY-683E)。2電源TR(key_tbl.tr)はE.4b保留
 関数,Yoyakugo_Check_OTHER,MainCircuitBuilder.CheckOtherDuplicate,toku/sekkei/src/Fyss12.c,一般機器の重複チェック(MC?MG/一般同番号FY-682E)。LGR/ELR外部取付(Kakko)はE.4b保留
+関数,Kairo_Kubun_Set,MainCircuitBuilder.SetCircuitDivision,toku/sekkei/src/Fyss12.c,回路区分セット(機器のK_Kubunを機器種別/行種/計器パターンで設定。エラー返却なし)
+関数,Find_Keiki_Type,MainCircuitBuilder.FindEquipmentType,toku/sekkei/src/Fyss12.c,予約語→計器種別(TYPE)分類。SBは分類対象外
+列挙,enum _TYPE,MainCircuitBuilder.EquipmentType,toku/sekkei/src/Fyss12.c,計器種別(type_LA/WH/CT等)
+テーブル,def_ptn/struct _PATTERN,MainCircuitBuilder.Patterns/EquipmentPattern,toku/sekkei/src/Fyss12.c,計器グループパターン表(string/kazu/type。id/retu/top_flgは未使用)
+フィールド,KIKITABLE.K_Kubun,EquipmentTableEntry.CircuitDivision,toku/include/sekkei/struct.h,回路区分(K=計器/機器グループ M=主機器 S=SC分岐)
