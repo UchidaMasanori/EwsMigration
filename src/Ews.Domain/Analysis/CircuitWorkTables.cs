@@ -202,6 +202,13 @@ public sealed class EquipmentTableEntry
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>
     public Dictionary<string, string> Attributes { get; } = new();
+
+    /// <summary>
+    /// 定格キー(電気パラメータ)値。【C原典】KIKITABLE の <c>key_tbl</c>(union fyrt811)。
+    /// 電気パラメータ検証(Fyss1d key_check_&lt;TYPE&gt;)で格納され、
+    /// Ele_Equal_Check(Fyss12 step3)等の後段チェックが参照する。未検証時は null。
+    /// </summary>
+    public RatingValues? RatingValues { get; set; }
 }
 
 /// <summary>

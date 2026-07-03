@@ -1,4 +1,5 @@
 using Ews.Analysis;
+using Ews.Domain.Analysis;
 using Xunit;
 
 namespace Ews.Tests;

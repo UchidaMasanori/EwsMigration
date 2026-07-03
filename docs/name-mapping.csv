@@ -110,9 +110,11 @@
 関数,TR_check_main/key_check_TR,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き)、E.2bで移植予定
 構造体/モデル,TKAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sin/FySinTkakt.h,定格キー1記号仕様(symbol/len/d_len/num/flag)
 テーブル,tkak_tbl/t_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,予約語→定格キー表(E.1は基本機種の第1バッチ)
-union,fyrt811/key_tbl,ElectricalParameterChecker.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)
+union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)。E.3でDomainへ移動(KIKITABLEが保持)
 関数,Fyss12_Make_Main,MainCircuitBuilder.MakeMain,toku/sekkei/src/Fyss12.c,主回路生成の統括(17段)
 関数,Keitou_Check,MainCircuitBuilder.CheckSystemComposition,toku/sekkei/src/Fyss12.c,系統チェック(系統内行種検証)
+関数,Ele_Equal_Check,MainCircuitBuilder.CheckElectricalParameterEquality,toku/sekkei/src/Fyss12.c,同一ysno機器の電気パラメータ同一検証(MCDT/CSDT/MC/TSW。R系はE.3b保留)。FY-630E/631E
+フィールド,KIKITABLE.key_tbl,EquipmentTableEntry.RatingValues,toku/include/sekkei/struct.h,機器テーブルの定格キー値(電気パラメータ)
 関数,Find_Gyosyu_Sym,MainCircuitBuilder.FindLineTypeSymbol,toku/sekkei/src/Fyss12.c,行種文字列→シンボル分類
 列挙,SYMBOL,MainCircuitBuilder.LineTypeSymbol,toku/sekkei/src/Fyss12.c,行種シンボル(sym_NP等)
 関数,Gyosyu_Check,MainCircuitBuilder.CheckLineTypeHierarchy,toku/sekkei/src/Fyss12.c,行種関連チェック(上下関係, 改訂<15>PM行27A/27B/27C例外)

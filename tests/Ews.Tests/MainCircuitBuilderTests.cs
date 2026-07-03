@@ -303,4 +303,133 @@ public sealed class MainCircuitBuilderTests
 
         Assert.Contains(result.Errors, e => e.ErrorCode == "FY-677E");
     }
+
+    // ==== E.3: Ele_Equal_Check(電気パラメータ同一チェック) ====
+
+    /// <summary>機器テーブル1件を生成する。【C原典】struct KIKITABLE の主要フィールド。</summary>
+    private static EquipmentTableEntry Kiki(
+        string reservedWord, string ysno, short row = 1, short column = 0,
+        params (string Field, string Value)[] rating)
+    {
+        var kiki = new EquipmentTableEntry
+        {
+            ReservedWord = reservedWord,        // 【C原典】yoyaku
+            ReservedWordNumber = ysno,          // 【C原典】ysno
+            LineNumber = row,                   // 【C原典】K_Gyo
+            Column = column,                    // 【C原典】K_Ket
+        };
+        if (rating.Length > 0)
+        {
+            var values = new RatingValues(reservedWord); // 【C原典】key_tbl
+            foreach ((string field, string value) in rating)
+            {
+                values.Set(field, value);
+            }
+            kiki.RatingValues = values;
+        }
+        return kiki;
+    }
+
+    private static CircuitParseResult RunEleEqual(params EquipmentTableEntry[] equipment)
+    {
+        var parse = new CircuitParseResult();
+        parse.MainEquipment.AddRange(equipment);
+        new MainCircuitBuilder().MakeMain(parse);
+        return parse;
+    }
+
+    [Fact]
+    public void EleEqual_MCDTペアで定格一致は正常()
+    {
+        // 【C原典】同一 ysno の MCDT が2件、p/a/v/vc 一致 → エラーなし。
+        var result = RunEleEqual(
+            Kiki("MCDT", "1", 1, 0, ("p", "3"), ("a", "100"), ("v", "200"), ("vc", "110")),
+            Kiki("MCDT", "1", 2, 0, ("p", "3"), ("a", "100"), ("v", "200"), ("vc", "110")));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void EleEqual_MCDT単独はFY630E()
+    {
+        // 【C原典】同一 ysno のペアが存在しない(n != 1) → FY-630E。
+        var result = RunEleEqual(
+            Kiki("MCDT", "1", 5, 0, ("p", "3")));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-630E" && e.LineNumber == 5);
+    }
+
+    [Fact]
+    public void EleEqual_MCDTペアで定格不一致はFY630E()
+    {
+        // 【C原典】ペアだが v が異なる → FY-630E。
+        var result = RunEleEqual(
+            Kiki("MCDT", "1", 3, 0, ("p", "3"), ("a", "100"), ("v", "200"), ("vc", "110")),
+            Kiki("MCDT", "1", 4, 0, ("p", "3"), ("a", "100"), ("v", "400"), ("vc", "110")));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-630E");
+    }
+
+    [Fact]
+    public void EleEqual_CSDTペアで定格一致は正常()
+    {
+        // 【C原典】CSDT は p/a/v/fv を比較する。
+        var result = RunEleEqual(
+            Kiki("CSDT", "2", 1, 0, ("p", "2"), ("a", "100"), ("v", "200"), ("fv", "A")),
+            Kiki("CSDT", "2", 2, 0, ("p", "2"), ("a", "100"), ("v", "200"), ("fv", "A")));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void EleEqual_MC_2件目に入力がありFY631E()
+    {
+        // 【C原典】MC の2件目以降が非空 → FY-631E。
+        var result = RunEleEqual(
+            Kiki("MC", "1", 1, 0, ("p", "3"), ("a", "100")),
+            Kiki("MC", "1", 7, 0, ("p", "3")));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-631E" && e.LineNumber == 7);
+    }
+
+    [Fact]
+    public void EleEqual_MC_2件目が空なら基準値を複写する()
+    {
+        // 【C原典】MC の2件目が空 → 基準(1件目)の p/a/v/fv 等を複写。
+        var baseMc = Kiki("MC", "1", 1, 0, ("p", "3"), ("a", "100"), ("v", "200"), ("fv", "A"));
+        var dupMc = Kiki("MC", "1", 2, 0);
+
+        var parse = new CircuitParseResult();
+        parse.MainEquipment.Add(baseMc);
+        parse.MainEquipment.Add(dupMc);
+        new MainCircuitBuilder().MakeMain(parse);
+
+        Assert.True(parse.IsValid);
+        Assert.NotNull(dupMc.RatingValues);
+        Assert.Equal("3", dupMc.RatingValues!.Get("p"));
+        Assert.Equal("100", dupMc.RatingValues.Get("a"));
+        Assert.Equal("200", dupMc.RatingValues.Get("v"));
+        Assert.Equal("A", dupMc.RatingValues.Get("fv"));
+    }
+
+    [Fact]
+    public void EleEqual_TSW重複はFY630E()
+    {
+        // 【C原典】同一 ysno の TSW が複数 → FY-630E。
+        var result = RunEleEqual(
+            Kiki("TSW", "1", 8, 0),
+            Kiki("TSW", "1", 9, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-630E" && e.LineNumber == 8);
+    }
+
+    [Fact]
+    public void EleEqual_ysnoが0の機器は対象外()
+    {
+        // 【C原典】ysno==0(atoi)は継続(チェック対象外)。単独 MCDT でもエラーなし。
+        var result = RunEleEqual(
+            Kiki("MCDT", "0", 1, 0, ("p", "3")));
+
+        Assert.True(result.IsValid);
+    }
 }

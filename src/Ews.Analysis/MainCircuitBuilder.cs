@@ -108,7 +108,9 @@ public sealed class MainCircuitBuilder
         ret = CheckLineTypeHierarchy(parse, designArea);
         if (ret != 0) return ret;
 
-        // 3. 電気パラメータ同一チェック。【C原典】Ele_Equal_Check()(前段は無効化、後段で実行)。TODO。
+        // 3. 電気パラメータ同一チェック。【C原典】Ele_Equal_Check()。
+        //    C原典では前段(この位置)の呼び出しはコメントアウト(無効化)されており、
+        //    実際の実行は後段(step16, ソート・機器追加後)。本移植も後段で実行する。
         // 4. 機器情報関連チェック。【C原典】Yoyakugo_Check_Double()。TODO。
         // 5. 回路要素セット。【C原典】Kairo_Kubun_Set()。TODO。
         // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。TODO。
@@ -122,7 +124,11 @@ public sealed class MainCircuitBuilder
         // 13.5 WH のランク再設定。【C原典】WH_Rank_Set()(改訂<14>)。TODO。
         // 14. グループセット。【C原典】Kairo_Group_Set()(C原典でも無効化)。
         // 15/16. 同一機器認識番号セット。【C原典】Kiki_Equal_Bangou_Set()(C原典でも無効化)。
-        //        電気パラメータ同一チェック。【C原典】Ele_Equal_Check()。TODO。
+
+        // 16. 電気パラメータ同一チェック。【C原典】Ele_Equal_Check()(有効な後段呼び出し)。
+        ret = CheckElectricalParameterEquality(parse);
+        if (ret != 0) return ret;
+
         // 17. 主回路ファイルエリア作成/数量分解。【C原典】Fyss12_Make_Main_Sub()。TODO。
         //     入力順チェック。【C原典】Fyss1m_Input_Check()。TODO。
         // 19. ＩＮＶＢＰの区分設定。【C原典】PropSetInvbpKbn(*Pmainc,Pmaina,imagec,imagea)(改訂<16>)。TODO。
@@ -554,6 +560,221 @@ public sealed class MainCircuitBuilder
     {
         int gyonoi = int.TryParse(g.DescriptionRow, out int value) ? value : 0; // 【C原典】gyonoi = atoi(K_Gyo)
         parse.Errors.Add(new CircuitParseError(errorCode, gyonoi, 0, "FYMEE80"));
+    }
+
+    /// <summary>
+    /// 電気パラメータ同一チェック。
+    /// 【C原典】Ele_Equal_Check(short i_Kikic, struct KIKITABLE* P_Kiki, ...)(Fyss12.c:4567)。
+    /// 同一機器認識番号(ysno)を持つ機器の電気パラメータ(key_tbl)が一致するかを検証する。
+    ///
+    /// 本フェーズ(E.3)では E.2 で移植済みの型 <b>MCDT/CSDT/MC</b> と、
+    /// key_tbl 比較を伴わない <b>TSW</b> を移植する。
+    /// R系(LGR/ELR/RRY)は ma[3][3](inum 添字配列)を用いるため E.2 と同様に後続フェーズへ保留する。
+    /// </summary>
+    /// <param name="parse">解析結果(機器テーブル P_Kiki とエラー領域)。</param>
+    /// <returns>0=正常, 2=エラー打切り。【C原典】return(0)/return(2)。</returns>
+    private static short CheckElectricalParameterEquality(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> kiki = parse.MainEquipment;
+        int count = kiki.Count;
+
+        // ── MCDT ────────────────────────────────────────────────
+        // 【C原典】key_tbl.mcdt の p/a/v/vc を比較する。
+        for (int i = 0; i < count; i++)
+        {
+            int ysnoi = AtoiYsno(kiki[i].ReservedWordNumber);
+            if (ysnoi == 0) continue;
+            if (kiki[i].ReservedWord != "MCDT") continue; // 【C原典】strcmp(yoyaku,"MCDT")
+
+            // 【C原典】次のMCDTを探す(同一 ysno の個数 n と最初の出現位置 k)。
+            int n = 0, k = 0;
+            for (int j = 0; j < count; j++)
+            {
+                if (j == i) continue;
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (kiki[j].ReservedWord == "MCDT" && ysnoj == ysnoi)
+                {
+                    n++;
+                    if (n == 1) k = j;
+                }
+            }
+
+            if (k > i) continue;               // 【C原典】以前にチェック済み
+            if (n != 1)                        // 【C原典】ペア(2つ)でない
+            {
+                AddEquipmentError(parse, "FY-630E", kiki[i]);
+                return 2;
+            }
+            if (!RatingFieldEquals(kiki[i], kiki[k], "p") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "a") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "v") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "vc"))
+            {
+                AddEquipmentError(parse, "FY-630E", kiki[i]);
+                return 2;
+            }
+        }
+
+        // ── CSDT ────────────────────────────────────────────────
+        // 【C原典】key_tbl.csdt の p/a/v/fv を比較する。
+        for (int i = 0; i < count; i++)
+        {
+            int ysnoi = AtoiYsno(kiki[i].ReservedWordNumber);
+            if (ysnoi == 0) continue;
+            if (kiki[i].ReservedWord != "CSDT") continue;
+
+            int n = 0, k = 0;
+            for (int j = 0; j < count; j++)
+            {
+                if (j == i) continue;
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (kiki[j].ReservedWord == "CSDT" && ysnoi == ysnoj)
+                {
+                    n++;
+                    if (n == 1) k = j;
+                }
+            }
+
+            if (k > i) continue;
+            if (n != 1)
+            {
+                AddEquipmentError(parse, "FY-630E", kiki[i]);
+                return 2;
+            }
+            if (!RatingFieldEquals(kiki[i], kiki[k], "p") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "a") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "v") ||
+                !RatingFieldEquals(kiki[i], kiki[k], "fv"))
+            {
+                AddEquipmentError(parse, "FY-630E", kiki[i]);
+                return 2;
+            }
+        }
+
+        // ── MC(950227)─────────────────────────────────────────
+        // 【C原典】先頭の MC を基準に、2つ目以降の同一 ysno は入力空を要求(空でなければ FY-631E)、
+        //          その後、基準 MC の値を複写する。
+        for (int i = 0; i < count; i++)
+        {
+            if (kiki[i].ReservedWord != "MC") continue;
+            int ysnoi = AtoiYsno(kiki[i].ReservedWordNumber);
+            if (ysnoi == 0) continue;
+
+            // 【C原典】チェック済みかを判定(i より前に同一 ysno の MC があれば済み)。
+            bool alreadyChecked = false;
+            for (int j = i - 1; j >= 0; j--)
+            {
+                if (kiki[j].ReservedWord != "MC") continue;
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (ysnoj == 0) continue;
+                if (ysnoi == ysnoj) { alreadyChecked = true; break; }
+            }
+            if (alreadyChecked) continue;
+
+            // 【C原典】2つ目以降の入力はエラー(空でなければ FY-631E)、空なら基準値を複写。
+            for (int j = i + 1; j < count; j++)
+            {
+                if (kiki[j].ReservedWord != "MC") continue;
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (ysnoi != ysnoj) continue;
+
+                if (RatingHasAny(kiki[j], "p", "kw", "a", "v", "ac", "bc", "vc"))
+                {
+                    AddEquipmentError(parse, "FY-631E", kiki[j]);
+                    return 2;
+                }
+
+                // 【C原典】p/kw/a/fv/v/fvc/vc/ac/bc を複写(DTYPE も複写するが未モデル化のため対象外)。
+                CopyMcRatingFields(kiki[i], kiki[j]);
+            }
+        }
+
+        // ── LGR/ELR/RRY(R系)──────────────────────────────────
+        // 【C原典】key_tbl.lgr/elr/rry(ma[3][3] inum 添字配列)を複写・比較する。
+        // E.2 で R系は未移植のため、本チェックも後続フェーズ(E.3b)へ保留する。
+        // 参照: Fyss12.c Ele_Equal_Check LGR/ELR@4776, RRY@4869。
+
+        // ── TSW ─────────────────────────────────────────────────
+        // 【C原典】同一 ysno の TSW が複数存在したらエラー(key_tbl 比較なし)。
+        for (int i = 0; i < count; i++)
+        {
+            int ysnoi = AtoiYsno(kiki[i].ReservedWordNumber);
+            if (ysnoi == 0) continue;
+            if (kiki[i].ReservedWord != "TSW") continue;
+
+            for (int j = i + 1; j < count; j++)
+            {
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (kiki[j].ReservedWord == "TSW" && ysnoj == ysnoi)
+                {
+                    AddEquipmentError(parse, "FY-630E", kiki[i]);
+                    return 2;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// 機器認識番号(ysno)を整数化する。【C原典】atoi(P_Kiki[].ysno)。
+    /// 先頭の連続する数字のみを解釈し、非数字で打ち切る。
+    /// </summary>
+    private static int AtoiYsno(string s)
+    {
+        int i = 0;
+        while (i < s.Length && (s[i] == ' ' || s[i] == '\t')) i++;
+        int sign = 1;
+        if (i < s.Length && (s[i] == '+' || s[i] == '-'))
+        {
+            if (s[i] == '-') sign = -1;
+            i++;
+        }
+        long value = 0;
+        while (i < s.Length && s[i] >= '0' && s[i] <= '9')
+        {
+            value = value * 10 + (s[i] - '0');
+            i++;
+        }
+        return (int)(sign * value);
+    }
+
+    /// <summary>2機器の定格キー同一フィールドが等しいか。【C原典】memcmp/比較。未格納(null)同士も一致扱い。</summary>
+    private static bool RatingFieldEquals(EquipmentTableEntry a, EquipmentTableEntry b, string field)
+        => string.Equals(a.RatingValues?.Get(field), b.RatingValues?.Get(field), StringComparison.Ordinal);
+
+    /// <summary>指定フィールドのいずれかが格納済みか。【C原典】field[0] != '\0' の OR。</summary>
+    private static bool RatingHasAny(EquipmentTableEntry e, params string[] fields)
+    {
+        if (e.RatingValues is null) return false;
+        foreach (string f in fields)
+        {
+            if (e.RatingValues.Has(f)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>基準 MC の定格キー値を複写先へコピーする。【C原典】key_tbl.mc の memcpy 群。</summary>
+    private static void CopyMcRatingFields(EquipmentTableEntry src, EquipmentTableEntry dst)
+    {
+        dst.RatingValues ??= new RatingValues("MC");
+        foreach (string f in new[] { "p", "kw", "a", "fv", "v", "fvc", "vc", "ac", "bc" })
+        {
+            string? value = src.RatingValues?.Get(f);
+            if (value is not null)
+            {
+                dst.RatingValues.Set(f, value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 機器テーブルエントリに対するエラー登録。
+    /// 【C原典】Error_Proc(errcode, atoi(K_Gyo), atoi(K_Ket), "FYMEE80", Perrc, erra)。
+    /// </summary>
+    private static void AddEquipmentError(CircuitParseResult parse, string errorCode, EquipmentTableEntry kiki)
+    {
+        parse.Errors.Add(new CircuitParseError(errorCode, kiki.LineNumber, kiki.Column, "FYMEE80"));
     }
 
     /// <summary>
