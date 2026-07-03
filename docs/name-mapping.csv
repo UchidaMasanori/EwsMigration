@@ -104,11 +104,13 @@
 関数,Check_1_Group,ElectricalParameterChecker.CheckOneGroup,toku/sekkei/src/Fyss1d.c,定格キー表と照合し桁・繰返数検証(FY-699/882/883/884/885E)
 関数,change_parm_data,ElectricalParameterChecker.ChangeParmData,toku/sekkei/src/Fyss1d.c,記号部文字列の切り出し
 関数,digit_skip/not_digit_skip/delimit_skip/piriod_skip,ElectricalParameterChecker.DigitSkip/NotDigitSkip/DelimitSkip/PiriodSkip,toku/sekkei/src/Fyss1d.c,数値/非数値/区切り'･'/ピリオドのスキップ桁数計上
-関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain(スタブ),toku/sekkei/src/Fyss1d.c,値をkey_tbl(union)へ格納し範囲検証(E.2で移植)
-関数,TR_check_main,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(E.2で移植)
+関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain,toku/sekkei/src/Fyss1d.c,値をRatingValues(key_tbl)へ格納し型別に重複・範囲検証(MCB/MC/MG/THR/MCDT/CSDT/SC収録)
+構造体/モデル,key_check_<TYPE>の各if/else分岐,ElectricalParameterChecker.KeyCheckRule/KeyCheckRules,toku/sekkei/src/Fyss1d.c,記号ごとの格納先・範囲・fv/fvc・重複/範囲エラーNo.をデータ駆動化
+関数,atoi/atof,ElectricalParameterChecker.AtoiC/AtofC,toku/sekkei/src/Fyss1d.c,Cのatoi/atofセマンティクス(先頭数値部のみ解釈)
+関数,TR_check_main/key_check_TR,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き)、E.2bで移植予定
 構造体/モデル,TKAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sin/FySinTkakt.h,定格キー1記号仕様(symbol/len/d_len/num/flag)
 テーブル,tkak_tbl/t_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,予約語→定格キー表(E.1は基本機種の第1バッチ)
-union,fyrt811/key_tbl,(E.2で移植),toku/include/sekkei/fyrt811.h,機器種別ごとの電気パラメータ格納union(約90構造体)
+union,fyrt811/key_tbl,ElectricalParameterChecker.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)
 関数,Fyss12_Make_Main,MainCircuitBuilder.MakeMain,toku/sekkei/src/Fyss12.c,主回路生成の統括(17段)
 関数,Keitou_Check,MainCircuitBuilder.CheckSystemComposition,toku/sekkei/src/Fyss12.c,系統チェック(系統内行種検証)
 関数,Find_Gyosyu_Sym,MainCircuitBuilder.FindLineTypeSymbol,toku/sekkei/src/Fyss12.c,行種文字列→シンボル分類
