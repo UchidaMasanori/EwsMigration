@@ -11,9 +11,10 @@ namespace Ews.Data.SqlServer;
 ///   - データ: struct FYDM805 (機器マスター, EWS-ISAM)
 ///   - アクセス: FyIsamRead / FyIsamStartR+FyIsamNextR (品番・予約語キー)
 ///
-/// SQL Server 側は C原典に忠実に PRIMARY キー = (ReservedWord, MakerCode)=(予約語 + メーカーコード)
-/// とし、品番(ALTERNATE キー1, C原典で NULL あり)は NULL 除外のフィルタ付き一意インデックス
-/// (UX_EquipmentMaster_PartNumber)で引く。
+/// SQL Server 側は C原典に忠実に PRIMARY キー = struct p805_key
+/// (ReservedWord + MakerCode + ParameterType + RatingKey)=(予約語 + メーカーコード
+/// + パラメータタイプ + 定格キー)とする。品番(ALTERNATE キー1)は非一意のため、
+/// 品番読みは品番索引 EquipmentPartNumberIndex(=FYDF816)をデータ追番順に走査する。
 /// </summary>
 public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, string>
 {
@@ -25,16 +26,27 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
     }
 
     /// <summary>
-    /// 品番でマスターを1件取得する。【C原典】FyIsamRead(機器マスター, 品番キー)。
+    /// 品番でマスターを1件取得する。
+    /// 【C原典】FyMasFYDM805ByHinban (toku/lib/libmaster/Fyfydm805.c)。
+    /// 品番は非一意のため、品番索引 FYDF816 をデータ追番(datano)順に走査し、
+    /// 先頭(追番 0001 相当)の PRIMARY キーで機器マスターを読む。
     /// </summary>
     public (IsamStatus Status, EquipmentMaster? Record) Read(string partNumber, LockMode lockMode = LockMode.Unlock)
     {
         using var connection = _factory.CreateOpen();
-        EquipmentMaster? record = connection.QuerySingleOrDefault<EquipmentMaster>(
+        EquipmentMaster? record = connection.QueryFirstOrDefault<EquipmentMaster>(
             """
-            SELECT  ReservedWord, MakerCode, PartNumber, PartName, ElectricalParameters
-            FROM    EquipmentMaster
-            WHERE   PartNumber = @PartNumber
+            SELECT  TOP 1
+                    m.ReservedWord, m.MakerCode, m.ParameterType, m.RatingKey,
+                    m.PartNumber, m.PartName, m.ElectricalParameters
+            FROM    EquipmentPartNumberIndex ix
+            JOIN    EquipmentMaster m
+                ON  m.ReservedWord  = ix.ReservedWord
+                AND m.MakerCode     = ix.MakerCode
+                AND m.ParameterType = ix.ParameterType
+                AND m.RatingKey     = ix.RatingKey
+            WHERE   ix.PartNumber = @PartNumber
+            ORDER BY ix.DataNo
             """,
             new { PartNumber = partNumber });
 
@@ -52,10 +64,11 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
         using var connection = _factory.CreateOpen();
         return connection.Query<EquipmentMaster>(
             """
-            SELECT  ReservedWord, MakerCode, PartNumber, PartName, ElectricalParameters
+            SELECT  ReservedWord, MakerCode, ParameterType, RatingKey,
+                    PartNumber, PartName, ElectricalParameters
             FROM    EquipmentMaster
             WHERE   ReservedWord LIKE @Prefix + '%'
-            ORDER BY ReservedWord, MakerCode
+            ORDER BY ReservedWord, MakerCode, ParameterType, RatingKey
             """,
             new { Prefix = reservedWordPrefix }).ToList();
     }
@@ -66,29 +79,39 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
         using var connection = _factory.CreateOpen();
         connection.Execute(
             """
-            INSERT INTO EquipmentMaster (ReservedWord, MakerCode, PartNumber, PartName, ElectricalParameters)
-            VALUES (@ReservedWord, @MakerCode, @PartNumber, @PartName, @ElectricalParameters)
+            INSERT INTO EquipmentMaster
+                (ReservedWord, MakerCode, ParameterType, RatingKey, PartNumber, PartName, ElectricalParameters)
+            VALUES
+                (@ReservedWord, @MakerCode, @ParameterType, @RatingKey, @PartNumber, @PartName, @ElectricalParameters)
             """,
             record);
         return IsamStatus.Ok;
     }
 
-    /// <summary>【C原典】FyIsamRewrite(機器マスター)。</summary>
+    /// <summary>【C原典】FyIsamRewrite(機器マスター)。PRIMARY キー(pkey)で更新。</summary>
     public IsamStatus Rewrite(EquipmentMaster record)
     {
         using var connection = _factory.CreateOpen();
         int affected = connection.Execute(
             """
             UPDATE EquipmentMaster
-            SET    PartName = @PartName,
+            SET    PartNumber = @PartNumber,
+                   PartName = @PartName,
                    ElectricalParameters = @ElectricalParameters
-            WHERE  PartNumber = @PartNumber
+            WHERE  ReservedWord  = @ReservedWord
+              AND  MakerCode     = @MakerCode
+              AND  ParameterType = @ParameterType
+              AND  RatingKey     = @RatingKey
             """,
             record);
         return affected > 0 ? IsamStatus.Ok : IsamStatus.NotFound;
     }
 
-    /// <summary>【C原典】FyIsamDelete(機器マスター)。</summary>
+    /// <summary>
+    /// 品番に一致する機器マスターを削除する。
+    /// 【C原典】FyIsamDelete は PRIMARY キー削除だが、本インターフェースは品番キー。
+    /// 品番は非一意のため、同一品番の全レコードが対象となる。
+    /// </summary>
     public IsamStatus Delete(string partNumber)
     {
         using var connection = _factory.CreateOpen();

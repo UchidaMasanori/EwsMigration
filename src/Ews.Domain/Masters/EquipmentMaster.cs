@@ -21,13 +21,19 @@ public sealed class EquipmentMaster : IIsamRecord
     /// <summary>【C原典】fydm805.h コメント「ﾚｺｰﾄﾞ長 579」。</summary>
     public static int RecordLength => 579;
 
-    // ---- PRIMARY キー(struct p805_key pkey) ----
+    // ---- PRIMARY キー(struct p805_key pkey = yoyaku + mkcd + ptype + teikkey) ----
 
     /// <summary>予約語。【C原典】pkey.yoyaku[8] (CHAR[8])。</summary>
     public string ReservedWord { get; set; } = string.Empty;
 
     /// <summary>メーカーコード。【C原典】pkey.mkcd[3] (CHAR[3])。</summary>
     public string MakerCode { get; set; } = string.Empty;
+
+    /// <summary>パラメータタイプ。【C原典】pkey.ptype[7][7] (CHAR[7][7]=49バイト)。</summary>
+    public string ParameterType { get; set; } = string.Empty;
+
+    /// <summary>定格キー。【C原典】pkey.teikkey[80] (CHAR[80])。</summary>
+    public string RatingKey { get; set; } = string.Empty;
 
     // ---- ALTERNATE キー1 ----
 
@@ -48,7 +54,9 @@ public sealed class EquipmentMaster : IIsamRecord
     // バイトオフセット(struct p805_key と後続フィールドから算出)
     private const int OffsetReservedWord = 0;   // yoyaku[8]
     private const int OffsetMakerCode = 8;      // mkcd[3]
-    // ptype[7][7]=49, teikkey[80] が続き pkey は 140 バイト
+    private const int OffsetParameterType = 11; // ptype[7][7]=49
+    private const int OffsetRatingKey = 60;     // teikkey[80]
+    // pkey は 140 バイト(0..139)
     private const int OffsetPartNumber = 140;   // hinban[15]
     private const int OffsetPartName = 155;     // hinmei[25]
     private const int OffsetElectricalParameters = 180; // pstring[64]
@@ -63,6 +71,8 @@ public sealed class EquipmentMaster : IIsamRecord
         {
             ReservedWord = FixedFieldCodec.ReadText(record, OffsetReservedWord, 8),
             MakerCode = FixedFieldCodec.ReadText(record, OffsetMakerCode, 3),
+            ParameterType = FixedFieldCodec.ReadText(record, OffsetParameterType, 49),
+            RatingKey = FixedFieldCodec.ReadText(record, OffsetRatingKey, 80),
             PartNumber = FixedFieldCodec.ReadText(record, OffsetPartNumber, 15),
             PartName = FixedFieldCodec.ReadText(record, OffsetPartName, 25),
             ElectricalParameters = FixedFieldCodec.ReadText(record, OffsetElectricalParameters, 64),

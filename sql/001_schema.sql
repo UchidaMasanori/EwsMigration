@@ -23,21 +23,50 @@ IF OBJECT_ID('dbo.EquipmentMaster', 'U') IS NOT NULL
 GO
 CREATE TABLE dbo.EquipmentMaster
 (
-    ReservedWord         NVARCHAR(8)   NOT NULL,   -- 【C原典】pkey.yoyaku[8](PRIMARY キーの一部)
-    MakerCode            NVARCHAR(3)   NOT NULL,   -- 【C原典】pkey.mkcd[3]   (PRIMARY キーの一部)
-    PartNumber           NVARCHAR(15)  NULL,        -- 【C原典】hinban[15]   (ALTERNATE キー1, C原典で NULL あり)
-    PartName             NVARCHAR(25)  NULL,        -- 【C原典】hinmei[25]   (ALTERNATE キー2)
+    -- 【C原典】PRIMARY キー = struct p805_key (yoyaku + mkcd + ptype + teikkey)。
+    ReservedWord         NVARCHAR(8)   NOT NULL,   -- 【C原典】pkey.yoyaku[8]      予約語
+    MakerCode            NVARCHAR(3)   NOT NULL,   -- 【C原典】pkey.mkcd[3]        メーカーコード
+    ParameterType        NVARCHAR(49)  NOT NULL,   -- 【C原典】pkey.ptype[7][7]    パラメータタイプ
+    RatingKey            NVARCHAR(80)  NOT NULL,   -- 【C原典】pkey.teikkey[80]    定格キー
+    PartNumber           NVARCHAR(15)  NULL,        -- 【C原典】hinban[15]  (ALTERNATE キー1, 非一意/NULL あり)
+    PartName             NVARCHAR(25)  NULL,        -- 【C原典】hinmei[25]  (ALTERNATE キー2)
     ElectricalParameters NVARCHAR(64)  NULL,        -- 【C原典】pstring[64]
-    -- 【C原典】PRIMARY キー = pkey (yoyaku + mkcd)。C原典に忠実に主キーへ採用する。
-    CONSTRAINT PK_EquipmentMaster PRIMARY KEY (ReservedWord, MakerCode)
+    CONSTRAINT PK_EquipmentMaster PRIMARY KEY (ReservedWord, MakerCode, ParameterType, RatingKey)
 );
 GO
 
--- 【C原典】ALTERNATE キー1 = hinban (品番)。C原典で NULL があるため、
--- NULL を除外したフィルタ付き一意インデックスで「非NULLの品番は一意」を担保する。
-CREATE UNIQUE INDEX UX_EquipmentMaster_PartNumber
+-- 【C原典】ALTERNATE キー1 = hinban (品番)。品番は非UNIQUE(同一品番が複数レコード)。
+-- 一意性は品番索引 FYDF816 の「品番 + データ追番」で担保されるため、ここは非一意インデックス。
+CREATE INDEX IX_EquipmentMaster_PartNumber
     ON dbo.EquipmentMaster (PartNumber)
     WHERE PartNumber IS NOT NULL;
+GO
+
+/* ---------------------------------------------------------------------------
+   機器マスター品番索引
+   【C原典】struct FYDF816 (機器マスター品番索引ファイル, EWS-ISAM, レコード長 184)
+            キー = 品番 + データ追番。同一品番に追番(0001,0002,…)で複数レコードを持ち、
+            それぞれが機器マスター(FYDM805)の PRIMARY キー(pkey)を指す。
+            品番読み(FyMasFYDM805ByHinban / …ByHinbanPstr)はこの索引を追番順に走査する。
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.EquipmentPartNumberIndex', 'U') IS NOT NULL
+    DROP TABLE dbo.EquipmentPartNumberIndex;
+GO
+CREATE TABLE dbo.EquipmentPartNumberIndex
+(
+    PartNumber     NVARCHAR(15) NOT NULL,   -- 【C原典】key.hinban[15]   品番
+    DataNo         NVARCHAR(4)  NOT NULL,   -- 【C原典】key.datano[4]    データ追番 (0001,0002,…)
+    -- 【C原典】pkey (機器マスター PRIMARY キー) を指す。
+    ReservedWord   NVARCHAR(8)  NOT NULL,   -- 【C原典】pkey.yoyaku[8]
+    MakerCode      NVARCHAR(3)  NOT NULL,   -- 【C原典】pkey.mkcd[3]
+    ParameterType  NVARCHAR(49) NOT NULL,   -- 【C原典】pkey.ptype[7][7]
+    RatingKey      NVARCHAR(80) NOT NULL,   -- 【C原典】pkey.teikkey[80]
+    PartName       NVARCHAR(25) NULL,        -- 【C原典】hinmei[25]
+    CONSTRAINT PK_EquipmentPartNumberIndex PRIMARY KEY (PartNumber, DataNo),
+    CONSTRAINT FK_EquipmentPartNumberIndex_Master
+        FOREIGN KEY (ReservedWord, MakerCode, ParameterType, RatingKey)
+        REFERENCES dbo.EquipmentMaster (ReservedWord, MakerCode, ParameterType, RatingKey)
+);
 GO
 
 /* ---------------------------------------------------------------------------
