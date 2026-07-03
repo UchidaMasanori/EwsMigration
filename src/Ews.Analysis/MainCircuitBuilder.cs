@@ -111,7 +111,11 @@ public sealed class MainCircuitBuilder
         // 3. 電気パラメータ同一チェック。【C原典】Ele_Equal_Check()。
         //    C原典では前段(この位置)の呼び出しはコメントアウト(無効化)されており、
         //    実際の実行は後段(step16, ソート・機器追加後)。本移植も後段で実行する。
-        // 4. 機器情報関連チェック。【C原典】Yoyakugo_Check_Double()。TODO。
+
+        // 4. 機器情報関連チェック。【C原典】Yoyakugo_Check_Double()。
+        ret = CheckEquipmentInformation(parse);
+        if (ret != 0) return ret;
+
         // 5. 回路要素セット。【C原典】Kairo_Kubun_Set()。TODO。
         // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。TODO。
         // 7. 機器テーブルソート。【C原典】qsort(...,cmp)。TODO。
@@ -560,6 +564,282 @@ public sealed class MainCircuitBuilder
     {
         int gyonoi = int.TryParse(g.DescriptionRow, out int value) ? value : 0; // 【C原典】gyonoi = atoi(K_Gyo)
         parse.Errors.Add(new CircuitParseError(errorCode, gyonoi, 0, "FYMEE80"));
+    }
+
+    /// <summary>
+    /// 機器情報関連チェック(機器テーブルを走査し予約語種別ごとに重複/位置検証を分岐実行)。
+    /// 【C原典】Yoyakugo_Check_Double()(Fyss12.c:1278)。
+    ///
+    /// 機器(KIKITABLE)を先頭から走査し、予約語(yoyaku)に応じて次のサブチェックへ分岐する。
+    ///   ・リモコン機器(RMCB/RELB/RMMCB/RELMB/RRY/RTR) : <see cref="CheckRemoteControlDuplicate"/>(Yoyakugo_Check_RM)
+    ///   ・MCDT/CSDT                                     : <see cref="CheckMcdtPair"/>(Yoyakugo_Check_MCDT)
+    ///   ・SC                                            : <see cref="CheckShuntPosition"/>(Yoyakugo_Check_SC)
+    ///   ・TR                                            : <see cref="CheckTransformerDuplicate"/>(Yoyakugo_Check_TR)
+    ///   ・その他                                        : <see cref="CheckOtherDuplicate"/>(Yoyakugo_Check_OTHER)
+    ///
+    /// 【本フェーズ(E.4)の範囲】現行の機器テーブルモデル(<see cref="EquipmentTableEntry"/>)で
+    /// 表現可能な予約語/番号(yoyaku/ysno)ベースの重複・位置検証を移植する。
+    /// 次は未モデル化フィールド・未移植 union に依存するため後続フェーズ(E.4b)へ保留する。
+    ///   ・入線分岐(TB+PS)の <see cref="CheckShuntPosition"/> 上流 Gyosyu_Check_PS(key_tbl.p/ps 電圧配列 v[] 依存)
+    ///   ・2電源TR(key_tbl.tr union 依存)
+    ///   ・LGR/ELR の外部取付区分 G( )(Kakko1/Kakko2 未モデル化)
+    ///   ・回路番号重複 Kairo_Bangou_Double / 数量文重複 Kosu_Check(DNO/GNO/Kosu/GKosu 未モデル化)
+    /// </summary>
+    /// <param name="parse">解析結果(機器テーブル P_Kiki / 行種テーブル P_Gyosyu / エラー領域)。</param>
+    /// <returns>0=正常, 2=エラー打切り。【C原典】return(ret)。</returns>
+    private static short CheckEquipmentInformation(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> kiki = parse.MainEquipment;
+        int count = kiki.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry s = kiki[i];
+            // 【C原典】S_Gyosyu = Find_Gyosyu((S_Kiki+i)->G_No, ...)。
+            LineTypeTableEntry? gyosyu = FindLineType(parse, s.GroupNumber);
+            string yoyakugo = s.ReservedWord;
+            short ret;
+
+            // 【C原典】入線分岐文関連チェック: TB の直後が PS のとき Gyosyu_Check_PS。
+            //   Gyosyu_Check_PS は key_tbl の p/ps union(電圧配列 v[])に依存するため E.4b へ保留。
+            if (yoyakugo == "TB" && i + 1 < count && kiki[i + 1].ReservedWord == "PS")
+            {
+                ret = 0; // 【C原典】ret = Gyosyu_Check_PS(...) は E.4b。
+            }
+            // 【C原典】リモコン機器。
+            else if (IsRemoteControl(yoyakugo))
+            {
+                ret = CheckRemoteControlDuplicate(parse, i, s);
+            }
+            // 【C原典】ＭＣＤＴ/ＣＳＤＴチェック。
+            else if (yoyakugo == "MCDT" || yoyakugo == "CSDT")
+            {
+                ret = CheckMcdtPair(parse, s);
+            }
+            // 【C原典】ＳＣチェック。
+            else if (yoyakugo == "SC")
+            {
+                ret = CheckShuntPosition(parse, i, s, gyosyu);
+            }
+            // 【C原典】ＴＲチェック。
+            else if (yoyakugo == "TR")
+            {
+                ret = CheckTransformerDuplicate(parse, s, gyosyu);
+            }
+            // 【C原典】一般機器チェック。
+            else
+            {
+                ret = CheckOtherDuplicate(parse, i, s);
+            }
+
+            if (ret != 0) return ret;
+
+            // 【C原典】回路番号重複チェック(!NULLSTRING(DNO) のとき Kairo_Bangou_Double)。
+            //   DNO/GNO/GKosu/Kosu が未モデル化のため E.4b へ保留。
+            // 【C原典】数量文重複チェック(yoyaku!=SC かつ 1<Kosu のとき Kosu_Check)。
+            //   Kosu/GKosu が未モデル化のため E.4b へ保留。
+        }
+
+        return 0;
+    }
+
+    /// <summary>予約語がリモコン機器か。【C原典】RMCB/RELB/RMMCB/RELMB/RRY/RTR の OR。</summary>
+    private static bool IsRemoteControl(string yoyakugo)
+        => yoyakugo is "RMCB" or "RELB" or "RMMCB" or "RELMB" or "RRY" or "RTR";
+
+    /// <summary>
+    /// 行種テーブルを行種グループNo(G_No)で検索する。【C原典】Find_Gyosyu(G_No, ...)(Fyss1f.c)。
+    /// G_No==0 は NULL(該当なし)。
+    /// </summary>
+    private static LineTypeTableEntry? FindLineType(CircuitParseResult parse, short groupNumber)
+    {
+        if (groupNumber == 0) return null; // 【C原典】if(G_No==0) return(NULL)
+        foreach (LineTypeTableEntry g in parse.LineTypes)
+        {
+            if (g.GroupNumber == groupNumber) return g;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 予約語名称重複チェック(リモコン機器)。
+    /// 【C原典】Yoyakugo_Check_RM()(Fyss12.c:1572)。
+    /// RRY を除くリモコン機器(RMCB/RELB/RMMCB/RELMB/RTR)は、番号(ysno)付きの場合に
+    /// 後続で同一予約語かつ同一番号の機器があると重複エラー(FY-682E)。
+    /// </summary>
+    private static short CheckRemoteControlDuplicate(CircuitParseResult parse, int idx, EquipmentTableEntry s)
+    {
+        string yoyakugo = s.ReservedWord;
+        int ysnoi = AtoiYsno(s.ReservedWordNumber);
+
+        // 【C原典】ＲＲＹは除外。番号が等しい機器の重複は許されません。
+        if (yoyakugo is "RMCB" or "RELB" or "RMMCB" or "RELMB" or "RRY" or "RTR")
+        {
+            if (ysnoi != 0 && yoyakugo != "RRY")
+            {
+                List<EquipmentTableEntry> kiki = parse.MainEquipment;
+                for (int j = idx + 1; j < kiki.Count; j++)
+                {
+                    int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                    if (kiki[j].ReservedWord == yoyakugo && ysnoi == ysnoj)
+                    {
+                        AddEquipmentError(parse, "FY-682E", kiki[j]);
+                        return 2;
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// 予約語名称重複チェック(ＭＣＤＴ/ＣＳＤＴ)。
+    /// 【C原典】Yoyakugo_Check_MCDT()(Fyss12.c:1792)。
+    /// 番号なし(ysno==0)は不可(FY-684E)。番号付きは同一予約語・同一番号が丁度2つでなければ不可(FY-685E)。
+    /// </summary>
+    private static short CheckMcdtPair(CircuitParseResult parse, EquipmentTableEntry s)
+    {
+        int ysnoi = AtoiYsno(s.ReservedWordNumber);
+        string yoyakugo = s.ReservedWord;
+
+        if (yoyakugo == "MCDT" || yoyakugo == "CSDT")
+        {
+            // 【C原典】予約語だけは許されません。
+            if (ysnoi == 0)
+            {
+                AddEquipmentError(parse, "FY-684E", s);
+                return 2;
+            }
+
+            // 【C原典】予約語+番号の場合1つ(=同一番号が丁度2つ)のみ許されます。
+            int existMcdt = 0;
+            List<EquipmentTableEntry> kiki = parse.MainEquipment;
+            for (int j = 0; j < kiki.Count; j++)
+            {
+                int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                if (kiki[j].ReservedWord == yoyakugo && ysnoi == ysnoj)
+                {
+                    existMcdt++;
+                }
+            }
+            if (existMcdt != 2)
+            {
+                AddEquipmentError(parse, "FY-685E", s);
+                return 2;
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// 予約語位置チェック(ＳＣ)。
+    /// 【C原典】Yoyakugo_Check_SC()(Fyss12.c:1873)。
+    /// 行種(gyosyu)が PM のとき、直後機器のグループNoが同一なら不可(FY-656E)。
+    /// O/B/S/BO のときは可。いずれでもなければ不可(FY-649E)。
+    /// </summary>
+    private static short CheckShuntPosition(CircuitParseResult parse, int idx, EquipmentTableEntry s, LineTypeTableEntry? gyosyu)
+    {
+        string g = gyosyu?.LineType ?? string.Empty; // 【C原典】S_Gyosyu->gyosyu
+        short gNo = s.GroupNumber;                     // 【C原典】G_No
+        List<EquipmentTableEntry> kiki = parse.MainEquipment;
+
+        if (g == "PM")
+        {
+            // 【C原典】(S_Kiki+1)->G_No != G_No なら可。次機器が無ければ別グループ扱い(可)。
+            short nextGNo = idx + 1 < kiki.Count ? kiki[idx + 1].GroupNumber : (short)-1;
+            if (nextGNo != gNo) return 0;
+            AddEquipmentError(parse, "FY-656E", s);
+            return 2;
+        }
+        else if (g is "O" or "B" or "S" or "BO")
+        {
+            return 0;
+        }
+
+        AddEquipmentError(parse, "FY-649E", s);
+        return 2;
+    }
+
+    /// <summary>
+    /// トランス重複チェック(ＴＲ)。
+    /// 【C原典】Yoyakugo_Check_TR()(Fyss12.c:1638)。
+    /// 行種が PS なら対象外。TR は番号付き(ysno!=0)不可(FY-683E)。
+    /// 2電源TR(key_tbl.tr union 依存)の検証は E.4b へ保留する。
+    /// </summary>
+    private static short CheckTransformerDuplicate(CircuitParseResult parse, EquipmentTableEntry s, LineTypeTableEntry? gyosyu)
+    {
+        string g = gyosyu?.LineType ?? string.Empty; // 【C原典】S_Gyosyu->gyosyu
+        int ysnoi = AtoiYsno(s.ReservedWordNumber);
+        string yoyakugo = s.ReservedWord;
+
+        // 【C原典】ＴＲチェック(予約語に番号付きは許されません。)。
+        if (g == "PS") return 0;
+
+        if (yoyakugo == "TR")
+        {
+            if (ysnoi != 0)
+            {
+                AddEquipmentError(parse, "FY-683E", s);
+                return 2;
+            }
+            // 【C原典】else: 2電源ＴＲチェック(key_tbl.tr の p3/w3/v2/v3 union 依存)。E.4b へ保留。
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// 予約語名称重複チェック(リモコン機器以外)。
+    /// 【C原典】Yoyakugo_Check_OTHER()(Fyss12.c:1937)。
+    ///   ・MC(番号付き) : 同一番号の MG があれば不可(FY-682E)(950206)。
+    ///   ・LGR/ELR      : 外部取付区分 G( ) の番号付き不可(FY-658E)。Kakko 未モデル化のため E.4b へ保留。
+    ///   ・その他        : 番号付きは後続の同一予約語・同一番号があれば不可(FY-682E)。
+    /// </summary>
+    private static short CheckOtherDuplicate(CircuitParseResult parse, int idx, EquipmentTableEntry s)
+    {
+        string yoyakugo = s.ReservedWord;
+        int ysnoi = AtoiYsno(s.ReservedWordNumber);
+        List<EquipmentTableEntry> kiki = parse.MainEquipment;
+        int count = kiki.Count;
+
+        // 【C原典】MC が対象(950206: 同一番号の MG との重複を禁止)。
+        if (yoyakugo == "MC")
+        {
+            if (ysnoi != 0)
+            {
+                for (int j = 0; j < count; j++)
+                {
+                    int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                    if (kiki[j].ReservedWord == "MG" && ysnoi == ysnoj)
+                    {
+                        AddEquipmentError(parse, "FY-682E", kiki[j]);
+                        return 2;
+                    }
+                }
+            }
+        }
+        // 【C原典】LGR/ELR: 外部取付区分 G( )(Kakko1==12 || Kakko2==12)の番号付きは FY-658E。
+        //   Kakko1/Kakko2(括弧種別)は未モデル化のため本枝は E.4b へ保留。
+        else if (yoyakugo == "LGR" || yoyakugo == "ELR")
+        {
+            // E.4b。
+        }
+        // 【C原典】MC,LGR,MCDT,CSDT,TR 以外: 番号付きは後続の同一予約語・同一番号を禁止。
+        else
+        {
+            if (ysnoi != 0)
+            {
+                for (int j = idx + 1; j < count; j++)
+                {
+                    int ysnoj = AtoiYsno(kiki[j].ReservedWordNumber);
+                    if (kiki[j].ReservedWord == yoyakugo && ysnoi == ysnoj)
+                    {
+                        AddEquipmentError(parse, "FY-682E", kiki[j]);
+                        return 2;
+                    }
+                }
+            }
+        }
+        return 0;
     }
 
     /// <summary>

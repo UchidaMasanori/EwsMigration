@@ -350,13 +350,14 @@ public sealed class MainCircuitBuilderTests
     }
 
     [Fact]
-    public void EleEqual_MCDT単独はFY630E()
+    public void EleEqual_MCDT単独はFY685E()
     {
-        // 【C原典】同一 ysno のペアが存在しない(n != 1) → FY-630E。
+        // 【C原典】MCDT 単独(同一番号が2件でない)は step4 Yoyakugo_Check_MCDT が先に FY-685E を出す
+        //   ため、step16 Ele_Equal_Check の FY-630E(n != 1)には到達しない。
         var result = RunEleEqual(
             Kiki("MCDT", "1", 5, 0, ("p", "3")));
 
-        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-630E" && e.LineNumber == 5);
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-685E" && e.LineNumber == 5);
     }
 
     [Fact]
@@ -413,22 +414,196 @@ public sealed class MainCircuitBuilderTests
     }
 
     [Fact]
-    public void EleEqual_TSW重複はFY630E()
+    public void EleEqual_TSW重複はFY682E()
     {
-        // 【C原典】同一 ysno の TSW が複数 → FY-630E。
+        // 【C原典】同一 ysno の TSW 重複は step4 Yoyakugo_Check_OTHER が先に FY-682E(後続機器位置)を出す
+        //   ため、step16 Ele_Equal_Check の FY-630E には到達しない。
         var result = RunEleEqual(
             Kiki("TSW", "1", 8, 0),
             Kiki("TSW", "1", 9, 0));
 
-        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-630E" && e.LineNumber == 8);
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-682E" && e.LineNumber == 9);
     }
 
     [Fact]
     public void EleEqual_ysnoが0の機器は対象外()
     {
-        // 【C原典】ysno==0(atoi)は継続(チェック対象外)。単独 MCDT でもエラーなし。
+        // 【C原典】ysno==0(atoi)は同一チェック対象外。MC 単独(ysno=0)は step4/step16 とも素通り。
+        //   (MCDT の ysno=0 は step4 Yoyakugo_Check_MCDT が FY-684E を出すため別途 E.4 で検証。)
         var result = RunEleEqual(
-            Kiki("MCDT", "0", 1, 0, ("p", "3")));
+            Kiki("MC", "0", 1, 0, ("p", "3")));
+
+        Assert.True(result.IsValid);
+    }
+
+    // ==== E.4: Yoyakugo_Check_Double(機器情報関連チェック) ====
+
+    /// <summary>機器テーブル+行種テーブルで MakeMain を実行する。</summary>
+    private static CircuitParseResult RunYoyakugo(
+        LineTypeTableEntry[] lineTypes, params EquipmentTableEntry[] equipment)
+    {
+        var parse = new CircuitParseResult();
+        parse.LineTypes.AddRange(lineTypes);
+        parse.MainEquipment.AddRange(equipment);
+        new MainCircuitBuilder().MakeMain(parse);
+        return parse;
+    }
+
+    /// <summary>行種グループNo付きで機器テーブル1件を生成する。【C原典】KIKITABLE(G_No 付)。</summary>
+    private static EquipmentTableEntry KikiG(
+        string reservedWord, string ysno, short groupNumber, short row = 1, short column = 0)
+        => new()
+        {
+            ReservedWord = reservedWord,        // 【C原典】yoyaku
+            ReservedWordNumber = ysno,          // 【C原典】ysno
+            GroupNumber = groupNumber,          // 【C原典】G_No
+            LineNumber = row,                   // 【C原典】K_Gyo
+            Column = column,                    // 【C原典】K_Ket
+        };
+
+    [Fact]
+    public void Yoyakugo_RMCB同番号重複はFY682E()
+    {
+        // 【C原典】Yoyakugo_Check_RM: RMCB 番号付きの後続同番号重複 → FY-682E(後続機器位置)。
+        var result = RunEleEqual(
+            Kiki("RMCB", "1", 3, 0),
+            Kiki("RMCB", "1", 4, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-682E" && e.LineNumber == 4);
+    }
+
+    [Fact]
+    public void Yoyakugo_RRYは同番号重複を許容する()
+    {
+        // 【C原典】Yoyakugo_Check_RM: RRY は除外(番号重複を許容)。
+        var result = RunEleEqual(
+            Kiki("RRY", "1", 3, 0),
+            Kiki("RRY", "1", 4, 0));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Yoyakugo_MCDT番号なしはFY684E()
+    {
+        // 【C原典】Yoyakugo_Check_MCDT: 予約語だけ(ysno==0)は不可 → FY-684E。
+        var result = RunEleEqual(
+            Kiki("MCDT", "0", 6, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-684E" && e.LineNumber == 6);
+    }
+
+    [Fact]
+    public void Yoyakugo_MCDT同番号が3件はFY685E()
+    {
+        // 【C原典】Yoyakugo_Check_MCDT: 同一番号は丁度2件のみ許可(2件でない→ FY-685E)。
+        var result = RunEleEqual(
+            Kiki("MCDT", "1", 1, 0),
+            Kiki("MCDT", "1", 2, 0),
+            Kiki("MCDT", "1", 3, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-685E");
+    }
+
+    [Fact]
+    public void Yoyakugo_TR番号付きはFY683E()
+    {
+        // 【C原典】Yoyakugo_Check_TR: TR に番号付きは不可 → FY-683E(行種!=PS)。
+        var result = RunEleEqual(
+            Kiki("TR", "1", 7, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-683E" && e.LineNumber == 7);
+    }
+
+    [Fact]
+    public void Yoyakugo_TR番号なしは正常()
+    {
+        // 【C原典】Yoyakugo_Check_TR: 番号なし TR はエラーなし(2電源TR検証は E.4b 保留)。
+        var result = RunEleEqual(
+            Kiki("TR", "0", 7, 0));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Yoyakugo_SC位置不正はFY649E()
+    {
+        // 【C原典】Yoyakugo_Check_SC: 行種が PM/O/B/S/BO 以外(ここでは行種未定義=空)は FY-649E。
+        var result = RunEleEqual(
+            Kiki("SC", "0", 5, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-649E" && e.LineNumber == 5);
+    }
+
+    [Fact]
+    public void Yoyakugo_MCと同番号MGはFY682E()
+    {
+        // 【C原典】Yoyakugo_Check_OTHER: MC 番号付きと同一番号の MG は不可 → FY-682E(MG位置)。
+        var result = RunEleEqual(
+            Kiki("MC", "1", 2, 0),
+            Kiki("MG", "1", 8, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-682E" && e.LineNumber == 8);
+    }
+
+    [Fact]
+    public void Yoyakugo_一般機器の同番号重複はFY682E()
+    {
+        // 【C原典】Yoyakugo_Check_OTHER: MC/LGR/ELR/MCDT/CSDT/TR 以外の番号付き後続重複 → FY-682E。
+        var result = RunEleEqual(
+            Kiki("MCB", "1", 2, 0),
+            Kiki("MCB", "1", 9, 0));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-682E" && e.LineNumber == 9);
+    }
+
+    [Fact]
+    public void Yoyakugo_SC行種Sは正常()
+    {
+        // 【C原典】Yoyakugo_Check_SC: 行種 O/B/S/BO は許可。
+        //   有効な行種構成(系統1: P→S)を用意し、SC を行種グループ(S)に属させる。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P", '1', 1, groupNumber: 1),
+            Gyo(1, "S", '1', 2, groupNumber: 2),
+        };
+        var result = RunYoyakugo(lineTypes,
+            KikiG("SC", "0", groupNumber: 2, row: 2));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Yoyakugo_SC行種PMで直後同一グループはFY656E()
+    {
+        // 【C原典】Yoyakugo_Check_SC: 行種 PM で直後機器が同一グループNo → FY-656E。
+        //   有効な行種構成(系統1: P→PM→M)を用意。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P",  '1', 1, groupNumber: 1),
+            Gyo(1, "PM", '1', 2, groupNumber: 2),
+            Gyo(1, "M",  '1', 3, groupNumber: 3),
+        };
+        var result = RunYoyakugo(lineTypes,
+            KikiG("SC",  "0", groupNumber: 2, row: 2, column: 0),
+            KikiG("MCB", "0", groupNumber: 2, row: 2, column: 1));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-656E");
+    }
+
+    [Fact]
+    public void Yoyakugo_SC行種PMで直後別グループは正常()
+    {
+        // 【C原典】Yoyakugo_Check_SC: 行種 PM で直後機器が別グループNo → 可(return 0)。
+        var lineTypes = new[]
+        {
+            Gyo(1, "P",  '1', 1, groupNumber: 1),
+            Gyo(1, "PM", '1', 2, groupNumber: 2),
+            Gyo(1, "M",  '1', 3, groupNumber: 3),
+        };
+        var result = RunYoyakugo(lineTypes,
+            KikiG("SC",  "0", groupNumber: 2, row: 2),
+            KikiG("MCB", "0", groupNumber: 3, row: 3));
 
         Assert.True(result.IsValid);
     }

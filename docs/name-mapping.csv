@@ -119,3 +119,10 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 列挙,SYMBOL,MainCircuitBuilder.LineTypeSymbol,toku/sekkei/src/Fyss12.c,行種シンボル(sym_NP等)
 関数,Gyosyu_Check,MainCircuitBuilder.CheckLineTypeHierarchy,toku/sekkei/src/Fyss12.c,行種関連チェック(上下関係, 改訂<15>PM行27A/27B/27C例外)
 関数,Find_Numeric,MainCircuitBuilder.FindNumericPrefix,toku/sekkei/src/Fysscommon.c,語前の数値取り出し
+関数,Yoyakugo_Check_Double,MainCircuitBuilder.CheckEquipmentInformation,toku/sekkei/src/Fyss12.c,機器情報関連チェック(予約語種別ごとに重複/位置検証を分岐)。TB+PS/2電源TR/LGR/ELR外部取付/回路番号/数量はE.4b保留
+関数,Find_Gyosyu,MainCircuitBuilder.FindLineType,toku/sekkei/src/Fyss1f.c,行種テーブルをG_Noで検索(G_No==0はNULL)
+関数,Yoyakugo_Check_RM,MainCircuitBuilder.CheckRemoteControlDuplicate,toku/sekkei/src/Fyss12.c,リモコン機器(RRY除く)の同一番号重複チェック。FY-682E
+関数,Yoyakugo_Check_MCDT,MainCircuitBuilder.CheckMcdtPair,toku/sekkei/src/Fyss12.c,MCDT/CSDTの番号必須(FY-684E)・同一番号丁度2件(FY-685E)チェック
+関数,Yoyakugo_Check_SC,MainCircuitBuilder.CheckShuntPosition,toku/sekkei/src/Fyss12.c,SC位置チェック(PM直後同一グループFY-656E/O/B/S/BO可/他FY-649E)
+関数,Yoyakugo_Check_TR,MainCircuitBuilder.CheckTransformerDuplicate,toku/sekkei/src/Fyss12.c,TR番号付き不可(FY-683E)。2電源TR(key_tbl.tr)はE.4b保留
+関数,Yoyakugo_Check_OTHER,MainCircuitBuilder.CheckOtherDuplicate,toku/sekkei/src/Fyss12.c,一般機器の重複チェック(MC?MG/一般同番号FY-682E)。LGR/ELR外部取付(Kakko)はE.4b保留
