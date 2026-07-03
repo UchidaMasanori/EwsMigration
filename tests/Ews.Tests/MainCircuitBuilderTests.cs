@@ -762,4 +762,56 @@ public sealed class MainCircuitBuilderTests
 
         Assert.Equal('K', dev.CircuitDivision);
     }
+
+    // ==== step6/7: Yoyakugo_Add_Main(D_No*=10) / qsort(cmp by D_No) ====
+
+    [Fact]
+    public void AddDerivedEquipment_機器Noを10倍にスケーリングする()
+    {
+        // 【C原典】Yoyakugo_Add_Main 前段: while(i<Max_Kikic){ (S_Kiki+i)->D_No *= 10; }
+        var k1 = new EquipmentTableEntry { EquipmentNumber = 1 };
+        var k2 = new EquipmentTableEntry { EquipmentNumber = 2 };
+        var k3 = new EquipmentTableEntry { EquipmentNumber = 3 };
+        var parse = new CircuitParseResult();
+        parse.MainEquipment.AddRange(new[] { k1, k2, k3 });
+
+        new MainCircuitBuilder().MakeMain(parse);
+
+        Assert.Equal(10, k1.EquipmentNumber);
+        Assert.Equal(20, k2.EquipmentNumber);
+        Assert.Equal(30, k3.EquipmentNumber);
+    }
+
+    [Fact]
+    public void SortEquipmentByNumber_機器Noの昇順に並べ替える()
+    {
+        // 【C原典】qsort(P_Kiki,*i_Kikic,sizeof(KIKITABLE),cmp): cmp = D_No 昇順。
+        //   MakeMain では先に D_No*=10(step6)後にソート(step7)するため、
+        //   入力 3,1,2 → ×10 で 30,10,20 → 昇順 10,20,30。
+        var k3 = new EquipmentTableEntry { EquipmentNumber = 3, ReservedWord = "C" };
+        var k1 = new EquipmentTableEntry { EquipmentNumber = 1, ReservedWord = "A" };
+        var k2 = new EquipmentTableEntry { EquipmentNumber = 2, ReservedWord = "B" };
+        var parse = new CircuitParseResult();
+        parse.MainEquipment.AddRange(new[] { k3, k1, k2 });
+
+        new MainCircuitBuilder().MakeMain(parse);
+
+        Assert.Equal(new[] { "A", "B", "C" }, parse.MainEquipment.Select(k => k.ReservedWord).ToArray());
+        Assert.Equal(new short[] { 10, 20, 30 }, parse.MainEquipment.Select(k => k.EquipmentNumber).ToArray());
+    }
+
+    [Fact]
+    public void SortEquipmentByNumber_同一機器Noは入力順を保持する()
+    {
+        // 安定ソート: 同一 D_No(ここでは全て0)の相対順序は入力順を維持する。
+        var a = new EquipmentTableEntry { EquipmentNumber = 0, ReservedWord = "A" };
+        var b = new EquipmentTableEntry { EquipmentNumber = 0, ReservedWord = "B" };
+        var c = new EquipmentTableEntry { EquipmentNumber = 0, ReservedWord = "C" };
+        var parse = new CircuitParseResult();
+        parse.MainEquipment.AddRange(new[] { a, b, c });
+
+        new MainCircuitBuilder().MakeMain(parse);
+
+        Assert.Equal(new[] { "A", "B", "C" }, parse.MainEquipment.Select(k => k.ReservedWord).ToArray());
+    }
 }

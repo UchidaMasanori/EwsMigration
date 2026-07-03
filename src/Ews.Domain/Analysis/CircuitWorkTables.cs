@@ -205,6 +205,18 @@ public sealed class EquipmentTableEntry
     public char CircuitDivision { get; set; } = ' ';
 
     /// <summary>
+    /// 同一機器認識番号。【C原典】E_No。
+    /// Yoyakugo_Add_Main(Fyss12 step6)の機器追加(SEP/CT/WH/ZCT)で 0 に設定される。
+    /// </summary>
+    public short EquipmentIdentityNumber { get; set; }
+
+    /// <summary>
+    /// 自動生成区分。【C原典】yoyakkbn。
+    /// ' '=通常記述, '1'=自動生成(SEP/CT/WH/ZCT 等の追加機器)。
+    /// </summary>
+    public char AutoGenerationKind { get; set; } = ' ';
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>

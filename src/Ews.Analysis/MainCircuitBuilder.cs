@@ -118,8 +118,14 @@ public sealed class MainCircuitBuilder
 
         // 5. 回路区分セット。【C原典】Kairo_Kubun_Set()。機器の K_Kubun を設定する(エラー返却なし)。
         SetCircuitDivision(parse);
-        // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。TODO。
-        // 7. 機器テーブルソート。【C原典】qsort(...,cmp)。TODO。
+
+        // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。
+        //    無条件前段(D_No*=10)を移植。SEP/CT/WH/ZCT 追加本体は段階移植(AddDerivedEquipment 内 TODO)。
+        AddDerivedEquipment(parse);
+
+        // 7. 機器テーブルソート。【C原典】qsort(P_Kiki,*i_Kikic,sizeof(KIKITABLE),cmp)。機器No(D_No)昇順。
+        SortEquipmentByNumber(parse);
+
         // 8. 行種ランクセット。【C原典】Gyosyu_Rank_Set()。TODO。
         // 9. 機器ランクセット。【C原典】Kiki_Rank_Set()。TODO。
         // 10. 機器ランク更新。【C原典】Kiki_Rank_Update()。TODO。
@@ -136,10 +142,57 @@ public sealed class MainCircuitBuilder
 
         // 17. 主回路ファイルエリア作成/数量分解。【C原典】Fyss12_Make_Main_Sub()。TODO。
         //     入力順チェック。【C原典】Fyss1m_Input_Check()。TODO。
-        // 19. ＩＮＶＢＰの区分設定。【C原典】PropSetInvbpKbn(*Pmainc,Pmaina,imagec,imagea)(改訂<16>)。TODO。
-
         return 0;
     }
+
+    /// <summary>
+    /// 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main(Fyss12.c:3661)。
+    ///
+    /// 本移植では、挿入有無に関わらず無条件で実行される前段処理
+    /// <b>機器No(D_No)の10倍スケーリング</b>を移植する。これは後続で追加する機器
+    /// (SEP は D_No+5、CT/WH/ZCT は D_No±1)を既存機器の「間」へ挿入するための
+    /// 採番間隔を確保する処理で、C原典でも先頭で必ず実行される。
+    /// 【C原典】<c>while (i &lt; Max_Kikic) { (S_Kiki+i)-&gt;D_No *= 10; i++; }</c>
+    ///
+    /// SEP/CT/WH/ZCT の追加本体は、次の未移植依存があるため段階移植とする(TODO):
+    ///   ・Kikitable_SEP_Make / Kikitable_Keiki_Make / Kikitable_Main_Make
+    ///     (機器テーブル拡張・機器複製・D_No/E_No/yoyakkbn 設定)
+    ///   ・PropChkSEPBox / PropChkHbnHB300
+    ///     (改訂&lt;12&gt;: bukken FYDF801 の BOX/幅300品番プロパティ照合。sep_flg/sep_del 判定)
+    ///   ・行種(GYOSYU)ごとの souden(相電圧)の全面設定と Find_Keitou による系統種別(Kind)参照
+    ///   ・追加機器を消費する後段(ランク付け step8-13.5 / 主回路エリア生成 step17)自体が未移植
+    /// </summary>
+    private static void AddDerivedEquipment(CircuitParseResult parse)
+    {
+        // 【C原典】S_Kiki=*PP_Kiki; Max_Kikic=*i_Kikic; i=0;
+        //         while (i < Max_Kikic) { (S_Kiki+i)->D_No *= 10; i++; }
+        foreach (EquipmentTableEntry kiki in parse.MainEquipment)
+        {
+            kiki.EquipmentNumber *= 10;
+        }
+
+        // TODO(段階移植): SEP/CT/WH/ZCT の追加。
+        //   ・系統ブレーク時の SEP 追加(Kikitable_SEP_Make, souden 差分/系統種別 Kind=='1' 判定,
+        //     改訂<12> PropChkSEPBox/PropChkHbnHB300 による sep_flg/sep_del ゲート)
+        //   ・計器回路の CT/VT/WH/ZCT 追加(Kikitable_Main_Make/Kikitable_Keiki_Make,
+        //     K_Kubun=='K' グループ走査 + Find_Keiki_Type 分類)
+    }
+
+    /// <summary>
+    /// 機器テーブルソート。【C原典】qsort(P_Kiki, *i_Kikic, sizeof(struct KIKITABLE), cmp)。
+    /// 比較関数 cmp は機器No(D_No)の昇順(<c>ret = P_Kiki-&gt;D_No - S_Kiki-&gt;D_No</c>)。
+    /// C の qsort は非安定だが、本移植では同一 D_No の相対順序を保持する安定ソートを用いる
+    /// (決定性確保のため。D_No が一意なら結果は同一)。
+    /// </summary>
+    private static void SortEquipmentByNumber(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> sorted = parse.MainEquipment
+            .OrderBy(k => k.EquipmentNumber)
+            .ToList();
+        parse.MainEquipment.Clear();
+        parse.MainEquipment.AddRange(sorted);
+    }
+
 
     /// <summary>
     /// 系統チェック(系統内に存在すべき/できる行種の検証)。

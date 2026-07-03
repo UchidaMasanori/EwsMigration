@@ -673,3 +673,7 @@ public sealed class CircuitStringCheckerTests
 関数,Find_Delimetor/Find_Name,CircuitStringChecker.ExtractElectricalParameter,toku/sekkei/src/Fyss1c.c,予約語文から電気パラメータ部(d_parm)を抽出
 関数,Parm_Check_Main,CircuitStringChecker.PopulateRatingValues,toku/sekkei/src/Fyss1d.c,電気パラメータ→定格値(key_tbl)格納の配線
 関数,Find_Delimetor/Find_Name,CircuitStringChecker.ExtractElectricalParameter,toku/sekkei/src/Fyss1c.c,予約語文から電気パラメータ部(d_parm)を抽出
+関数,Yoyakugo_Add_Main,MainCircuitBuilder.AddDerivedEquipment,toku/sekkei/src/Fyss12.c,機器(SEP/CT/WH/ZCT)追加。前段のD_No*=10のみ移植(追加本体はTODO)
+関数,cmp,MainCircuitBuilder.SortEquipmentByNumber,toku/sekkei/src/Fyss12.c,機器テーブルソート(qsort比較関数、D_No昇順)
+フィールド,E_No,EquipmentTableEntry.EquipmentIdentityNumber,toku/include/sekkei/struct.h,同一機器認識番号
+フィールド,yoyakkbn,EquipmentTableEntry.AutoGenerationKind,toku/include/sekkei/struct.h,自動生成区分(SEP/CT/WH/ZCT等の追加機器)
