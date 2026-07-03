@@ -23,13 +23,21 @@ IF OBJECT_ID('dbo.EquipmentMaster', 'U') IS NOT NULL
 GO
 CREATE TABLE dbo.EquipmentMaster
 (
-    PartNumber           NVARCHAR(15)  NOT NULL,   -- 【C原典】hinban[15]   (ALTERNATE キー1)
     ReservedWord         NVARCHAR(8)   NOT NULL,   -- 【C原典】pkey.yoyaku[8](PRIMARY キーの一部)
-    MakerCode            NVARCHAR(3)   NOT NULL,   -- 【C原典】pkey.mkcd[3]
-    PartName             NVARCHAR(25)  NULL,        -- 【C原典】hinmei[25]  (ALTERNATE キー2)
+    MakerCode            NVARCHAR(3)   NOT NULL,   -- 【C原典】pkey.mkcd[3]   (PRIMARY キーの一部)
+    PartNumber           NVARCHAR(15)  NULL,        -- 【C原典】hinban[15]   (ALTERNATE キー1, C原典で NULL あり)
+    PartName             NVARCHAR(25)  NULL,        -- 【C原典】hinmei[25]   (ALTERNATE キー2)
     ElectricalParameters NVARCHAR(64)  NULL,        -- 【C原典】pstring[64]
-    CONSTRAINT PK_EquipmentMaster PRIMARY KEY (PartNumber)
+    -- 【C原典】PRIMARY キー = pkey (yoyaku + mkcd)。C原典に忠実に主キーへ採用する。
+    CONSTRAINT PK_EquipmentMaster PRIMARY KEY (ReservedWord, MakerCode)
 );
+GO
+
+-- 【C原典】ALTERNATE キー1 = hinban (品番)。C原典で NULL があるため、
+-- NULL を除外したフィルタ付き一意インデックスで「非NULLの品番は一意」を担保する。
+CREATE UNIQUE INDEX UX_EquipmentMaster_PartNumber
+    ON dbo.EquipmentMaster (PartNumber)
+    WHERE PartNumber IS NOT NULL;
 GO
 
 /* ---------------------------------------------------------------------------

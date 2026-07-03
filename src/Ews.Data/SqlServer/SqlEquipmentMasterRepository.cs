@@ -11,8 +11,9 @@ namespace Ews.Data.SqlServer;
 ///   - データ: struct FYDM805 (機器マスター, EWS-ISAM)
 ///   - アクセス: FyIsamRead / FyIsamStartR+FyIsamNextR (品番・予約語キー)
 ///
-/// 旧 ISAM の品番(ALTERNATE キー1)読込を、SQL Server の EquipmentMaster テーブルへの
-/// 主キー検索に置換する。
+/// SQL Server 側は C原典に忠実に PRIMARY キー = (ReservedWord, MakerCode)=(予約語 + メーカーコード)
+/// とし、品番(ALTERNATE キー1, C原典で NULL あり)は NULL 除外のフィルタ付き一意インデックス
+/// (UX_EquipmentMaster_PartNumber)で引く。
 /// </summary>
 public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, string>
 {
