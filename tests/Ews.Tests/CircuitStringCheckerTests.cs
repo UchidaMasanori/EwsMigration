@@ -157,7 +157,58 @@ public sealed class CircuitStringCheckerTests
         Assert.Contains(result.MainEquipment, k => k.LineType == "P" && k.Attributes.GetValueOrDefault("11") == "P");
     }
 
-    // ==== Fyss11_Check_BN / Find_BN(”Õ–¼Ì•¶ ¨ BanKind) ====
+    // ==== Check_Kikimei ¨ Parm_Check_Main(“d‹Cƒpƒ‰ƒ[ƒ^¨’èŠi’l key_tbl Ši”[) ====
+
+    [Fact]
+    public void Check_“d‹Cƒpƒ‰ƒ[ƒ^‚ð‰ðÍ‚µ’èŠi’l‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Kikimei()¨Parm_Check_Main()¨kikitable_add("2", electron, &f811)B
+        // '=' ‚ÌŒã‚ë(sym_EQUAL •ªŠò)‚ª“d‹Cƒpƒ‰ƒ[ƒ^(d_parm)‚Æ‚È‚éB
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB=3P225AF150AT", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("MCB", kiki.ProductName);
+        Assert.NotNull(kiki.RatingValues);
+        Assert.Equal("3", kiki.RatingValues!.Get("p"));    // ‹É”
+        Assert.Equal("225", kiki.RatingValues.Get("af"));  // ƒtƒŒ[ƒ€
+        Assert.Equal("150", kiki.RatingValues.Get("at"));  // ƒgƒŠƒbƒv
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_“d‹Cƒpƒ‰ƒ[ƒ^–³‚µ‚Ì—\–ñŒê‚Í’èŠi’l‚ðŠi”[‚µ‚È‚¢()
+    {
+        // yCŒ´“TzNULLSTRING(d_parm) ¨ Parm_Check_Main ‚ðŒÄ‚Î‚È‚¢(key_tbl –¢Ý’è)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Null(kiki.RatingValues);
+    }
+
+    [Fact]
+    public void Check_•s³‚È“d‹Cƒpƒ‰ƒ[ƒ^‚ÍƒGƒ‰[‚É‚È‚è’èŠi’l‚ðŠi”[‚µ‚È‚¢()
+    {
+        // yCŒ´“TzParm_Check_Main ‚ª -1 ‚ð•Ô‚·‚Æ Check_Kikimei ‚ªˆÙí(ErrNo •ÛŽ)B
+        // ƒsƒŠƒIƒh2ŒÂˆÈã ¨ FY-880E(Get_1_Group)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB=2..5AF", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-880E");
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Null(kiki.RatingValues);
+    }
+
 
     [Theory]
     [InlineData("BUN", BanKind.Branch)]

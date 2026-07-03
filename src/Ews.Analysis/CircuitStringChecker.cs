@@ -153,6 +153,12 @@ public sealed class CircuitStringChecker
     ];
 
     /// <summary>
+    /// 電気パラメータ(定格キー)チェッカ。【C原典】Fyss1d.c Parm_Check_Main / key_check_&lt;TYPE&gt;。
+    /// 予約語文の電気パラメータ部を解析し、定格値(key_tbl)を機器テーブルへ格納する際に用いる。
+    /// </summary>
+    private readonly ElectricalParameterChecker _electricalParameterChecker = new();
+
+    /// <summary>
     /// 系統文字列チェックを実行する。
     /// 【C原典】Fyss11_Mojiretu_Check()。
     /// </summary>
@@ -1243,7 +1249,8 @@ public sealed class CircuitStringChecker
         ApplyReservedWord(kiki, control);
 
         string yoyaku = SplitReservedToken(kikimeisyou);
-        if (ResolveReservedWord(yoyaku, out string resolved))
+        bool resolvedOk = ResolveReservedWord(yoyaku, out string resolved);
+        if (resolvedOk)
         {
             kiki.ProductName = resolved; // s_yoyaku -> kikimei
         }
@@ -1266,9 +1273,76 @@ public sealed class CircuitStringChecker
             kiki.ProductName = "CR"; // 【C原典】改訂<42>: kikimei = "CR"
         }
 
-        // TODO: Parm_Check_Main / Fyss1e S_key_check_main / Check_Dainyuu (deferred).
+        // 【C原典】Check_Kikimei()(Fyss1d.c): 予約語確定後、電気パラメータ(d_parm)があれば
+        // Parm_Check_Main() で定格値(key_tbl)を検証・格納する。Yoyaku_Check_Main が失敗
+        // (irc!=0)した場合は Parm_Check_Main を呼ばないため、resolvedOk のときのみ実施する。
+        if (resolvedOk)
+        {
+            PopulateRatingValues(kiki, kikimeisyou, resolved, lineNumber, result);
+        }
+
+        // TODO: Fyss1e S_key_check_main / Check_Dainyuu (deferred).
         // TODO: 改訂<36>G_TYPE_ET / 改訂<48>G_TB_800A / 改訂<47>G_TYPE_6A / 改訂<39>G_YOYAKU_MGSH は
         //       電気パラメータ/タイプ設定エンジン(未移植)向けフラグのため未対応。
+    }
+
+    /// <summary>
+    /// 電気パラメータ文字列(d_parm)を解析し、定格値(key_tbl)を機器テーブルへ格納する。
+    /// 【C原典】Check_Kikimei()→Parm_Check_Main()(Fyss1d.c)、および結果 f811 を機器へ
+    /// 反映する kikitable_add("2", electron, S_Kiki, &amp;f811)(Fyss1c.c Check_KikimeiC)の配線。
+    /// </summary>
+    private void PopulateRatingValues(EquipmentTableEntry kiki, string kikimeisyou, string reservedWord, int lineNumber, CircuitParseResult result)
+    {
+        string electron = ExtractElectricalParameter(kikimeisyou);
+        if (IsNullString(electron))
+        {
+            return; // 【C原典】NULLSTRING(d_parm) → Parm_Check_Main を呼ばない
+        }
+
+        // 【C原典】Parm_Check_Main(d_parm, iNo, ErrNo)。iNo は Yoyaku_Check_Main が返す
+        // fyak_tbl 添字(=s_yoyaku=reservedWord)。対象外予約語は irc=0(空値)で読み飛ばす。
+        short irc = _electricalParameterChecker.CheckParameters(reservedWord, electron, out RatingValues values, out string errorCode);
+        if (irc == -1)
+        {
+            result.Errors.Add(new CircuitParseError(errorCode, lineNumber, 1, "FYMEE80"));
+            return;
+        }
+
+        kiki.RatingValues = values; // 【C原典】*P_F811 = key_tbl → kikitable_add("2", ..., &f811)
+    }
+
+    /// <summary>
+    /// 予約語文から電気パラメータ部(d_parm/electron)を取り出す。
+    /// 【C原典】Check_KikimeiC(Fyss1c.c)の Find_Delimetor/Find_Name による d_parm 抽出。
+    /// '=' があればその後ろ(sym_EQUAL 分岐)、無ければ予約語(英字+番号)を除いた残り
+    /// (else 分岐)を電気パラメータとする。'*'(数量区切り)以降は対象外。
+    /// </summary>
+    private static string ExtractElectricalParameter(string kikimeisyou)
+    {
+        // 【C原典】'*' は数量(kosu)区切り。電気パラメータ抽出の対象外。
+        int cut = kikimeisyou.IndexOf('*');
+        string head = cut >= 0 ? kikimeisyou[..cut] : kikimeisyou;
+
+        int eq = head.IndexOf('=');
+        if (eq >= 0)
+        {
+            // 【C原典】sym_EQUAL 分岐: '=' の後ろが電気パラメータ(electron)。
+            return head[(eq + 1)..];
+        }
+
+        // 【C原典】else 分岐: 予約語(英字部+番号部)を除いた残りが電気パラメータ。
+        int i = 0;
+        while (i < head.Length && char.IsAsciiLetter(head[i])) i++;   // 英字部(yoyakugo)
+        while (i < head.Length && char.IsAsciiDigit(head[i])) i++;    // 番号部(yoyakunum)
+        string electron = head[i..];
+
+        // 【C原典】CheckNumeric(electron): electron が数値のみなら予約語番号側へ吸収し空にする。
+        if (electron.Length > 0 && electron.All(char.IsAsciiDigit))
+        {
+            electron = string.Empty;
+        }
+
+        return electron;
     }
 
     // C-origin: Find_Delimetor (Fyss1c.c). Reserved token = text before '=' (electrical param) or '*' (quantity).

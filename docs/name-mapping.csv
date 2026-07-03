@@ -1,133 +1,675 @@
-種別,元C名,新C#名,出典ファイル,意味
-ソースファイル,FyskEwsMain.c,CircuitAnalyzer.cs / CircuitAnalysisJob.cs,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,回路解析処理(バッチ入口)
-ソースファイル,cmnchar.c,FixedFieldCodec.cs,toku/lib/libfycom/cmnchar.c,SJIS固定長エンコード/デコード
-ソースファイル,getfpath.c/getfname.c,InfConfigLoader.cs,toku/lib/libfycom/getfpath.c,.inf構成ファイル解析
-関数,Fysk10_Main,CircuitAnalyzer.Analyze,libfysek.a,回路解析メイン
-ソースファイル,Fyss11.c,CircuitStringChecker.cs,toku/sekkei/src/Fyss11.c,系統文字列チェック(回路記述→テーブル化)
-関数,Fyss11_Mojiretu_Check,CircuitStringChecker.Check,toku/sekkei/src/Fyss11.c,回路設計エリアの行集約と解析
-関数,Fyss11_Check_Main,CircuitStringChecker.CheckMain,toku/sekkei/src/Fyss11.c,行種別ディスパッチ
-関数,Fyss11_Table_Set,CircuitStringChecker.TableSet,toku/sekkei/src/Fyss11.c,系統/行種/仕様テーブル生成
-関数,Fyss11_Check_NP,CircuitStringChecker.CheckNameplate(スタブ),toku/sekkei/src/Fyss11.c,盤タイトル銘板文チェック
-関数,Fyss11_Check_BN,CircuitStringChecker.CheckBoardName,toku/sekkei/src/Fyss11.c,盤名称文チェック(ban確定)
-関数,Find_BN,CircuitStringChecker.FindBoardWord,toku/sekkei/src/Fyss11.c,盤ワード(BUN/HIK/KAI/SYU/SEI/KEI/BOX/NAI)取り込み
-関数,Fyss11_Check_P,CircuitStringChecker.CheckIncoming + ParseIncomingRating,toku/sekkei/src/Fyss11.c,入線文チェック(電源記述/電線サイズ/芯数/本数/アース → f811)
-関数,Fyss11_Check_PS,CircuitStringChecker.CheckIncomingBranch,toku/sekkei/src/Fyss11.c,入線分岐文チェック(電源記述+CM=)
-関数,Fyss11_Check_UP,CircuitStringChecker.CheckPowered,toku/sekkei/src/Fyss11.c,有電源文チェック(電源種別+CM=)
-関数,Kairo_Bunrui_Set,CircuitStringChecker.ClassifyCircuit,toku/sekkei/src/Fyss11.c,行種区分(G_kind: TM/M/SM→M, S→S, O→O, BO→B, 他→P)
-関数,Kairo_Bangou_Set,CircuitStringChecker.AssignCircuitNumber,toku/sekkei/src/Fyss11.c,回路番号採番(kairono: 相数別カウンタを後置採番し%03d)
-構造体,struct BANGOU,CircuitNumberCounters,toku/sekkei/src/Fyss11.c,回路番号カウンタ(主/分岐/送り/番号 × 単相/三相 + 開閉)
-関数,KAKKO_PROC,CircuitStringChecker.ProcessCommand,toku/sekkei/src/Fyss11.c,"(CM=xxx)"コマンド句の解析
-関数,gyosyu_table_set,CircuitStringChecker.TableSet(GYOSYU部),toku/sekkei/src/Fyss11.c,行種テーブルのG_kind/kairono/K_kind/souden/sousen設定
-テーブル,dengen_kijyutu_table/cp_kijyutu_table,CircuitStringChecker.PowerDescriptionTable,toku/sekkei/src/Fyss11.c,電源記述(1P2W105V等)→定格コード
-テーブル,dengen_syu_table/cp_dengen_table,CircuitStringChecker.PowerKindTable,toku/sekkei/src/Fyss11.c,電源種別(AC100V等)→定格コード
-テーブル,dinf_size_table/dinf_sins_table/dinf_hons_table,CircuitStringChecker.WireSizeTable/WireCoreTable/WireCountTable,toku/sekkei/src/Fyss11.c,電線サイズ/芯数/本数テーブル
-変数,kairostring,CircuitStringChecker.TextCursor,toku/sekkei/src/Fyss11.c,回路文字列ポインタ走査(Check_P系)
-関数,Fyss11_Check_C,CircuitStringChecker.CheckControl(スタブ),toku/sekkei/src/Fyss11.c,コントロール文チェック
-関数,Fyss11_Mojiretu_Find,CircuitStringChecker.MojiretuFind,toku/sekkei/src/Fyss11.c,予約語文(TM/M/SM/B/BO/PM/O/S)を分岐で分解
-関数,Mojiretu_Check,CircuitStringChecker.MojiretuCheck,toku/sekkei/src/Fyss11.c,分岐サブ文チェック(予約語照合・KIKITABLE展開)
-関数,Mojiretu_Check_Main,CircuitStringChecker.MojiretuCheckMain(部分),toku/sekkei/src/Fyss11.c,複合予約語文(G/H/K/MH/S/())の括弧グループ展開
-関数,controlstart/nextchar/firstcontrol/nextcontrol/Find_Control/Select_Control,CircuitStringChecker.ControlScanner,toku/sekkei/src/Fyss11.c,複合予約語文スキャナ(括弧ネスト・カンマ区切)
-列挙,enum SYMBOL(control),ControlScanner.ControlSymbol,toku/sekkei/src/Fyss11.c,複合予約語先頭シンボル(END/OTHER/KANMA/G/H/K/MH/S/LKAKKO)
-関数,kikitable_set,CircuitStringChecker.KikitableSet,toku/sekkei/src/Fyss11.c,機器テーブルエントリ生成(K_No/G_No/S_No/B_No/D_No採番)
-関数,kikitable_add("1"),CircuitStringChecker.ApplyReservedWord,toku/sekkei/src/Fyss11.c,予約語・予約語番号の分解(kubun 1)
-関数,Find_Bangou,CircuitStringChecker.FindBangou,toku/sekkei/src/Fyss11.c,末尾の連続数値(予約語番号)抽出
-関数,Find_Alphabetto,CircuitStringChecker.FindAlphabetto,toku/sekkei/src/Fyss11.c,先頭数字+英字部(予約語)抽出
-テーブル,kei_chk_tbl/syu_tbl,CircuitStringChecker.SystemKindTable,toku/sekkei/src/Fyss11.c,系統起点行種(P/SP/MP/UP)→系統種別(1/2/3/4)
-関数,kairostart/nextkhar/firstkairo/Find_Kairo,CircuitStringChecker.KairoScanner,toku/sekkei/src/Fyss11.c,回路記述文字列スキャナ(分岐トークナイザ)
-列挙,enum SYMBOL,KairoScanner.KairoSymbol,toku/sekkei/src/Fyss11.c,先頭シンボル種別(END/OTHER/BUNKI/BUNKIUKE)
-関数,Fyss11_Check_SEP,CircuitStringChecker.CheckSeparator(スタブ),toku/sekkei/src/Fyss11.c,セパレーター文チェック
-関数,kikitable_set/kikitable_add,CircuitStringChecker.CreateEquipment + EquipmentTableEntry.Attributes,toku/sekkei/src/Fyss11.c,機器テーブル生成/属性付与
-関数,Blankless,CircuitStringChecker.Blankless,toku/sekkei/src/Fyss1a.c,空白除去(漢字保持)
-関数,NULLSTRING,CircuitStringChecker.IsNullString,toku/sekkei/src/Fysscommon.c,空文字列判定
-関数,Find_Alphabetto1,CircuitStringChecker.ExtractAlpha,toku/sekkei/src/Fyss11.c,行種(英字)抽出
-構造体/モデル,KEITOU,SystemTableEntry,toku/include/sekkei/struct.h,系統テーブル
-構造体/モデル,GYOSYU,LineTypeTableEntry,toku/include/sekkei/struct.h,行種テーブル
-構造体/モデル,SPEC,SpecTableEntry,toku/include/sekkei/struct.h,仕様文字列テーブル
-構造体/モデル,KIKITABLE,EquipmentTableEntry,toku/include/sekkei/struct.h,機器テーブル
-構造体/モデル,FYRT820,ControlSpecEntry,toku/include/common/fyrt820.h,制御仕様テーブル
-列挙,enum _BAN,BanKind,toku/sekkei/src/Fyss11.c,盤区分
-関数,Error_Proc,CircuitParseError(レコード),toku/sekkei/src/Fyss11.c,解析エラー(FYRT805)
-ソースファイル,FyskEwsMain.c(行種別前処理群),CircuitLineNormalizer.cs,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,Fysk10_Main前の行種別正規化パイプライン
-関数,Fysk_CheckDuplicationComma,CircuitLineNormalizer.CheckDuplicationComma,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,コンマ重複の除去
-関数,Fysk_LightCirCuitCheck,CircuitLineNormalizer.AddLightCircuitNt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,電灯回路の主幹に+(NT)付与
-関数,Fysk_MPCHeck,CircuitLineNormalizer.CompleteMpDepth,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,MP行の深さ*15補完
-関数,Fysk_TransAfAt,CircuitLineNormalizer.TransformAfAt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,60AF→100AF変換
-関数,Fysk_2ET_Check,CircuitLineNormalizer.RemoveTwoEt,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,C行の+(2ET)削除
-関数,Fysk_TM_Consecutive_Check,CircuitLineNormalizer.MergeConsecutiveTm,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,連続TM行の結合
-関数,Fysk_SM_Consecutive_Check,CircuitLineNormalizer.MergeConsecutiveSm,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,SM行の直前行への結合
-関数,Fysk_WL_Consecutive_Check,CircuitLineNormalizer.ConvertWlF1a,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,PM行 F1A→F+(ST)/F変換
-関数,Fysk_BO_below_TM_Check,CircuitLineNormalizer.ChangeTmToMWhenBoFollows,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,TM直下BOでTM→M
-関数,Fysk_Delete_Comma,CircuitLineNormalizer.DeleteCommaBeforeParen,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,丸括弧直前の不要コンマ削除
-関数,Fysk_Add_LWToMGMC,CircuitLineNormalizer.ApplyLwToMgMc,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,-MG/-MCへ直上の(LW=…)反映
-関数,Fysk_Chg_TMtoM_BetweenPandSP,CircuitLineNormalizer.ChangeTmToMBetweenPAndSp,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,P-SP間のTMをMへ変更
-関数,Fysk_Chg_OtoBO_UnderM,CircuitLineNormalizer.ChangeOToBoUnderM,toku/qrespo/sekkei/fyskews/src/FyskEwsMain.c,P-SP間のM下のOをBOへ変更
-関数,LibCharBackSpaceCut/LibCharBackSpaceSet,FixedFieldCodec.ReadText / WriteText,toku/lib/libfycom/cmnchar.c,固定長CHARの空白トリム/詰め戻し
-関数,Fysk09(数値変換群),NumericConverter.RoundHalfUp / ParseImplicitDecimal,libfysek.a,数値変換・丸め
-関数,CpyNullStop,FixedFieldCodec.ReadText,toku/tool/src/getfpath.c,前後空白除去コピー
-関数,FyGetFileName,InfConfigLoader.LoadDataFileRegistry,toku/tool/src/getfname.c,ファイルID→パス解決
-関数,FyGetFilePath,InfConfigLoader.LoadFilePathMap,toku/lib/libfycom/getfpath.c,パスID→物理パス
-関数,FyIsamRead,IIsamTable.Read,toku/include/common/cmnisam.h,キー一致1件読込
-関数,FyIsamStartR/FyIsamNextR/FyIsamEndR,IIsamTable.ReadSequential,toku/include/common/cmnisam.h,順次読込
-関数,FyIsamAdd,IIsamTable.Add,toku/include/common/cmnisam.h,レコード追加
-関数,FyIsamRewrite,IIsamTable.Rewrite,toku/include/common/cmnisam.h,レコード更新
-関数,FyIsamDelete,IIsamTable.Delete,toku/include/common/cmnisam.h,レコード削除
-構造体/モデル,FYDM805,EquipmentMaster,toku/include/common/fydm805.h,機器マスター
-構造体/モデル,FYDF801,ProjectInfo,toku/include/common/fydf801.h,物件情報
-構造体/モデル,FYDF805,CircuitDescriptionLine,toku/include/common/fydf805.h,回路内容記述
-構造体/モデル,FYRT800,MainCircuitResult,toku/include/common/fyrt800.h,主回路エリア(解析結果)
-構造体/モデル,sk_work,CircuitWork,toku/include/common/fyrt800.h,積算用ワークエリア
-テキストマスタ,bumon.*.cns,DepartmentMaster,確認用/bumon.gai17.cns,部門(営業所/支店)マスター
-設定ファイル,datafile.inf,DataFileRegistryEntry / DataFileRegistry(表),TOKUD/datafile.inf,データファイル構成
-設定ファイル,filepath.inf,InfConfigLoader.LoadFilePathMap,TOKUD/filepath.inf,パスID→物理パス
-定数,ERR_ISAM_NOTHING,IsamStatus.NotFound,toku/include/common/cmnisam.h,指定データ無し(-10)
-定数,ERR_ISAM_EXIST,IsamStatus.AlreadyExists,toku/include/common/cmnisam.h,登録済み(-11)
-定数,EXCLUSIVE_LOCK,LockMode.Lock,toku/include/common/cmnisam.h,ファイルロック(1)
-フィールド,hinban,EquipmentMaster.PartNumber,toku/include/common/fydm805.h,品番
-フィールド,hinmei,EquipmentMaster.PartName,toku/include/common/fydm805.h,品名
-フィールド,pstring,EquipmentMaster.ElectricalParameters,toku/include/common/fydm805.h,電気パラメータ文字列
-フィールド,eigyocd,ProjectInfo.SalesOfficeCode,toku/include/common/fydf801.h,営業所コード
-フィールド,meisaino,ProjectInfo.ItemNumber,toku/include/common/fydf801.h,明細番号
-フィールド,kairoar,CircuitDescriptionLine.CircuitText,toku/include/common/fydf805.h,回路内容記述エリア
-フィールド,gyosyu,CircuitDescriptionLine.LineType,toku/include/common/fydf805.h,行種
-フィールド,gyono,CircuitDescriptionLine.LineNumber,toku/include/common/fydf805.h,行番号
-関数,Check_KikiMeisyou,CircuitStringChecker.CheckKikiMeisyou,toku/sekkei/src/Fyss1b.c,機器名称の予約語マスタ照合(改訂<42>/<46>: 27A/27B/27C→CR、行種Bは入力不可FY-760E)
-関数,Fyss1c_Mojiretu_Check,CircuitStringChecker.CheckKikiMeisyou(部分),toku/sekkei/src/Fyss1c.c,機器名称文字列チェック
-関数,Check_KikimeiC,CircuitStringChecker.CheckKikiMeisyou(部分),toku/sekkei/src/Fyss1c.c,機器名称チェック
-関数,Yoyaku_Check_Main,CircuitStringChecker.ResolveReservedWord,toku/sekkei/src/Fyss1d.c,予約語マスタ照合(接尾数字除去、tokusyu_key一致はfyak_tbl未一致でも成功)
-関数,Find_Delimetor,CircuitStringChecker.SplitReservedToken,toku/sekkei/src/Fyss1c.c,区切り文字(=または*)で分割
-テーブル,fyak_tbl,CircuitStringChecker.ReservedWordMaster,toku/include/sekkei/fyrt810.h,予約語マスタ(コンパイル埋込)
-テーブル,tokusyu_key,CircuitStringChecker.SpecialReservedKeys,toku/sekkei/src/Fyss1d.c,特殊予約語キー(G1-G4/SL/27A/27B/27C改訂<8>/FLT)
-フィールド,s_yoyaku(kikimei),EquipmentTableEntry.ProductName,toku/include/sekkei,確定した予約語(品名)
-ソースファイル,Fyss1d.c(電気パラメータ部),ElectricalParameterChecker.cs,toku/sekkei/src/Fyss1d.c,電気パラメータ(定格キー)チェックエンジン
-関数,Parm_Check_Main,ElectricalParameterChecker.CheckParameters,toku/sekkei/src/Fyss1d.c,予約語ごとの電気パラメータ文字列を1グループずつ解析(TR以外)
-関数,Get_1_Group,ElectricalParameterChecker.GetOneGroup,toku/sekkei/src/Fyss1d.c,数値部＋記号部を1グループ抽出し桁数計上(FY-880/881/695/696/698E)
-関数,Check_1_Group,ElectricalParameterChecker.CheckOneGroup,toku/sekkei/src/Fyss1d.c,定格キー表と照合し桁・繰返数検証(FY-699/882/883/884/885E)
-関数,change_parm_data,ElectricalParameterChecker.ChangeParmData,toku/sekkei/src/Fyss1d.c,記号部文字列の切り出し
-関数,digit_skip/not_digit_skip/delimit_skip/piriod_skip,ElectricalParameterChecker.DigitSkip/NotDigitSkip/DelimitSkip/PiriodSkip,toku/sekkei/src/Fyss1d.c,数値/非数値/区切り'･'/ピリオドのスキップ桁数計上
-関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain,toku/sekkei/src/Fyss1d.c,値をRatingValues(key_tbl)へ格納し型別に重複・範囲検証(MCB/MC/MG/THR/MCDT/CSDT/SC収録)
-構造体/モデル,key_check_<TYPE>の各if/else分岐,ElectricalParameterChecker.KeyCheckRule/KeyCheckRules,toku/sekkei/src/Fyss1d.c,記号ごとの格納先・範囲・fv/fvc・重複/範囲エラーNo.をデータ駆動化
-関数,atoi/atof,ElectricalParameterChecker.AtoiC/AtofC,toku/sekkei/src/Fyss1d.c,Cのatoi/atofセマンティクス(先頭数値部のみ解釈)
-関数,TR_check_main/key_check_TR,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き)、E.2bで移植予定
-構造体/モデル,TKAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sin/FySinTkakt.h,定格キー1記号仕様(symbol/len/d_len/num/flag)
-テーブル,tkak_tbl/t_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,予約語→定格キー表(E.1は基本機種の第1バッチ)
-union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)。E.3でDomainへ移動(KIKITABLEが保持)
-関数,Fyss12_Make_Main,MainCircuitBuilder.MakeMain,toku/sekkei/src/Fyss12.c,主回路生成の統括(17段)
-関数,Keitou_Check,MainCircuitBuilder.CheckSystemComposition,toku/sekkei/src/Fyss12.c,系統チェック(系統内行種検証)
-関数,Ele_Equal_Check,MainCircuitBuilder.CheckElectricalParameterEquality,toku/sekkei/src/Fyss12.c,同一ysno機器の電気パラメータ同一検証(MCDT/CSDT/MC/TSW。R系はE.3b保留)。FY-630E/631E
-フィールド,KIKITABLE.key_tbl,EquipmentTableEntry.RatingValues,toku/include/sekkei/struct.h,機器テーブルの定格キー値(電気パラメータ)
-関数,Find_Gyosyu_Sym,MainCircuitBuilder.FindLineTypeSymbol,toku/sekkei/src/Fyss12.c,行種文字列→シンボル分類
-列挙,SYMBOL,MainCircuitBuilder.LineTypeSymbol,toku/sekkei/src/Fyss12.c,行種シンボル(sym_NP等)
-関数,Gyosyu_Check,MainCircuitBuilder.CheckLineTypeHierarchy,toku/sekkei/src/Fyss12.c,行種関連チェック(上下関係, 改訂<15>PM行27A/27B/27C例外)
-関数,Find_Numeric,MainCircuitBuilder.FindNumericPrefix,toku/sekkei/src/Fysscommon.c,語前の数値取り出し
-関数,Yoyakugo_Check_Double,MainCircuitBuilder.CheckEquipmentInformation,toku/sekkei/src/Fyss12.c,機器情報関連チェック(予約語種別ごとに重複/位置検証を分岐)。TB+PS/2電源TR/LGR/ELR外部取付/回路番号/数量はE.4b保留
-関数,Find_Gyosyu,MainCircuitBuilder.FindLineType,toku/sekkei/src/Fyss1f.c,行種テーブルをG_Noで検索(G_No==0はNULL)
-関数,Yoyakugo_Check_RM,MainCircuitBuilder.CheckRemoteControlDuplicate,toku/sekkei/src/Fyss12.c,リモコン機器(RRY除く)の同一番号重複チェック。FY-682E
-関数,Yoyakugo_Check_MCDT,MainCircuitBuilder.CheckMcdtPair,toku/sekkei/src/Fyss12.c,MCDT/CSDTの番号必須(FY-684E)・同一番号丁度2件(FY-685E)チェック
-関数,Yoyakugo_Check_SC,MainCircuitBuilder.CheckShuntPosition,toku/sekkei/src/Fyss12.c,SC位置チェック(PM直後同一グループFY-656E/O/B/S/BO可/他FY-649E)
-関数,Yoyakugo_Check_TR,MainCircuitBuilder.CheckTransformerDuplicate,toku/sekkei/src/Fyss12.c,TR番号付き不可(FY-683E)。2電源TR(key_tbl.tr)はE.4b保留
-関数,Yoyakugo_Check_OTHER,MainCircuitBuilder.CheckOtherDuplicate,toku/sekkei/src/Fyss12.c,一般機器の重複チェック(MC?MG/一般同番号FY-682E)。LGR/ELR外部取付(Kakko)はE.4b保留
-関数,Kairo_Kubun_Set,MainCircuitBuilder.SetCircuitDivision,toku/sekkei/src/Fyss12.c,回路区分セット(機器のK_Kubunを機器種別/行種/計器パターンで設定。エラー返却なし)
-関数,Find_Keiki_Type,MainCircuitBuilder.FindEquipmentType,toku/sekkei/src/Fyss12.c,予約語→計器種別(TYPE)分類。SBは分類対象外
-列挙,enum _TYPE,MainCircuitBuilder.EquipmentType,toku/sekkei/src/Fyss12.c,計器種別(type_LA/WH/CT等)
-テーブル,def_ptn/struct _PATTERN,MainCircuitBuilder.Patterns/EquipmentPattern,toku/sekkei/src/Fyss12.c,計器グループパターン表(string/kazu/type。id/retu/top_flgは未使用)
-フィールド,KIKITABLE.K_Kubun,EquipmentTableEntry.CircuitDivision,toku/include/sekkei/struct.h,回路区分(K=計器/機器グループ M=主機器 S=SC分岐)
+using Ews.Analysis;
+using Ews.Domain.Analysis;
+using Ews.Domain.Circuits;
+using Ews.Domain.Projects;
+using Xunit;
+
+namespace Ews.Tests;
+
+/// <summary>
+/// 系統文字列チェック(<see cref="CircuitStringChecker"/>)の検証。
+/// 【C原典】toku/sekkei/src/Fyss11.c Fyss11_Mojiretu_Check / Fyss11_Check_Main。
+/// </summary>
+public sealed class CircuitStringCheckerTests
+{
+    private static CircuitDescriptionLine Line(string lineType, string text, int lineNumber, char command = ' ')
+        => new()
+        {
+            LineType = lineType,
+            CircuitText = text,
+            LineNumber = lineNumber,
+            Command = command,
+        };
+
+    private static CircuitParseResult Run(IEnumerable<CircuitDescriptionLine> lines)
+    {
+        var checker = new CircuitStringChecker();
+        var project = new ProjectInfo();
+        return checker.Check(project, project, lines.ToList());
+    }
+
+    [Fact]
+    public void Check_系統起点の行種のみKEITOUを生成する()
+    {
+        // 【C原典】kei_chk_tbl(P/SP/MP/UP)に完全一致した行種のみ系統(KEITOU)を生成。
+        // P と SP は系統を起こすが、予約語 M は直前の系統に属し系統は増えない。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB", 2),
+            Line("SP", "(10*20)", 3),
+        });
+
+        Assert.Equal(2, result.Systems.Count);   // P と SP のみ
+        Assert.Equal(3, result.LineTypes.Count); // 行種(GYOSYU)は全行
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("P", '1')]  // kei_chk_tbl[0] → syu_tbl[0]
+    [InlineData("SP", '2')] // kei_chk_tbl[1] → syu_tbl[1]
+    [InlineData("MP", '3')] // kei_chk_tbl[2] → syu_tbl[2]
+    [InlineData("UP", '4')] // kei_chk_tbl[3] → syu_tbl[3]
+    public void Check_kei_chk_tblが系統種別を決定する(string lineType, char expectedKind)
+    {
+        // 【C原典】Fyss11_Table_Set: syu = syu_tbl[i][0]; Kind = syu。
+        var result = Run(new[] { Line(lineType, "X", 1) });
+
+        Assert.Single(result.Systems);
+        Assert.Equal(expectedKind, result.Systems[0].SystemKind);
+    }
+
+    [Fact]
+    public void Check_行種ブランクの継続行を直前行へ結合する()
+    {
+        // 【C原典】j!=0 かつ NULLSTRING(tgyosyu) → strcat(okairoar, tkairoar)
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("", "CV2SQ", 2),     // 継続行
+            Line("M", "ELB", 3),
+        });
+
+        // P と M の系統。継続行は独立した系統にならない。
+        Assert.Single(result.Systems); // 系統を起こすのは P のみ(M は同一系統)
+        // P の仕様文字列に継続分が連結されている。
+        Assert.Contains(result.Specs, s => s.Text.Contains("1P2W105V") && s.Text.Contains("CV2SQ"));
+    }
+
+    [Fact]
+    public void Check_先頭が継続行ならFY004Eエラー()
+    {
+        // 【C原典】j==0 かつ NULLSTRING(tgyosyu) → Error_Proc("FY-004E")
+        var result = Run(new[]
+        {
+            Line("", "100A", 1),
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-004E");
+    }
+
+    [Fact]
+    public void Check_END行で解析を打ち切る()
+    {
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("END", "", 2),
+            Line("M", "無視される", 3),
+        });
+
+        Assert.Single(result.Systems);
+    }
+
+    [Fact]
+    public void Check_コメント行種をスキップする()
+    {
+        // # @ \ CM % はスキップ。
+        var result = Run(new[]
+        {
+            Line("#", "コメント", 1),
+            Line("CM", "コメント", 2),
+            Line("P", "1P2W105V", 3),
+        });
+
+        Assert.Single(result.Systems);
+        Assert.Equal("P", result.Systems[0].LineType);
+    }
+
+    [Fact]
+    public void Check_削除コマンド行をスキップする()
+    {
+        // 【C原典】cmd == 'D' は continue。
+        var result = Run(new[]
+        {
+            Line("P", "削除対象", 1, command: 'D'),
+            Line("M", "MCB 2P", 2),
+        });
+
+        // 削除された P はスキップされ、残る M は系統を起こさない。
+        Assert.Empty(result.Systems);
+        Assert.Contains(result.LineTypes, g => g.LineType == "M");
+    }
+
+    [Fact]
+    public void Check_未知の行種はFY605Eエラー()
+    {
+        // 【C原典】default → Error_Proc("FY-605E")
+        var result = Run(new[]
+        {
+            Line("ZZ", "不明", 1),
+            Line("P", "MCB", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-605E");
+    }
+
+    [Fact]
+    public void Check_入線文Pは機器テーブルに展開される()
+    {
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "ELB", 2),
+        });
+
+        Assert.Contains(result.MainEquipment, k => k.LineType == "P" && k.Attributes.GetValueOrDefault("11") == "P");
+    }
+
+    // ==== Check_Kikimei → Parm_Check_Main(電気パラメータ→定格値 key_tbl 格納) ====
+
+    [Fact]
+    public void Check_電気パラメータを解析し定格値を機器へ格納する()
+    {
+        // 【C原典】Check_Kikimei()→Parm_Check_Main()→kikitable_add("2", electron, &f811)。
+        // '=' の後ろ(sym_EQUAL 分岐)が電気パラメータ(d_parm)となる。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB=3P225AF150AT", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("MCB", kiki.ProductName);
+        Assert.NotNull(kiki.RatingValues);
+        Assert.Equal("3", kiki.RatingValues!.Get("p"));    // 極数
+        Assert.Equal("225", kiki.RatingValues.Get("af"));  // フレーム
+        Assert.Equal("150", kiki.RatingValues.Get("at"));  // トリップ
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_電気パラメータ無しの予約語は定格値を格納しない()
+    {
+        // 【C原典】NULLSTRING(d_parm) → Parm_Check_Main を呼ばない(key_tbl 未設定)。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Null(kiki.RatingValues);
+    }
+
+    [Fact]
+    public void Check_不正な電気パラメータはエラーになり定格値を格納しない()
+    {
+        // 【C原典】Parm_Check_Main が -1 を返すと Check_Kikimei が異常(ErrNo 保持)。
+        // ピリオド2個以上 → FY-880E(Get_1_Group)。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB=2..5AF", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-880E");
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Null(kiki.RatingValues);
+    }
+
+
+    [Theory]
+    [InlineData("BUN", BanKind.Branch)]
+    [InlineData("HIK", BanKind.Incoming)]
+    [InlineData("HIKI", BanKind.Incoming)]
+    [InlineData("HIKK", BanKind.Incoming)]
+    [InlineData("KAI", BanKind.Switch)]
+    [InlineData("SYU", BanKind.Main)]
+    [InlineData("SHU", BanKind.Main)]
+    [InlineData("SEI", BanKind.Control)]
+    [InlineData("KEI", BanKind.Meter)]
+    [InlineData("BOX", BanKind.Box)]
+    [InlineData("NAI", BanKind.Internal)]
+    public void CheckBN_盤名称キーワードからBanKindを確定する(string keyword, BanKind expected)
+    {
+        // 【C原典】Fyss11_Check_BN → Find_BN。
+        var result = Run(new[]
+        {
+            Line("BN", keyword, 1),
+            Line("M", "MCB", 2),
+        });
+
+        Assert.Equal(expected, result.CurrentBan);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckBN_盤名称無しは分岐盤になる()
+    {
+        // 【C原典】findban == ban_END → return(ban_BUN)。
+        var result = Run(new[]
+        {
+            Line("BN", "", 1),
+            Line("M", "MCB", 2),
+        });
+
+        Assert.Equal(BanKind.Branch, result.CurrentBan);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckBN_不正な盤名称はFY620Eエラー()
+    {
+        // 【C原典】あやしげなデータ → Error_Proc("FY-620E")。
+        var result = Run(new[]
+        {
+            Line("BN", "XYZ", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-620E");
+    }
+
+    [Fact]
+    public void CheckBN_盤名称の後に余分なデータがあればFY611Eエラー()
+    {
+        // 【C原典】findend != ban_END → Error_Proc("FY-611E")。
+        var result = Run(new[]
+        {
+            Line("BN", "SYU XYZ", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-611E");
+    }
+
+    [Fact]
+    public void CheckBN_確定した盤区分が後続機器に伝播する()
+    {
+        var result = Run(new[]
+        {
+            Line("BN", "SYU", 1),
+            Line("P", "1P2W105V", 2),
+        });
+
+        Assert.Contains(result.MainEquipment, k => k.LineType == "P" && k.Ban == BanKind.Main);
+    }
+
+    // ==== Fyss11_Mojiretu_Find(予約語文の分岐分解) ====
+
+    [Fact]
+    public void MojiretuFind_分岐受けで複数の機器に展開する()
+    {
+        // 【C原典】"MCB--ELB" → Bun_No=1(MCB), Bun_No=2(ELB)。
+        var result = Run(new[]
+        {
+            Line("M", "MCB--ELB", 1),
+        });
+
+        var reserved = result.MainEquipment.Where(k => k.LineType == "M").ToList();
+        Assert.Equal(2, reserved.Count);
+        Assert.Contains(reserved, k => k.StringSequence == 1 && k.CircuitText == "MCB");
+        Assert.Contains(reserved, k => k.StringSequence == 2 && k.CircuitText == "ELB");
+    }
+
+    [Fact]
+    public void MojiretuFind_単一文はBunNo1で展開する()
+    {
+        var result = Run(new[]
+        {
+            Line("M", "MCB", 1),
+        });
+
+        var reserved = result.MainEquipment.Where(k => k.LineType == "M").ToList();
+        Assert.Single(reserved);
+        Assert.Equal(1, reserved[0].StringSequence);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void MojiretuFind_M以外の空文はFY623Eエラー()
+    {
+        // 【C原典】NULLSTRING(control) かつ gyosyu != "M" → Error_Proc("FY-623E")。
+        var result = Run(new[]
+        {
+            Line("B", "", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-623E");
+    }
+
+    [Fact]
+    public void MojiretuFind_M行の空文は許容される()
+    {
+        // 【C原典】gyosyu == "M" のときのみ空文を許容。
+        var result = Run(new[]
+        {
+            Line("M", "", 1),
+        });
+
+        Assert.DoesNotContain(result.Errors, e => e.ErrorCode == "FY-623E");
+    }
+
+    // ==== Mojiretu_Check 本体(予約語照合・KIKITABLE 展開) ====
+
+    [Fact]
+    public void MojiretuCheck_カンマ区切りの予約語を個別の機器に展開する()
+    {
+        // 【C原典】Find_Control がカンマ(sym_KANMA)まで抽出し、予約語ごとに kikitable_set。
+        var result = Run(new[]
+        {
+            Line("M", "MCB,ELB,MC", 1),
+        });
+
+        var kiki = result.MainEquipment.Where(k => k.LineType == "M").ToList();
+        Assert.Equal(3, kiki.Count);
+        Assert.Contains(kiki, k => k.CircuitText == "MCB");
+        Assert.Contains(kiki, k => k.CircuitText == "ELB");
+        Assert.Contains(kiki, k => k.CircuitText == "MC");
+    }
+
+    [Fact]
+    public void MojiretuCheck_予約語と予約語番号を分解する()
+    {
+        // 【C原典】kikitable_add("1", ...) → Find_Alphabetto(予約語) + Find_Bangou(予約語番号)。
+        var result = Run(new[]
+        {
+            Line("M", "MCB3", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("MCB", kiki.ReservedWord);      // 英字部
+        Assert.Equal("03", kiki.ReservedWordNumber); // 後続数値(2桁)
+        Assert.Equal(1, kiki.EquipmentNumber);       // D_No
+    }
+
+    [Fact]
+    public void MojiretuCheck_固定予約語はそのまま予約語になる()
+    {
+        // 【C原典】G1?G4/SL*/FLT* は yoyakugo をそのまま yoyaku へ。
+        var result = Run(new[]
+        {
+            Line("M", "FLT2", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("FLT2", kiki.ReservedWord);
+        Assert.Equal(string.Empty, kiki.ReservedWordNumber);
+    }
+
+    [Fact]
+    public void MojiretuCheck_複合予約語の不正な接尾語はFY613Eエラー()
+    {
+        // 【C原典】括弧グループ後の接尾語が (LN=/(LW=/(BK=/(BKO= 以外 → FY-613E。
+        var result = Run(new[]
+        {
+            Line("M", "K(MCB)XYZ", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-613E");
+    }
+
+    [Fact]
+    public void MojiretuCheck_括弧が閉じない複合予約語はFY617Eエラー()
+    {
+        // 【C原典】Select_Control が非平衡(kakko!=0) → FY-617E。
+        var result = Run(new[]
+        {
+            Line("M", "K(MCB", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-617E");
+    }
+
+    // ==== Kairo_Bunrui_Set / Kairo_Bangou_Set(行種区分・回路番号) ====
+
+    [Theory]
+    [InlineData("TM", 'M')]
+    [InlineData("M", 'M')]
+    [InlineData("SM", 'M')]
+    [InlineData("S", 'S')]
+    [InlineData("O", 'O')]
+    [InlineData("B", ' ')]
+    [InlineData("BO", 'B')]
+    [InlineData("PM", ' ')]
+    public void 行種区分_Kairo_Bunrui_SetがG_kindを決定する(string lineType, char expectedClass)
+    {
+        // 【C原典】Kairo_Bunrui_Set: TM/M/SM→'M', S→'S', O→'O', BO→'B', B/PM→' ', 他→'P'。
+        var result = Run(new[]
+        {
+            Line(lineType, "MCB", 1),
+        });
+
+        LineTypeTableEntry gyosyu = Assert.Single(result.LineTypes);
+        Assert.Equal(expectedClass, gyosyu.CircuitClass);
+    }
+
+    [Fact]
+    public void 回路番号_同一区分の連番が3桁で採番される()
+    {
+        // 【C原典】Kairo_Bangou_Set: 区分ごとに 1 始まりの通し番号を後置採番し "%03d" で格納。
+        var result = Run(new[]
+        {
+            Line("M", "MCB", 1),
+            Line("M", "ELB", 2),
+            Line("M", "MC", 3),
+        });
+
+        var mains = result.LineTypes.Where(g => g.LineType == "M").ToList();
+        Assert.Equal(3, mains.Count);
+        Assert.Equal("001", mains[0].CircuitNumber);
+        Assert.Equal("002", mains[1].CircuitNumber);
+        Assert.Equal("003", mains[2].CircuitNumber);
+    }
+
+    [Fact]
+    public void 回路番号_PM行は採番されず000になる()
+    {
+        // 【C原典】Kairo_Bangou_Set: 区分 ' ' かつ "PM" は return(0)。
+        var result = Run(new[]
+        {
+            Line("PM", "MCB", 1),
+        });
+
+        LineTypeTableEntry gyosyu = Assert.Single(result.LineTypes);
+        Assert.Equal("000", gyosyu.CircuitNumber);
+    }
+
+    // ==== Fyss11_Check_P / PS / UP(定格値編集 f811) ====
+
+    [Fact]
+    public void CheckP_電源記述から相数と定格コードを確定する()
+    {
+        // 【C原典】dengen_kijyutu_table 照合 → KAIROSOU/KAIRODEN/KAIROSOUSEN + f811(P_F)。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("P", kiki.Attributes.GetValueOrDefault("11"));
+        Assert.Equal("12A  105", kiki.Attributes.GetValueOrDefault("f811.cp"));
+        Assert.Equal('1', result.CircuitPhase);              // KAIROSOU
+        Assert.Equal("1P2W", result.CircuitPhaseWires);      // KAIROSOUSEN(先頭4文字)
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckP_電線サイズと芯数と本数を解析する()
+    {
+        // 【C原典】電線種類(dkind)+サイズ(SQ除去)+'-'芯数(C除去)+'*'本数。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105VCV2SQ-2C*2", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("CV", kiki.Attributes.GetValueOrDefault("LN"));   // 電線種類
+        Assert.Equal("2", kiki.Attributes.GetValueOrDefault("f811.sq")); // 電線サイズ
+        Assert.Equal("2", kiki.Attributes.GetValueOrDefault("f811.c"));  // 芯数
+        Assert.Equal("2", kiki.Attributes.GetValueOrDefault("f811.k"));  // 本数
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckP_不明な電源記述はFY650Eエラー()
+    {
+        // 【C原典】dengen_kijyutu_table 未一致 → FY-650E。
+        var result = Run(new[]
+        {
+            Line("P", "9Z9W999V", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-650E");
+    }
+
+    [Fact]
+    public void CheckP_コマンドCMを解析する()
+    {
+        // 【C原典】KAKKO_PROC: "(CM=xxx)" → cmdat。
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V(CM=TEST)", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("TEST", kiki.Attributes.GetValueOrDefault("CM"));
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckUP_電源種別から定格コードを確定する()
+    {
+        // 【C原典】dengen_syu_table 照合 → f811(UP_F.fv)。
+        var result = Run(new[]
+        {
+            Line("UP", "AC100V", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("UP", kiki.Attributes.GetValueOrDefault("11"));
+        Assert.Equal("A100", kiki.Attributes.GetValueOrDefault("f811.fv"));
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckUP_不明な電源種別はFY656Eエラー()
+    {
+        // 【C原典】dengen_syu_table 未一致 → FY-656E。
+        var result = Run(new[]
+        {
+            Line("UP", "XX999V", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-656E");
+    }
+
+    [Fact]
+    public void CheckPS_電源記述とコマンドを解析する()
+    {
+        // 【C原典】Fyss11_Check_PS: 電源記述 + "(CM=xxx)"。
+        var result = Run(new[]
+        {
+            Line("PS", "1P2W105V(CM=A)", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("PS", kiki.Attributes.GetValueOrDefault("11"));
+        Assert.Equal("A", kiki.Attributes.GetValueOrDefault("CM"));
+        Assert.True(result.IsValid);
+    }
+
+    // ==== Check_KikiMeisyou / Yoyaku_Check_Main(予約語マスタ照合) ====
+
+    [Fact]
+    public void CheckKikiMeisyou_予約語マスタに一致する品名を確定する()
+    {
+        // 【C原典】Fyss1c_Mojiretu_Check → Yoyaku_Check_Main: fyak_tbl 照合 → s_yoyaku(kikimei)。
+        var result = Run(new[]
+        {
+            Line("M", "MCB", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("MCB", kiki.ProductName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_接尾数字を削って予約語を照合する()
+    {
+        // 【C原典】Yoyaku_Check_Main: 先頭1文字後の最初の数字まで(接尾数字削除)で照合。
+        var result = Run(new[]
+        {
+            Line("M", "MCB3", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("MCB", kiki.ProductName);      // 照合済み予約語
+        Assert.Equal("MCB", kiki.ReservedWord);     // 英字部
+        Assert.Equal("03", kiki.ReservedWordNumber); // 予約語番号
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_特殊キーは接尾数字を保持して照合する()
+    {
+        // 【C原典】tokusyu_key(FLT1?FLT4/SL*/G1?G4)は前方一致で長さ確定。
+        var result = Run(new[]
+        {
+            Line("M", "FLT2", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("FLT2", kiki.ProductName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_先頭数字付き予約語を照合する()
+    {
+        // 【C原典】Yoyaku_Check_Main: 先頭1文字を飛ばすため "2ERY" は全長照合。
+        var result = Run(new[]
+        {
+            Line("M", "2ERY", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("2ERY", kiki.ProductName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_マスタに無い予約語はFY879Eエラー()
+    {
+        // 【C原典】Yoyaku_Check_Main: fyak_tbl 未一致 → FY-879E。
+        var result = Run(new[]
+        {
+            Line("M", "XYZ", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-879E");
+    }
+
+    [Theory]
+    [InlineData("27A")]
+    [InlineData("27B")]
+    [InlineData("27C")]
+    public void CheckKikiMeisyou_27系予約語はCRとして扱う(string control)
+    {
+        // 【C原典】改訂<8>(tokusyu_key 追加)+ 改訂<42>(Fyss1b.c): 27A/27B/27C は CR として扱う。
+        var result = Run(new[]
+        {
+            Line("M", control, 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("CR", kiki.ProductName);
+        Assert.DoesNotContain(result.Errors, e => e.ErrorCode == "FY-879E");
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_行種Bの27系はFY760Eエラー()
+    {
+        // 【C原典】改訂<46>(Fyss1b.c): 行種B の 27 系予約語は入力不可 → FY-760E。
+        var result = Run(new[]
+        {
+            Line("B", "27A", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-760E");
+    }
+}
+関数,Parm_Check_Main,CircuitStringChecker.PopulateRatingValues,toku/sekkei/src/Fyss1d.c,電気パラメータ→定格値(key_tbl)格納の配線
+関数,Find_Delimetor/Find_Name,CircuitStringChecker.ExtractElectricalParameter,toku/sekkei/src/Fyss1c.c,予約語文から電気パラメータ部(d_parm)を抽出
+関数,Parm_Check_Main,CircuitStringChecker.PopulateRatingValues,toku/sekkei/src/Fyss1d.c,電気パラメータ→定格値(key_tbl)格納の配線
+関数,Find_Delimetor/Find_Name,CircuitStringChecker.ExtractElectricalParameter,toku/sekkei/src/Fyss1c.c,予約語文から電気パラメータ部(d_parm)を抽出
