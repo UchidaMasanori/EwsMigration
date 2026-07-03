@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    全プロジェクト共通のビルド設定。
+    個別の .csproj でこれらを重複記述しないこと。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- ソースは Shift-JIS / CP932(BOMなし)。VS Code のエンコーディング設定で CP932 保存を徹底する。 -->
+  </PropertyGroup>
+
+</Project>

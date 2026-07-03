@@ -1,0 +1,36 @@
+# EditorConfig  https://editorconfig.org
+# EwsMigration 共通コーディング規約
+
+root = true
+
+# 既定: ソースコード(.cs/.csv/.sql)は Shift-JIS / CP932。GitHub 表示用ドキュメントは UTF-8。
+[*]
+indent_style = space
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# C# / SQL: CP932(Shift-JIS)前提。旧システムの固定長・.cns データとの互換のため。
+# 注: EditorConfig に CP932 の charset 値は無いため charset は指定しない。
+#     エディタが UTF-8 で誤保存しないよう、保存時は CP932 を明示すること
+#     (VS Code のファイル別エンコーディング設定 / 保存後の U+FFFD チェック)。
+[*.{cs,csv,sql}]
+indent_size = 4
+
+# ドキュメント・設定は UTF-8。README は GitHub でのレンダリングのため UTF-8 必須。
+[*.{md,json,props,targets,yml,yaml,gitignore}]
+charset = utf-8
+indent_size = 2
+
+# CSV は追記専用運用。改行は LF を維持する。
+[*.csv]
+end_of_line = lf
+
+[*.cs]
+end_of_line = crlf
+
+# C# コードスタイル(最小限)
+[*.cs]
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:suggestion
+dotnet_style_namespace_match_folder = true:suggestion
