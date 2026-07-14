@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 178 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 180 テスト成功 / 1 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -138,6 +138,8 @@ EwsMigration/
 - **主回路生成** `MainCircuitBuilder`（`Fyss12.c` の 17 ステップのうち）
   - step1 系統構成 / step2 行種階層 / step4 機器情報 / step5 回路区分（`Kairo_Kubun_Set`）
   - step6 `Yoyakugo_Add_Main` の前段 `D_No*=10` スケーリング / step7 D_No 昇順ソート（`qsort` 相当）
+  - step8 `Gyosyu_Rank_Set` 行種ランク/出現数（`Kiki_Suryou_Set/Calc`・`Main_Exist_Check`）
+  - step9-13.5 機器ランク系: `Kiki_Rank_Set`/`Kiki_Rank_Update`(TOP_Flg)/`Gyosyu_Rank_Update`(`Find_Max_Rank`)/`Pattern_Rank_Update`/`WH_Rank_Set`(改訂14)/`TR_Rank_Set`
   - step16 電気パラメータ一致チェック（`Ele_Equal_Check`）
 
 ### 未移植・TODO（次にやること）
@@ -146,7 +148,7 @@ EwsMigration/
   依存: `PropChkSEPBox`/`PropChkHbnHB300`（改訂<12> の bukken FYDF801 プロパティ照会）、
   グループ別 souden の全面設定、`Find_Keitou`。消費側の後段ステップも未移植のため、
   データで検証できるようになってから着手する（推測移植は忠実性を損なうため保留）。
-- **主回路生成の step9?15, 17, 19**: ランク設定・`Fyss12_Make_Main_Sub` 等（TODO コメントで明示済み）。
+- **主回路生成の step14/15, 17, 19**: `Kairo_Group_Set`(無効化)・`Fyss12_Make_Main_Sub`(数量分解) 等（TODO コメントで明示済み）。
 - **電気パラメータエンジンの残り型**（約90種の `key_check_XXX`）、TR 系パーサ。
 - **データ層**: `.cns` マスタ取込・SQL Server スキーマの本格整備（`sql/001_schema.sql` は初期のみ）。
 - **作図系（DWI）**: 最難関。DLL 化 + P/Invoke か C# 再実装かは未決。
