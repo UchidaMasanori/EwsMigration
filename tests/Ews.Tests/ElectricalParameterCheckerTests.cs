@@ -193,7 +193,7 @@ public sealed class ElectricalParameterCheckerTests
     [InlineData("AM", "50/5A")]        // ft_am: "/"(4,0,1,1) + A(4,0,1,0)
     [InlineData("VT", "110/110VAC")]   // ft_vt: "/"(3,0,1,0) + VAC(3,0,1,0)
     [InlineData("CT", "1000/5A")]      // ft_ct: "/"(4,0,1,0) + A(3,0,1,0)
-    [InlineData("RTR", "75/22VA")]     // ft_rtr: "/"(3,0,1,0) + VA(2,0,1,0)
+    [InlineData("RTR", "200/22VA")]    // ft_rtr: "/"(3,0,1,0)—£U{100,200} + VA(2,0,1,0)
     [InlineData("BLTR", "75/22VA")]    // ft_bltr: "/"(3,0,1,0) + VA(2,0,1,0)
     [InlineData("PLTR", "75/55VAC")]   // ft_pltr: "/"(3,0,1,0) + VAC(2,0,1,0)
     [InlineData("THSW", "3C/2C")]      // ft_thsw: "C/"(3,0,1,0) + C(3,0,1,0)
@@ -623,5 +623,80 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal(0, rc);
         Assert.Equal(string.Empty, err);
         Assert.Equal("5.50", values.Get("kw"));
+    }
+
+    // „Ÿ„Ÿ •Ï—¬ŠíEƒŠƒŒ[Œn key_check(ZCT/LGR/ELR/HPSB/HSB/RRY/RTR) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+
+    [Fact]
+    public void ZCT‚ÌŠe‹L†‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_ZCT: P 1..100AA 1..800AV/VAC 1..600(fv='A')B
+        (short rc, RatingValues values, string err) = CheckValues("ZCT", "50P400A200V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("50", values.Get("p"));
+        Assert.Equal("400", values.Get("a"));
+        Assert.Equal("200", values.Get("v"));
+        Assert.Equal("A", values.Get("fv"));
+    }
+
+    [Fact]
+    public void LGR‚ÌMA—£U’l‚ÆK‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_LGR: MA¸{50,100,200,400,500,800,1000}AK 1..10B
+        (short rc, RatingValues values, string err) = CheckValues("LGR", "100MA5K200VC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("ma[0]"));
+        Assert.Equal("5", values.Get("k"));
+        Assert.Equal("200", values.Get("vc"));
+        Assert.Equal("A", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void ELR‚ÌMA—£U’lˆÈŠO‚ÍFY810E()
+    {
+        // yCŒ´“Tzkey_check_ELR: MA¸{30,100,200,500} ˆÈŠO ¨ FY-810EB
+        (short rc, _, string err) = CheckValues("ELR", "60MA");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-810E", err);
+    }
+
+    [Fact]
+    public void HPSB‚ÌAM”ÍˆÍŠO‚ÍFY844E()
+    {
+        // yCŒ´“Tzkey_check_HPSB: AM 5..200 ‚Ì”ÍˆÍŠO ¨ FY-844EB
+        (short rc, _, string err) = CheckValues("HPSB", "3P100AF50AT300AM");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-844E", err);
+    }
+
+    [Fact]
+    public void HSB‚ÌVDC‚Í’¼—¬‹æ•ªfv‚ªD‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_HSB: VDC ¨ hsb.fv='D'A”ÍˆÍ 1..999B
+        (short rc, RatingValues values, string err) = CheckValues("HSB", "3P100AF50AT500VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("500", values.Get("v"));
+        Assert.Equal("D", values.Get("fv"));
+    }
+
+    [Fact]
+    public void RRY‚ÌP‚Í1‚©2‚Ì‚İ‚Å‚ ‚èFY891E()
+    {
+        // yCŒ´“Tzkey_check_RRY: P¸{1,2} ˆÈŠO ¨ FY-891EB
+        (short rc, _, string err) = CheckValues("RRY", "3P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
+
+    [Fact]
+    public void RTR‚ÌV‚Í—£U’lˆÈŠO‚ÅFY802E()
+    {
+        // yCŒ´“Tzkey_check_RTR: V¸{24,100,200} ˆÈŠO ¨ FY-802EB
+        (short rc, _, string err) = CheckValues("RTR", "150V");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-802E", err);
     }
 }

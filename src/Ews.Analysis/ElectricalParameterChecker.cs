@@ -2119,8 +2119,61 @@ public sealed class ElectricalParameterChecker
                 new(["KW"], "kw", FloatRange(0.01, 999.00), "FY-811E", "FY-812E"),
                 new(["MA"], "ma", IntIn(15, 30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
             ],
+            // 【C原典】key_check_ZCT(Fyss1d.c:3492) … 零相変流器。
+            ["ZCT"] =
+            [
+                new(["P"], "p", IntRange(1, 100), "FY-890E", "FY-891E"),
+                new(["A"], "a", IntRange(1, 800), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_LGR(Fyss1d.c:3543) … 漏電リレー。MA=ma[inum]。
+            ["LGR"] =
+            [
+                new(["MA"], "ma", IntIn(50, 100, 200, 400, 500, 800, 1000), "FY-809E", "FY-810E", Indexed: true),
+                new(["K"], "k", IntRange(1, 10), "FY-841E", "FY-842E"),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_ELR(Fyss1d.c:3595) … 漏電継電器。MA=ma[inum]。
+            ["ELR"] =
+            [
+                new(["MA"], "ma", IntIn(30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
+                new(["VC", "VCAC"], "vc", IntRange(1, 500), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_HPSB(Fyss1d.c:3634) … 高圧受電盤用ブレーカ。
+            ["HPSB"] =
+            [
+                new(["AT"], "at", IntRange(3, 600), "FY-899E", "FY-800E"),
+                new(["AF"], "af", IntRange(15, 600), "FY-894E", "FY-895E"),
+                new(["P"], "p", IntIn(2, 3), "FY-890E", "FY-891E"),
+                new(["AM"], "am", IntRange(5, 200), "FY-843E", "FY-844E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_HSB(Fyss1d.c:3709) … 高圧ブレーカ。
+            ["HSB"] =
+            [
+                new(["AT"], "at", IntRange(3, 600), "FY-899E", "FY-800E"),
+                new(["AF"], "af", IntRange(15, 600), "FY-894E", "FY-895E"),
+                new(["P"], "p", IntIn(2, 3), "FY-890E", "FY-891E"),
+                new(["AM"], "am", IntRange(5, 200), "FY-843E", "FY-844E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 999), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_RRY(Fyss1d.c:3797) … 継電器。
+            ["RRY"] =
+            [
+                new(["P"], "p", IntIn(1, 2), "FY-890E", "FY-891E"),
+                new(["A"], "a", IntRange(1, 20), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 999), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 30), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_RTR(Fyss1d.c:3862) … 制御用変圧器。"/" は二次電圧 sv(離散)。
+            ["RTR"] =
+            [
+                new(["VAC", "V"], "v", IntIn(24, 100, 200), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["/"], "sv", IntIn(100, 200), "FY-833E", "FY-834E"),
+                new(["VA"], "va", IntRange(1, 36), "FY-835E", "FY-836E"),
+            ],
         };
-
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────
 
     /// <summary>
