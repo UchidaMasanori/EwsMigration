@@ -131,13 +131,38 @@ public sealed class ElectricalParameterCheckerTests
     }
 
     [Fact]
-    public void 未収録予約語は構造検証をスキップする()
+    public void 未知の予約語は構造検証をスキップする()
     {
-        // 本フェーズ未収録の定格キー表はスキップ(後続フェーズで追加)。
-        // PT は特殊展開(tkak_tbl flag 非0)のため引き続き未収録。
-        (short rc, string err) = Check("PT", "3P");
+        // 【C原典】fyak_tbl に未登録の予約語は構造検証をスキップ(C# 側で未移植/未知の語)。
+        // fyak_tbl の全予約語(PT/BP 含む)は収録済みのため、ここでは fyak_tbl 外の架空語で確認する。
+        (short rc, string err) = Check("ZZZ", "3P");
         Assert.Equal(0, rc);
         Assert.Equal(string.Empty, err);
+    }
+
+    [Fact]
+    public void PTBPは空パラメータで正常終了する()
+    {
+        // 【C原典】ft_pt/ft_bp は空記号 len25 プレースホルダ。空パラメータは検証ループ非実行で 0。
+        (short rcPt, string errPt) = Check("PT", string.Empty);
+        Assert.Equal(0, rcPt);
+        Assert.Equal(string.Empty, errPt);
+
+        (short rcBp, string errBp) = Check("BP", string.Empty);
+        Assert.Equal(0, rcBp);
+        Assert.Equal(string.Empty, errBp);
+    }
+
+    [Theory]
+    [InlineData("PT")]
+    [InlineData("BP")]
+    public void PTBPは非空パラメータでFY699E(string yoyaku)
+    {
+        // 【C原典】ft_pt/ft_bp の記号は空文字のため実記号("P")と一致せず、
+        // Check_1_Group の記号検索で不一致 → FY-699E(空表と同一挙動)。
+        (short rc, string err) = Check(yoyaku, "3P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-699E", err);
     }
 
     // ── 追加バッチ(残りの型)の構造検証 ─────────────────────────────

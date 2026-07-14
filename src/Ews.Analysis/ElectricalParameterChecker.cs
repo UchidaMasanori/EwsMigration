@@ -22,8 +22,9 @@ using Ews.Domain.Analysis;
 /// 個々の値は <see cref="RatingValues"/>(【C原典】union key_tbl / fyrt811)へ格納し、
 /// <see cref="KeyCheckMain"/> が型別ルール(<see cref="KeyCheckRules"/>)で重複・範囲を検証する。
 /// E.2では MCB/MC/MG/THR/MCDT/CSDT/SC を収録(いずれも走査単位が単純な機種)。
-/// MA[3][3] 等の inum 索引配列を持つ ELB/R* や、奇数丸め特殊処理の NT、
-/// および特殊展開プレースホルダ(PT/BP)は後続フェーズで対応する。
+/// MA[3][3] 等の inum 索引配列を持つ ELB/R* や、奇数丸め特殊処理の NT も収録済み。
+/// 特殊展開プレースホルダ(PT/BP)は空記号 len25 表として収録済み
+/// (検証経路では通常分岐のため、非空記号は Check_1_Group で FY-699E となる)。
 /// CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)と VM/TM は通常構造として移植済み。
 /// TR(変圧器)は専用パーサ TR_check_main()(多スロット/状態付き)として <see cref="TrCheckMain"/> へ移植済み。
 /// </summary>
@@ -56,8 +57,10 @@ public sealed class ElectricalParameterChecker
     /// (Get_1_Group が '/' を記号として切り出し、NextOneGet が副記号を取得)。
     /// 空表(検証記号なし)は C 原典に忠実に空配列で収録し、任意パラメータは FY-699E とする:
     ///   STM/SIR/C/R/D/NICA/RE/VVVF/TVZ/TVB/TVH/TVK/SPACE/AL。
-    /// 通常検証に載らない特殊展開は本辞書に含めない: TR(専用パーサ <see cref="TrCheckMain"/> へ分岐、ft_tr は <see cref="TransformerKeyTable"/> に別保持)、
-    ///   PT/BP(空記号プレースホルダ len25、fyak_tbl の flag 非0)。
+    /// 通常検証に載らない特殊展開は本辞書に含めない: TR(専用パーサ <see cref="TrCheckMain"/> へ分岐、ft_tr は <see cref="TransformerKeyTable"/> に別保持)。
+    ///   PT/BP は fyak_tbl の flag 非0(特殊展開=表示展開 FySinTkaktKeyTenkai 専用)だが、検証経路
+    ///   (Parm_Check_Main)では TR 以外は通常分岐のため ft_pt/ft_bp(空記号 len25 プレースホルダ)を収録する。
+    ///   空記号は実記号と一致しないため、非空パラメータは Check_1_Group で FY-699E となる(空表と同一挙動)。
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
@@ -934,8 +937,13 @@ public sealed class ElectricalParameterChecker
             ["VVVF"] = [],
             // ft_space[] … SPACE(空表)
             ["SPACE"] = [],
-            // (PT/BP は fyak_tbl flag=FY_SY_PT/FY_SY_BP、空記号 len25 の特殊展開プレースホルダの
-            //  ため通常検証不可。本辞書に含めず後続フェーズ)
+            // ft_pt[]/ft_bp[] … PT/BP(特殊展開: fyak_tbl flag=FY_SY_PT/FY_SY_BP)。
+            //   検証経路(Parm_Check_Main)では TR 以外は通常分岐のため ft_pt/ft_bp をそのまま収録する。
+            //   実体は空記号 len25 プレースホルダ({"",25,0,1,0})。空記号は実記号と一致しないため、
+            //   非空パラメータは Check_1_Group で記号不一致 → FY-699E(空表と同一挙動)。空パラメータは 0。
+            //   ('/' 展開等の記号なし特殊表示は表示展開 FySinTkaktKeyTenkai 側の責務で、検証では扱わない)
+            ["PT"] = [new("", 25, 0, 1, 0)],
+            ["BP"] = [new("", 25, 0, 1, 0)],
             // ft_tsu[] … TSU
             ["TSU"] =
             [
@@ -1112,9 +1120,9 @@ public sealed class ElectricalParameterChecker
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
         {
             // 【C原典】fyak_tbl に未登録の予約語は構造検証をスキップする。
-            // 本辞書に含めていないのは特殊展開の PT/BP(空記号 len25 プレースホルダ)と
-            // TR(上の専用パーサ分岐で処理)のみ。VM/TM は通常構造で検証可のため収録済み。
-            // 空表(STM/SIR/C/R/D/NICA/RE/VVVF/TVZ系/SPACE/AL)は収録済みで、
+            // fyak_tbl の全予約語は収録済み(TR は上の専用パーサ分岐、PT/BP は空記号 len25
+            // プレースホルダとして収録)。本分岐に到達するのは C# 側で未移植/未知の予約語のみ。
+            // 空表(STM/SIR/C/R/D/NICA/RE/VVVF/TVZ系/SPACE/AL)や PT/BP は収録済みで、
             // 非空パラメータに対しては Check_1_Group の記号不一致で FY-699E となる。
             return 0;
         }

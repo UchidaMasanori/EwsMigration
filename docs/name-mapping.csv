@@ -167,8 +167,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,GNO,EquipmentTableEntry.GroupCircuitNumberText,toku/include/sekkei/struct.h,指定回路番号(グループ集約)
 構造体/モデル,FYRT800(分解結果),MainCircuitSegment,toku/sekkei/src/Fyss1f.c,主回路数量分解結果(レコード整形は段階移植)
 列挙,(分解種別),MainCircuitSegmentKind,toku/sekkei/src/Fyss1f.c,分解種別(Simple/Iteration/CircuitNumber)
-テーブル,ft_vs/ft_tb/…(fyak_tblの単純構造表),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,単純構造の残り定格キー表(先頭数字2ERY系含む。空表STM/SIR/C/R/D等は忠実に空配列。'/'含む表は下段。TR/PT/BPは保留)
-テーブル,ft_am/ft_vt/ft_ct/ft_rtr/ft_bltr/ft_pltr/ft_thsw/ft_wh,ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,CT/VT付き('/')定格キー表(構造検証。VM/TMも移植済。特殊展開TR/PT/BPは保留)
+テーブル,ft_vs/ft_tb/…(fyak_tblの単純構造表),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,単純構造の残り定格キー表(先頭数字2ERY系含む。空表STM/SIR/C/R/D等は忠実に空配列。'/'含む表は下段。TRは専用パーサ)
+テーブル,ft_am/ft_vt/ft_ct/ft_rtr/ft_bltr/ft_pltr/ft_thsw/ft_wh,ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,CT/VT付き('/')定格キー表(構造検証。VM/TMも移植済。特殊展開TRは専用パーサ)
+テーブル,ft_pt/ft_bp(予約語PT/BP),ElectricalParameterChecker.RatingKeyTables["PT"]/["BP"],toku/include/sekkei/fyrt810.h,特殊展開(fyak_tbl flag=FY_SY_PT/BP)だがParm_Check_MainはTR以外通常分岐。空記号len25プレースホルダとして収録→非空paramはFY-699E、空paramは0(空表と同一)
 関数,next_1_get,ElectricalParameterChecker.NextOneGet,toku/sekkei/src/Fyss1d.c,CT/VT付き'/'直後の副記号n_kigoを取得(消費先key_check_WHはE.2)
 テーブル,ft_rmcb(予約語RMCB),ElectricalParameterChecker.RatingKeyTables["RMCB"],toku/include/sekkei/fyrt810.h,fyak_tblの予約語はRMCB(旧誤記RECBから是正)
 テーブル,fyak_tblマッピング(G→ft_g1/GI→ft_i/GP→ft_p/GPN→ft_n),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,fyak_tblの予約語→ft_表マッピングのクセ(G/GI/GP/GPNは別名表を共有)。SMTKP/SMTSS/SMTRYはft_tsuを再利用
