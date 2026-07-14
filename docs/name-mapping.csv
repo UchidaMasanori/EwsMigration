@@ -162,3 +162,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,GNO,EquipmentTableEntry.GroupCircuitNumberText,toku/include/sekkei/struct.h,指定回路番号(グループ集約)
 構造体/モデル,FYRT800(分解結果),MainCircuitSegment,toku/sekkei/src/Fyss1f.c,主回路数量分解結果(レコード整形は段階移植)
 列挙,(分解種別),MainCircuitSegmentKind,toku/sekkei/src/Fyss1f.c,分解種別(Simple/Iteration/CircuitNumber)
+テーブル,t_vs/t_tb/…/t_vvvf(残り約67表),ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,単純構造の残り定格キー表を追加('/'含む表・TR/TM/PT/BP・先頭数字2ERY系は後続)

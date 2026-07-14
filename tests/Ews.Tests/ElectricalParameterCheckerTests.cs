@@ -132,10 +132,47 @@ public sealed class ElectricalParameterCheckerTests
     [Fact]
     public void 未収録予約語は構造検証をスキップする()
     {
-        // 本フェーズ未収録の定格キー表はスキップ(後続フェーズで追加)
-        (short rc, string err) = Check("VVVF", "3P");
+        // 本フェーズ未収録の定格キー表はスキップ(後続フェーズで追加)。
+        // CT は CT/VT付き('/')表のため引き続き未収録。
+        (short rc, string err) = Check("CT", "3P");
         Assert.Equal(0, rc);
         Assert.Equal(string.Empty, err);
+    }
+
+    // ── 追加バッチ(残りの型)の構造検証 ─────────────────────────────
+
+    [Theory]
+    [InlineData("TB", "225A")]        // t_tb: A(3,0,1,0)
+    [InlineData("TB", "5.50SQ")]      // t_tb: SQ(5,2,1,0) 小数2桁
+    [InlineData("GL", "5P")]          // t_gl: P(3,1,1,0)
+    [InlineData("VVVF", "5.5KW")]     // t_vvvf: KW(4,2,1,0)
+    [InlineData("MV", "200VAC")]      // t_mv: VAC(3,0,1,1)
+    [InlineData("HSB", "225AF")]      // t_hsb: AF(3,0,1,0)
+    [InlineData("C", "470UF")]        // t_c: UF(4,0,1,0)
+    [InlineData("R", "1000O")]        // t_r: O(4,0,1,0)
+    public void 追加した定格キー表の正常系は正常終了する(string yoyaku, string parm)
+    {
+        (short rc, string err) = Check(yoyaku, parm);
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+    }
+
+    [Fact]
+    public void 追加表の未定義記号はFY699E()
+    {
+        // t_vvvf は KW/VAC のみ。AT は未定義 → Check_1_Group FY-699E。
+        (short rc, string err) = Check("VVVF", "5.5AT");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-699E", err);
+    }
+
+    [Fact]
+    public void 追加表の小数桁定義なし記号ピリオドありはFY883E()
+    {
+        // t_stm S(3,0,2,0) は d_len=0。ピリオド付与 → Check_1_Group FY-883E。
+        (short rc, string err) = Check("STM", "12.3S");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-883E", err);
     }
 
     // ── E.2: key_check 値格納・範囲検証 ─────────────────────────────

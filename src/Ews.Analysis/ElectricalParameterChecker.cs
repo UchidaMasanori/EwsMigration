@@ -47,8 +47,13 @@ public sealed class ElectricalParameterChecker
     /// 予約語 → 定格キー表 の対応辞書。【C原典】FySinTkakt.h の <c>tkak_tbl[]</c> と各 <c>t_xxx[]</c>。
     /// 値はメンバ表(TKAK_T[])。末尾の NULL 番兵({NULL,0,0,0,0})は移植しない(配列長で判定)。
     ///
-    /// 本フェーズ(E.1)では遮断器・電磁接触器など基本機種の第1バッチのみ収録する。
-    /// 残り(約90種)および特殊展開(VM/TM/WH の '/' を含む表)・TR は後続フェーズで追加する。
+    /// 記号部に '/'(CT/VT付き)を含まず特殊展開でもない単純構造の定格キー表を収録する
+    /// (遮断器・電磁接触器・表示灯・計器・端子台など大多数の機種)。
+    /// 引き続き後続フェーズで扱うのは次のみ:
+    ///   - CT/VT付き('/' を含む表): AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM
+    ///     (独自パーサ next_1_get/n_kigo の移植が前提)
+    ///   - 特殊展開(tkak_tbl の flag が非0): TR/TM/PT/BP
+    ///   - 先頭数字予約語 2ERY/3ERY/4ERY(表自体は単純だが d_parm 抽出の忠実化が前提)
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
@@ -222,6 +227,388 @@ public sealed class ElectricalParameterChecker
                 new("VAC", 3, 0, 1, 1),
                 new("VDC", 3, 0, 1, 1),
             ],
+
+            // ==== 追加バッチ(残りの型): FySinTkakt.h の単純構造表(記号 '/' なし・非特殊展開)を転記 ====
+            // 【C原典】tkak_tbl[] の予約語名で登録。CT/VT付き('/': AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM)と
+            //          特殊展開(TR/TM/PT/BP)は独自パーサ依存のため引き続き後続フェーズ。
+
+            // t_vs[] … VS
+            ["VS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
+            // t_as[] … AS
+            ["AS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
+            // t_tb[] … TB
+            ["TB"] =
+            [
+                new("P", 3, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("SQ", 5, 2, 1, 0),
+            ],
+            // t_con[] … CON
+            ["CON"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_zct[] … ZCT
+            ["ZCT"] = [new("A", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("P", 3, 0, 1, 0)],
+            // t_lgr[] … LGR
+            ["LGR"] = [new("K", 2, 0, 1, 0), new("MA", 4, 0, 4, 0), new("VCAC", 3, 0, 2, 0)],
+            // t_elr[] … ELR
+            ["ELR"] = [new("MA", 3, 0, 3, 0), new("VCAC", 3, 0, 4, 0)],
+            // t_hpsb[] … HPSB
+            ["HPSB"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 3, 0, 1, 0),
+                new("AT", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("AM", 3, 0, 1, 0),
+            ],
+            // t_hsb[] … HSB
+            ["HSB"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 3, 0, 1, 0),
+                new("AT", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("AM", 3, 0, 1, 0),
+            ],
+            // t_rry[] … RRY
+            ["RRY"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 2, 0),
+            ],
+            // t_f[] … F(改訂<1>: A の桁数 2→3)
+            ["F"] =
+            [
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_la[] … LA
+            ["LA"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0), new("VAC", 3, 0, 1, 0)],
+            // t_dcpw[] … DCPW
+            ["DCPW"] = [new("A", 5, 2, 1, 0), new("VAC", 3, 0, 4, 0), new("VDC", 3, 1, 1, 0)],
+            // t_cr[] … CR(AC/BC/CC は ########## 付だが構造検証上は通常記号)
+            ["CR"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AC", 2, 0, 1, 1),
+                new("BC", 2, 0, 1, 1),
+                new("CC", 2, 0, 1, 1),
+            ],
+            // t_ts[] … TS
+            ["TS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AC", 2, 0, 1, 1),
+                new("BC", 2, 0, 1, 1),
+                new("CC", 2, 0, 1, 1),
+            ],
+            // t_g1[]/t_g2[]/t_g3[]/t_g4[] … G1/G2/G3/G4
+            ["G1"] = [new("VCAC", 3, 0, 4, 0)],
+            ["G2"] = [new("VCAC", 3, 0, 4, 0)],
+            ["G3"] = [new("VCAC", 3, 0, 4, 0)],
+            ["G4"] = [new("VCAC", 3, 0, 4, 0)],
+            // t_i[]/t_p[]/t_n[] … I/P/N
+            ["I"] = [new("VCAC", 3, 0, 4, 0)],
+            ["P"] = [new("VCAC", 3, 0, 4, 0)],
+            ["N"] = [new("VCAC", 3, 0, 4, 0)],
+            // t_gl[]/t_rl[]/t_ol[]/t_bl[]/t_wl[] … 表示灯 GL/RL/OL/BL/WL(同一構造)
+            ["GL"] =
+            [
+                new("V", 4, 1, 1, 1),
+                new("VAC", 4, 1, 1, 1),
+                new("VDC", 4, 1, 1, 1),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["RL"] =
+            [
+                new("V", 4, 1, 1, 1),
+                new("VAC", 4, 1, 1, 1),
+                new("VDC", 4, 1, 1, 1),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["OL"] =
+            [
+                new("V", 4, 1, 1, 1),
+                new("VAC", 4, 1, 1, 1),
+                new("VDC", 4, 1, 1, 1),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["BL"] =
+            [
+                new("V", 4, 1, 1, 1),
+                new("VAC", 4, 1, 1, 1),
+                new("VDC", 4, 1, 1, 1),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["WL"] =
+            [
+                new("V", 4, 1, 1, 1),
+                new("VAC", 4, 1, 1, 1),
+                new("VDC", 4, 1, 1, 1),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            // t_cos[]/t_pbs[] … COS/PBS(同一構造)
+            ["COS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["PBS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("P", 3, 1, 1, 0),
+            ],
+            // t_ssw[] … SSW
+            ["SSW"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_tsw[] … TSW
+            ["TSW"] = [new("P", 1, 0, 1, 0), new("A", 4, 2, 1, 0), new("VAC", 3, 0, 1, 0)],
+            // t_bz[] … BZ(全記号 ##########)
+            ["BZ"] =
+            [
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("W", 3, 2, 1, 1),
+                new("VA", 3, 2, 1, 1),
+            ],
+            // t_bel[] … BEL
+            ["BEL"] =
+            [
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("W", 3, 2, 1, 1),
+                new("VA", 3, 2, 1, 1),
+                new("P", 3, 0, 1, 0),
+            ],
+            // t_cp[] … CP
+            ["CP"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 2, 0, 1, 0),
+                new("AT", 2, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_rsw[] … RSW
+            ["RSW"] = [new("K", 3, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
+            // t_ee[] … EE
+            ["EE"] = [new("A", 2, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
+            // t_hm[] … HM
+            ["HM"] = [new("VCAC", 3, 0, 2, 0), new("HZ", 2, 0, 1, 0)],
+            // t_2ery[]/t_3ery[]/t_4ery[] … 2ERY/3ERY/4ERY は先頭数字予約語。
+            // d_parm 抽出(CircuitStringChecker.ExtractElectricalParameter)が先頭数字予約語を
+            // まだ忠実に除去できず誤って電気パラメータを取り出すため、後続フェーズで対応。
+            // t_cks[] … CKS
+            ["CKS"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("E", 1, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_cu[] … CU
+            ["CU"] = [new("VCAC", 3, 0, 2, 0)],
+            // t_tu[] … TU
+            ["TU"] = [new("K", 1, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
+            // t_nhmb[] … NHMB
+            ["NHMB"] = [new("P", 1, 0, 1, 0), new("AT", 4, 2, 1, 0), new("VAC", 3, 0, 4, 0)],
+            // t_apn[] … APN
+            ["APN"] = [new("VCAC", 3, 0, 4, 0)],
+            // t_sl23[]/t_sl32[]/t_sl42[]/t_sl43[] … SL23/SL32/SL42/SL43(同一構造)
+            ["SL23"] = [new("VCAC", 3, 0, 4, 0)],
+            ["SL32"] = [new("VCAC", 3, 0, 4, 0)],
+            ["SL42"] = [new("VCAC", 3, 0, 4, 0)],
+            ["SL43"] = [new("VCAC", 3, 0, 4, 0)],
+            // t_lgt[] … LGT
+            ["LGT"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 4, 0, 1, 0),
+                new("T", 3, 1, 1, 0),
+                new("W", 3, 0, 1, 0),
+            ],
+            // t_fl[] … FL
+            ["FL"] = [new("VAC", 3, 0, 2, 0), new("W", 2, 0, 1, 0)],
+            // t_lsw[] … LSW
+            ["LSW"] =
+            [
+                new("A", 5, 3, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_dsw[] … DSW
+            ["DSW"] =
+            [
+                new("A", 5, 3, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+            ],
+            // t_sv[] … SV
+            ["SV"] = [new("VAC", 3, 0, 1, 0), new("VA", 2, 0, 1, 0)],
+            // t_mv[] … MV(VA/W は ##########)
+            ["MV"] =
+            [
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("VA", 3, 0, 1, 1),
+                new("W", 3, 0, 1, 1),
+            ],
+            // t_kpry[] … KPRY
+            ["KPRY"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AC", 1, 0, 1, 0),
+                new("BC", 1, 0, 1, 0),
+                new("CC", 1, 0, 1, 0),
+            ],
+            // t_l[] … L
+            ["L"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0), new("A", 2, 0, 1, 0)],
+            // t_idf[] … IDF
+            ["IDF"] = [new("P", 3, 0, 1, 0)],
+            // t_mcfr[] … MCFR(AC/BC は ##########)
+            ["MCFR"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+            ],
+            // t_mgfr[] … MGFR
+            ["MGFR"] =
+            [
+                new("E", 1, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("AF", 5, 2, 1, 0),
+                new("AT", 5, 2, 2, 0),
+            ],
+            // t_mcsd[] … MCSD
+            ["MCSD"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+            ],
+            // t_mgsd[] … MGSD
+            ["MGSD"] =
+            [
+                new("E", 1, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+                new("AF", 5, 2, 1, 0),
+                new("AT", 5, 2, 2, 0),
+            ],
+            // t_mgld[] … MGLD
+            ["MGLD"] =
+            [
+                new("KW", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+            ],
+            // t_mgcs[] … MGCS
+            ["MGCS"] =
+            [
+                new("KW", 5, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 2, 1),
+                new("VCAC", 3, 0, 2, 1),
+                new("VCDC", 3, 0, 2, 1),
+            ],
+            // t_stm[] … STM
+            ["STM"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 3, 0),
+                new("S", 3, 0, 2, 0),
+            ],
+            // t_sir[] … SIR
+            ["SIR"] = [new("A", 2, 0, 1, 0), new("VAC", 3, 0, 1, 0)],
+            // t_c[] … C
+            ["C"] = [new("UF", 4, 0, 1, 0), new("VDC", 3, 0, 1, 0)],
+            // t_r[] … R
+            ["R"] = [new("VDC", 3, 0, 1, 0), new("W", 4, 2, 1, 0), new("O", 4, 0, 1, 0)],
+            // t_d[] … D
+            ["D"] = [new("A", 2, 0, 1, 0), new("VDC", 3, 0, 1, 0)],
+            // t_nica[] … NICA
+            ["NICA"] = [new("VDC", 3, 0, 1, 0), new("MAH", 4, 0, 1, 0)],
+            // t_re[] … RE
+            ["RE"] = [new("KW", 4, 1, 1, 0)],
+            // t_vvvf[] … VVVF
+            ["VVVF"] = [new("KW", 4, 2, 1, 0), new("VAC", 3, 0, 2, 0)],
         };
 
     /// <summary>本フェーズで構造検証を提供できる予約語かどうか(定格キー表を収録済みか)。</summary>
@@ -267,7 +654,8 @@ public sealed class ElectricalParameterChecker
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
         {
             // 本フェーズ未収録の予約語は構造検証をスキップ(後続フェーズで表を追加)。
-            // TODO(E.1続き): 残りの定格キー表(約90種)を FySinTkakt.h から移植。
+            // TODO(E.1続き): 残る CT/VT付き('/') AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM、
+            //                特殊展開 TR/TM/PT/BP、先頭数字予約語 2ERY/3ERY/4ERY を移植。
             return 0;
         }
 
