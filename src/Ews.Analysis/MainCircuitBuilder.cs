@@ -155,8 +155,11 @@ public sealed class MainCircuitBuilder
         ret = CheckElectricalParameterEquality(parse);
         if (ret != 0) return ret;
 
-        // 17. 主回路ファイルエリア作成/数量分解。【C原典】Fyss12_Make_Main_Sub()。TODO。
-        //     入力順チェック。【C原典】Fyss1m_Input_Check()。TODO。
+        // 17. 主回路ファイルエリア作成/数量分解。【C原典】Fyss12_Make_Main_Sub()。
+        //     入力順チェック。【C原典】Fyss1m_Input_Check()。TODO(CT/AM 入力順チェック)。
+        ret = BuildMainCircuitFileArea(parse);
+        if (ret != 0) return ret;
+
         return 0;
     }
 
@@ -996,6 +999,294 @@ public sealed class MainCircuitBuilder
             s.Rank = 0;
             sGyosyu.Rank = 0;
         }
+    }
+
+
+    /// <summary>
+    /// 主回路ファイルエリア作成(数量分解)。【C原典】Main_File_Area_Make(Fyss1f.c:334)。
+    /// 【C原典】Fyss12_Make_Main_Sub(Fyss1f.c:281) は本処理を呼ぶだけの薄いラッパで、
+    /// 実体は Main_File_Area_Make。機器テーブル(P_Kiki)を先頭から走査し、行種グループNo(G_No)
+    /// または文字列連番(B_No)が変わる境界ごとに 1 機器グループを取り出し、次の 3 段階で分解方式を判定する。
+    ///   1. Find_Iteration … グループ数量(GKosu)による繰り返し → Main_File_Make_d
+    ///   2. Find_Nobangou  … 回路番号文(DNO/GNO)による展開     → Main_File_Make_n
+    ///   3. Find_Group     … 単純グループ                       → Main_File_Make_s
+    /// 判定後、C原典は直ちに主回路設計エリア(FYRT800)へレコード生成(mainfile_set)するが、
+    /// FYRT800 の大型出力構造とフィールド整形は段階移植とし、本移行では分解結果
+    /// (<see cref="MainCircuitSegment"/>)のみを収集する。系統/行種検索(Find_Keitou/Find_Gyosyu)は
+    /// レコード生成側で使用するため、分解のみの本段階では省略する。
+    /// エラー時(FY-693E/FYMEE80)戻り値 2 はレコード生成側で扱う。
+    /// </summary>
+    /// <returns>0=正常。【C原典】Main_File_Area_Make の戻り値。</returns>
+    private static short BuildMainCircuitFileArea(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        parse.MainCircuitSegments.Clear();
+
+        // 【C原典】G_No = B_No = K_No = 0; i = 0; group を 0 クリア。
+        short gNo = 0;
+        short bNo = 0;
+        int i = 0;
+
+        while (i < count)
+        {
+            EquipmentTableEntry cur = equipment[i];
+
+            // 【C原典】G_No または B_No が変わったらグループ先頭。分解方式を 3 段階で判定。
+            if (gNo != cur.GroupNumber || bNo != cur.StringSequence)
+            {
+                if (FindIteration(equipment, i, count,
+                        out short itKensu, out short itMinNo, out short itStartNo,
+                        out short itMaxNo, out short iteration))
+                {
+                    // 【C原典】繰り返しあり → Main_File_Make_d。
+                    parse.MainCircuitSegments.Add(new MainCircuitSegment
+                    {
+                        Kind = MainCircuitSegmentKind.Iteration,
+                        StartIndex = i,
+                        Count = itKensu,
+                        GroupNumber = cur.GroupNumber,
+                        StringSequence = cur.StringSequence,
+                        CircuitNumberSequence = cur.CircuitNumberSequence,
+                        MinNumber = itMinNo,
+                        MaxNumber = itMaxNo,
+                        StartNumber = itStartNo,
+                        Iteration = iteration,
+                    });
+                    i += itKensu - 1;
+                }
+                else if (FindCircuitNumberStatement(equipment, i, count,
+                        out short nbKensu, out short nbStartNo, out short nbMaxNo,
+                        out short nbMaxRank, out string dno, out string gno))
+                {
+                    // 【C原典】回路番号文あり → Main_File_Make_n。
+                    // (C原典は D_No を Min_No 引数へ渡すため、StartNumber に格納する。)
+                    parse.MainCircuitSegments.Add(new MainCircuitSegment
+                    {
+                        Kind = MainCircuitSegmentKind.CircuitNumber,
+                        StartIndex = i,
+                        Count = nbKensu,
+                        GroupNumber = cur.GroupNumber,
+                        StringSequence = cur.StringSequence,
+                        CircuitNumberSequence = cur.CircuitNumberSequence,
+                        StartNumber = nbStartNo,
+                        MaxNumber = nbMaxNo,
+                        MaxCircuitNumberRank = nbMaxRank,
+                        CircuitNumberText = dno,
+                        GroupCircuitNumberText = gno,
+                    });
+                    i += nbKensu - 1;
+                }
+                else if (FindGroup(equipment, i, count,
+                        out short gpKensu, out short gpMinNo, out short gpMaxNo))
+                {
+                    // 【C原典】繰り返しなし(単純グループ) → Main_File_Make_s。
+                    parse.MainCircuitSegments.Add(new MainCircuitSegment
+                    {
+                        Kind = MainCircuitSegmentKind.Simple,
+                        StartIndex = i,
+                        Count = gpKensu,
+                        GroupNumber = cur.GroupNumber,
+                        StringSequence = cur.StringSequence,
+                        CircuitNumberSequence = cur.CircuitNumberSequence,
+                        MinNumber = gpMinNo,
+                        MaxNumber = gpMaxNo,
+                    });
+                    i += gpKensu - 1;
+                }
+            }
+
+            // 【C原典】今回の G_No/B_No を保管(i は分解で進んだ後の位置を参照)。
+            gNo = equipment[i].GroupNumber;
+            bNo = equipment[i].StringSequence;
+            i++;
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// 繰り返し(グループ数量)データ検索。【C原典】Find_Iteration(Fyss1f.c:560)。
+    /// 基点機器(equipment[i])と同一の G_No/B_No/N_No が連続する範囲を数え(kensu)、
+    /// その範囲内でグループ数量(GKosu)≠0 の機器を繰り返し基点として検出する。
+    /// </summary>
+    /// <returns>GKosu≠0 の機器を検出したら true。【C原典】result。</returns>
+    private static bool FindIteration(
+        List<EquipmentTableEntry> equipment, int i, int count,
+        out short kensu, out short minNo, out short startNo, out short maxNo, out short iteration)
+    {
+        EquipmentTableEntry basis = equipment[i];
+        short gNo = basis.GroupNumber;
+        short bNo = basis.StringSequence;
+        short nNo = basis.CircuitNumberSequence;
+
+        bool result = false;
+        int kj = 0;
+        minNo = basis.EquipmentNumber;
+        maxNo = basis.EquipmentNumber;
+        iteration = 0;
+        startNo = 0;
+
+        // 【C原典】グループ数量≠0 の機器のサーチ。
+        while (i + kj < count)
+        {
+            EquipmentTableEntry w = equipment[i + kj];
+            if (gNo == w.GroupNumber && bNo == w.StringSequence && nNo == w.CircuitNumberSequence)
+            {
+                maxNo = w.EquipmentNumber;
+                if (w.GroupQuantity != 0)
+                {
+                    result = true;
+                    startNo = w.EquipmentNumber;
+                    iteration = w.GroupQuantity;
+                    kj++;
+                    break;
+                }
+            }
+            else
+            {
+                break;
+            }
+
+            kj++;
+        }
+
+        // 【C原典】残りの同一グループ機器を数え、Max_No(機器データ追番)を更新。
+        while (i + kj < count)
+        {
+            EquipmentTableEntry w = equipment[i + kj];
+            if (gNo == w.GroupNumber && bNo == w.StringSequence && nNo == w.CircuitNumberSequence)
+            {
+                maxNo = w.EquipmentNumber;
+            }
+            else
+            {
+                break;
+            }
+
+            kj++;
+        }
+
+        kensu = (short)kj;
+        return result;
+    }
+
+    /// <summary>
+    /// 回路番号文検索。【C原典】Find_Nobangou(Fyss1f.c:641)。
+    /// 基点機器と同一 G_No/B_No/N_No の範囲で回路番号指定(DNO かつ GNO)を持つ機器を探す。
+    /// 見つかった後、同一 G_No/B_No(N_No 不問)の後続機器の DNO をカンマ連結して GNO に集約する。
+    /// (現状 DNO/GNO は解析未反映のため常に false。回路番号文パーサ移植後に有効化される。)
+    /// </summary>
+    /// <returns>回路番号文を検出したら true。【C原典】result。</returns>
+    private static bool FindCircuitNumberStatement(
+        List<EquipmentTableEntry> equipment, int i, int count,
+        out short kensu, out short startNo, out short maxNo, out short maxRank,
+        out string dno, out string gno)
+    {
+        EquipmentTableEntry basis = equipment[i];
+        short gNo = basis.GroupNumber;
+        short bNo = basis.StringSequence;
+        short nNo = basis.CircuitNumberSequence;
+
+        bool result = false;
+        int kj = 0;
+        startNo = basis.EquipmentNumber;
+        maxNo = basis.EquipmentNumber;
+        maxRank = 0;
+        dno = string.Empty;
+        gno = string.Empty;
+
+        // 【C原典】最初の回路番号(DNO かつ GNO)のサーチ。
+        while (i + kj < count)
+        {
+            EquipmentTableEntry w = equipment[i + kj];
+            if (gNo == w.GroupNumber && bNo == w.StringSequence && nNo == w.CircuitNumberSequence)
+            {
+                maxNo = w.EquipmentNumber;
+                if (!string.IsNullOrEmpty(w.CircuitNumberText) && !string.IsNullOrEmpty(w.GroupCircuitNumberText))
+                {
+                    result = true;
+                    dno = w.CircuitNumberText;
+                    gno = w.GroupCircuitNumberText;
+                    startNo = w.EquipmentNumber;
+                    maxRank = w.CircuitNumberSequence;
+                    kj++;
+                    break;
+                }
+            }
+            else
+            {
+                break;
+            }
+
+            kj++;
+        }
+
+        // 【C原典】後続機器(同一 G_No/B_No, N_No 不問)の DNO を GNO へカンマ連結。
+        while (i + kj < count)
+        {
+            EquipmentTableEntry w = equipment[i + kj];
+            if (gNo == w.GroupNumber && bNo == w.StringSequence)
+            {
+                maxNo = w.EquipmentNumber;
+                maxRank = w.CircuitNumberSequence;
+                if (!string.IsNullOrEmpty(w.CircuitNumberText))
+                {
+                    gno += "," + w.CircuitNumberText;
+                }
+            }
+            else
+            {
+                break;
+            }
+
+            kj++;
+        }
+
+        kensu = (short)kj;
+        return result;
+    }
+
+    /// <summary>
+    /// グループデータ検索。【C原典】Find_Group(Fyss1f.c:740)。
+    /// 基点機器と同一 G_No/B_No/N_No が連続する範囲を数え(kensu)、その最大機器No(Max_No)を得る。
+    /// 基点自身が必ず一致するため、機器が 1 件以上あれば true を返す。
+    /// </summary>
+    /// <returns>同一グループ機器が 1 件以上あれば true。【C原典】result。</returns>
+    private static bool FindGroup(
+        List<EquipmentTableEntry> equipment, int i, int count,
+        out short kensu, out short minNo, out short maxNo)
+    {
+        EquipmentTableEntry basis = equipment[i];
+        short gNo = basis.GroupNumber;
+        short bNo = basis.StringSequence;
+        short nNo = basis.CircuitNumberSequence;
+
+        bool result = false;
+        int kj = 0;
+        minNo = basis.EquipmentNumber;
+        maxNo = basis.EquipmentNumber;
+
+        // 【C原典】while ( (*kj) < i_Kikic - idx )。基点からの残件数を上限にサーチ。
+        while (kj < count - i)
+        {
+            EquipmentTableEntry w = equipment[i + kj];
+            if (gNo == w.GroupNumber && bNo == w.StringSequence && nNo == w.CircuitNumberSequence)
+            {
+                maxNo = w.EquipmentNumber;
+                result = true;
+            }
+            else
+            {
+                break;
+            }
+
+            kj++;
+        }
+
+        kensu = (short)kj;
+        return result;
     }
 
 

@@ -936,4 +936,86 @@ public sealed class MainCircuitBuilderTests
         Assert.True(result.IsValid);
         Assert.Equal((short)0, tr.Rank); // TR_Rank_Set ‚ªÅI“I‚É 0 ‚ÖƒŠƒZƒbƒg
     }
+
+    // ==== step17: Fyss12_Make_Main_Sub / Main_File_Area_Make(å‰ñ˜Hƒtƒ@ƒCƒ‹ƒGƒŠƒAì¬E”—Ê•ª‰ğ) ====
+
+    /// <summary>å‹@Ší(MCCB)ƒe[ƒuƒ‹1Œ‚ğ¶¬‚·‚éByCŒ´“TzKIKITABLE(å‰ñ˜H‹@Ší)B</summary>
+    private static EquipmentTableEntry MainKiki(
+        short groupNumber, short equipmentNumber, short stringSequence = 0,
+        short circuitNumberSequence = 0, short groupQuantity = 0, short row = 2)
+        => new()
+        {
+            ReservedWord = "MCCB",                          // yCŒ´“Tzyoyaku(type_MCB ¨ å‹@Ší)
+            ReservedWordNumber = "0",                       // ysno=0(“¯ˆêƒ`ƒFƒbƒN‘ÎÛŠO)
+            SystemNumber = 1,                               // yCŒ´“TzK_No
+            GroupNumber = groupNumber,                      // yCŒ´“TzG_No
+            EquipmentNumber = equipmentNumber,              // yCŒ´“TzD_No(step6 ‚Å~10)
+            StringSequence = stringSequence,                // yCŒ´“TzB_No
+            CircuitNumberSequence = circuitNumberSequence,  // yCŒ´“TzN_No
+            GroupQuantity = groupQuantity,                  // yCŒ´“TzGKosu
+            LineNumber = row,                               // yCŒ´“TzK_Gyo
+        };
+
+    [Fact]
+    public void MakeMainSub_’Pˆê‹@ŠíƒOƒ‹[ƒv‚ÍSimpleƒZƒOƒƒ“ƒg1Œ()
+    {
+        // yCŒ´“TzFind_Group ¨ Main_File_Make_sBŒJ‚è•Ô‚µ/‰ñ˜H”Ô†•¶‚È‚µ‚Ì’PƒƒOƒ‹[ƒvB
+        //   step6 ‚Å D_No ‚Í~10 ‚³‚ê‚é‚½‚ß Min/Max ‚Í 10B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        Assert.Single(result.MainCircuitSegments);
+        var seg = result.MainCircuitSegments[0];
+        Assert.Equal(MainCircuitSegmentKind.Simple, seg.Kind);
+        Assert.Equal((short)1, seg.Count);
+        Assert.Equal((short)2, seg.GroupNumber);
+        Assert.Equal((short)10, seg.MinNumber);
+        Assert.Equal((short)10, seg.MaxNumber);
+    }
+
+    [Fact]
+    public void MakeMainSub_“¯ˆêƒOƒ‹[ƒv•¡”‹@Ší‚Í1Œ‚ÌSimpleƒZƒOƒƒ“ƒg‚É‚Ü‚Æ‚Ü‚é()
+    {
+        // yCŒ´“TzFind_Group ‚Í“¯ˆê G_No/B_No/N_No ‚ğ1ƒOƒ‹[ƒv‚Æ‚µ‚Ä”‚¦‚é(kensu=2)B
+        //   D_No ‚Í~10 ‚Å 10,20BMin=10, Max=20B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            MainKiki(groupNumber: 2, equipmentNumber: 1),
+            MainKiki(groupNumber: 2, equipmentNumber: 2));
+
+        Assert.True(result.IsValid);
+        Assert.Single(result.MainCircuitSegments);
+        var seg = result.MainCircuitSegments[0];
+        Assert.Equal(MainCircuitSegmentKind.Simple, seg.Kind);
+        Assert.Equal((short)2, seg.Count);
+        Assert.Equal((short)10, seg.MinNumber);
+        Assert.Equal((short)20, seg.MaxNumber);
+    }
+
+    [Fact]
+    public void MakeMainSub_ƒOƒ‹[ƒv”—Ê‚ ‚è‚ÍIterationƒZƒOƒƒ“ƒg‚É‚È‚é()
+    {
+        // yCŒ´“TzFind_Iteration: GKosu‚0 ‚Ì‹@Ší‚ğŒJ‚è•Ô‚µŠî“_‚Æ‚µ‚ÄŒŸo ¨ Main_File_Make_dB
+        //   æ“ª‹@Ší‚É GKosu=3 ‚ğİ’èBD_No ‚Í~10 ‚Å 10,20B
+        //   StartNumber=æ“ª D_No(10), MaxNumber=ÅI D_No(20), Iteration=GKosu(3)B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            MainKiki(groupNumber: 2, equipmentNumber: 1, groupQuantity: 3),
+            MainKiki(groupNumber: 2, equipmentNumber: 2));
+
+        Assert.True(result.IsValid);
+        Assert.Single(result.MainCircuitSegments);
+        var seg = result.MainCircuitSegments[0];
+        Assert.Equal(MainCircuitSegmentKind.Iteration, seg.Kind);
+        Assert.Equal((short)2, seg.Count);
+        Assert.Equal((short)10, seg.StartNumber);
+        Assert.Equal((short)20, seg.MaxNumber);
+        Assert.Equal((short)3, seg.Iteration);
+    }
 }

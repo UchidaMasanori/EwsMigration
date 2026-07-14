@@ -242,6 +242,20 @@ public sealed class EquipmentTableEntry
     public char PowerSourceFlag { get; set; } = ' ';
 
     /// <summary>
+    /// 指定回路番号(単一)。【C原典】DNO。
+    /// 「(NO=2)」等の回路番号指定記述。主回路ファイルエリア生成
+    /// (Fyss1f Find_Nobangou/mainfile_pre_set)が参照する。未設定時は空。
+    /// </summary>
+    public string CircuitNumberText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 指定回路番号(グループ集約)。【C原典】GNO。
+    /// 「(NO=2,3)」等のカンマ連結した回路番号指定。
+    /// 主回路ファイルエリア生成(Fyss1f Find_Nobangou)が参照する。未設定時は空。
+    /// </summary>
+    public string GroupCircuitNumberText { get; set; } = string.Empty;
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>
@@ -284,6 +298,70 @@ public sealed record CircuitParseError(
     string MessageId);
 
 /// <summary>
+/// 主回路ファイルエリア生成における機器グループの分解種別。
+/// 【C原典】Fyss1f Main_File_Area_Make が三段階で判定する分解方式に対応する。
+/// </summary>
+public enum MainCircuitSegmentKind
+{
+    /// <summary>単純グループ(繰り返し/回路番号指定なし)。【C原典】Find_Group → Main_File_Make_s。</summary>
+    Simple = 0,
+
+    /// <summary>繰り返し(グループ数量による数量分解)。【C原典】Find_Iteration → Main_File_Make_d。</summary>
+    Iteration = 1,
+
+    /// <summary>回路番号文(NO 指定文の展開)。【C原典】Find_Nobangou → Main_File_Make_n。</summary>
+    CircuitNumber = 2,
+}
+
+/// <summary>
+/// 主回路ファイルエリア生成における 1 機器グループの数量分解結果。
+/// 【C原典】Fyss1f Main_File_Area_Make のループ 1 反復(Find_* + Main_File_Make_*)に対応。
+/// C原典は判定後ただちに FYRT800 レコードを生成するが、本移行では
+/// レコード整形(mainfile_set/FYRT800)を段階移植とし、分解結果のみを保持する。
+/// </summary>
+public sealed class MainCircuitSegment
+{
+    /// <summary>分解種別。【C原典】Find_Iteration/Find_Nobangou/Find_Group の選択結果。</summary>
+    public MainCircuitSegmentKind Kind { get; set; }
+
+    /// <summary>機器テーブル上の開始インデックス。【C原典】ループ変数 i。</summary>
+    public int StartIndex { get; set; }
+
+    /// <summary>グループ機器件数。【C原典】kensu(Find_* の *kj)。</summary>
+    public short Count { get; set; }
+
+    /// <summary>行種グループNo。【C原典】KIKITABLE.G_No。</summary>
+    public short GroupNumber { get; set; }
+
+    /// <summary>文字列連番。【C原典】KIKITABLE.B_No。</summary>
+    public short StringSequence { get; set; }
+
+    /// <summary>文字列回路番号連番。【C原典】KIKITABLE.N_No。</summary>
+    public short CircuitNumberSequence { get; set; }
+
+    /// <summary>グループ内最小機器No。【C原典】Min_No。</summary>
+    public short MinNumber { get; set; }
+
+    /// <summary>グループ内最大機器No。【C原典】Max_No。</summary>
+    public short MaxNumber { get; set; }
+
+    /// <summary>分解基点の機器No。【C原典】D_No(Find_Iteration/Find_Nobangou)。</summary>
+    public short StartNumber { get; set; }
+
+    /// <summary>繰り返し数(グループ数量)。【C原典】Iteration(Find_Iteration)。</summary>
+    public short Iteration { get; set; }
+
+    /// <summary>最大回路番号連番。【C原典】Max_rank(Find_Nobangou)。</summary>
+    public short MaxCircuitNumberRank { get; set; }
+
+    /// <summary>指定回路番号(単一)。【C原典】DNO(Find_Nobangou)。</summary>
+    public string CircuitNumberText { get; set; } = string.Empty;
+
+    /// <summary>指定回路番号(グループ集約)。【C原典】GNO(Find_Nobangou)。</summary>
+    public string GroupCircuitNumberText { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// 系統文字列チェックの出力一式。
 /// 【C原典】Fyss11_Mojiretu_Check() の出力引数群
 ///   (P_Keitou/P_Gyosyu/P_Spec/P_Kiki/P_CKiki/P_SgsTable/erra)。
@@ -307,6 +385,14 @@ public sealed class CircuitParseResult
 
     /// <summary>制御仕様テーブル。【C原典】P_SgsTable(FYRT820)。</summary>
     public List<ControlSpecEntry> ControlSpecs { get; } = new();
+
+    /// <summary>
+    /// 主回路ファイルエリアの数量分解結果。
+    /// 【C原典】Fyss1f Main_File_Area_Make が主回路設計エリア(FYRT800)へ
+    /// レコード生成する際の機器グループ単位の分解結果を保持する。
+    /// FYRT800 レコードのフィールド整形(mainfile_set)は段階移植のため未実装。
+    /// </summary>
+    public List<MainCircuitSegment> MainCircuitSegments { get; } = new();
 
     /// <summary>エラー。【C原典】erra(FYRT805)/Perrc。</summary>
     public List<CircuitParseError> Errors { get; } = new();

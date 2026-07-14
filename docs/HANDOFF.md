@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 180 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 183 テスト成功 / 1 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -141,6 +141,7 @@ EwsMigration/
   - step8 `Gyosyu_Rank_Set` 行種ランク/出現数（`Kiki_Suryou_Set/Calc`・`Main_Exist_Check`）
   - step9-13.5 機器ランク系: `Kiki_Rank_Set`/`Kiki_Rank_Update`(TOP_Flg)/`Gyosyu_Rank_Update`(`Find_Max_Rank`)/`Pattern_Rank_Update`/`WH_Rank_Set`(改訂14)/`TR_Rank_Set`
   - step16 電気パラメータ一致チェック（`Ele_Equal_Check`）
+  - step17 主回路ファイルエリア数量分解: `Fyss12_Make_Main_Sub`/`Main_File_Area_Make`（`Find_Iteration`/`Find_Nobangou`/`Find_Group` → `MainCircuitSegment`）。FYRT800 レコード整形（`mainfile_set`）は保留
 
 ### 未移植・TODO（次にやること）
 
@@ -148,7 +149,7 @@ EwsMigration/
   依存: `PropChkSEPBox`/`PropChkHbnHB300`（改訂<12> の bukken FYDF801 プロパティ照会）、
   グループ別 souden の全面設定、`Find_Keitou`。消費側の後段ステップも未移植のため、
   データで検証できるようになってから着手する（推測移植は忠実性を損なうため保留）。
-- **主回路生成の step14/15, 17, 19**: `Kairo_Group_Set`(無効化)・`Fyss12_Make_Main_Sub`(数量分解) 等（TODO コメントで明示済み）。
+- **主回路生成の step14/15, 19**: `Kairo_Group_Set`(無効化) 等（TODO コメントで明示済み）。step17 は数量分解（`Find_Iteration/Nobangou/Group` + `Main_File_Area_Make`）を移植済み。FYRT800 レコード整形（`mainfile_set`）は最難関の作図系依存のため保留。
 - **電気パラメータエンジンの残り型**（約90種の `key_check_XXX`）、TR 系パーサ。
 - **データ層**: `.cns` マスタ取込・SQL Server スキーマの本格整備（`sql/001_schema.sql` は初期のみ）。
 - **作図系（DWI）**: 最難関。DLL 化 + P/Invoke か C# 再実装かは未決。
