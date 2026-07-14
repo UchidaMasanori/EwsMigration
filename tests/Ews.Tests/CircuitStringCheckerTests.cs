@@ -629,6 +629,36 @@ public sealed class CircuitStringCheckerTests
     }
 
     [Fact]
+    public void CheckKikiMeisyou_æ“ª”š—\–ñŒê‚Ì“d‹Cƒpƒ‰ƒ[ƒ^‚ğ•ª—£‚µ‚ÄŒŸØ‚·‚é()
+    {
+        // yCŒ´“TzCheck_KikimeiC else •ªŠò(”šn‚Ü‚è): æ“ª”š{‘±‚­‰pš‚ğ—\–ñŒêA
+        // ˆÈ~‚Ì”š•”‚ğ electron ‚É•ª—£B"2ERY100AF" ¨ —\–ñŒê 2ERY / d_parm 100AFB
+        var result = Run(new[]
+        {
+            Line("M", "2ERY100AF", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("2ERY", kiki.ProductName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CheckKikiMeisyou_‰pš—\–ñŒê‚Ì”šn‚Ü‚è“d‹Cƒpƒ‰ƒ[ƒ^‚ğ•Û‚·‚é()
+    {
+        // yCŒ´“TzCheck_KikimeiC else •ªŠò(‰pšn‚Ü‚è): Å‰‚Ì”š‚Ü‚Å‚ª—\–ñŒê‚ÅA
+        // ”šˆÈ~‚Í electronB"MCB3P" ¨ —\–ñŒê MCB / d_parm 3P(æ“ª‚Ì '3' ‚ğŒ‡—‚³‚¹‚È‚¢)B
+        var result = Run(new[]
+        {
+            Line("M", "MCB3P", 1),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment);
+        Assert.Equal("MCB", kiki.ProductName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
     public void CheckKikiMeisyou_ƒ}ƒXƒ^‚É–³‚¢—\–ñŒê‚ÍFY879EƒGƒ‰[()
     {
         // yCŒ´“TzYoyaku_Check_Main: fyak_tbl –¢ˆê’v ¨ FY-879EB

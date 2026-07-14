@@ -148,6 +148,7 @@ public sealed class ElectricalParameterCheckerTests
     [InlineData("VVVF", "5.5KW")]     // t_vvvf: KW(4,2,1,0)
     [InlineData("MV", "200VAC")]      // t_mv: VAC(3,0,1,1)
     [InlineData("HSB", "225AF")]      // t_hsb: AF(3,0,1,0)
+    [InlineData("2ERY", "100AF")]     // t_2ery: AF(5,2,1,0) æ“ª”š—\–ñŒê
     [InlineData("C", "470UF")]        // t_c: UF(4,0,1,0)
     [InlineData("R", "1000O")]        // t_r: O(4,0,1,0)
     public void ’Ç‰Á‚µ‚½’èŠiƒL[•\‚Ì³íŒn‚Í³íI—¹‚·‚é(string yoyaku, string parm)

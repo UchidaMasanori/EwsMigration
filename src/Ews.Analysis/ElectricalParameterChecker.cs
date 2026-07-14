@@ -53,7 +53,6 @@ public sealed class ElectricalParameterChecker
     ///   - CT/VT付き('/' を含む表): AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM
     ///     (独自パーサ next_1_get/n_kigo の移植が前提)
     ///   - 特殊展開(tkak_tbl の flag が非0): TR/TM/PT/BP
-    ///   - 先頭数字予約語 2ERY/3ERY/4ERY(表自体は単純だが d_parm 抽出の忠実化が前提)
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
@@ -442,9 +441,12 @@ public sealed class ElectricalParameterChecker
             ["EE"] = [new("A", 2, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
             // t_hm[] … HM
             ["HM"] = [new("VCAC", 3, 0, 2, 0), new("HZ", 2, 0, 1, 0)],
-            // t_2ery[]/t_3ery[]/t_4ery[] … 2ERY/3ERY/4ERY は先頭数字予約語。
-            // d_parm 抽出(CircuitStringChecker.ExtractElectricalParameter)が先頭数字予約語を
-            // まだ忠実に除去できず誤って電気パラメータを取り出すため、後続フェーズで対応。
+            // t_2ery[]/t_3ery[]/t_4ery[] … 2ERY/3ERY/4ERY(先頭数字予約語, 同一構造)。
+            // d_parm 抽出(CircuitStringChecker.ExtractElectricalParameter)が先頭数字予約語に
+            // 対応済みのため収録。
+            ["2ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
+            ["3ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
+            ["4ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
             // t_cks[] … CKS
             ["CKS"] =
             [
@@ -654,8 +656,8 @@ public sealed class ElectricalParameterChecker
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
         {
             // 本フェーズ未収録の予約語は構造検証をスキップ(後続フェーズで表を追加)。
-            // TODO(E.1続き): 残る CT/VT付き('/') AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM、
-            //                特殊展開 TR/TM/PT/BP、先頭数字予約語 2ERY/3ERY/4ERY を移植。
+            // TODO(E.1続き): 残る CT/VT付き('/') AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM と
+            //                特殊展開 TR/TM/PT/BP を FySinTkakt.h から移植。
             return 0;
         }
 

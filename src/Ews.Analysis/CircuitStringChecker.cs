@@ -1330,14 +1330,29 @@ public sealed class CircuitStringChecker
             return head[(eq + 1)..];
         }
 
-        // yCŒ´“Tzelse •ªŠò: —\–ñŒê(‰pš•”+”Ô†•”)‚ğœ‚¢‚½c‚è‚ª“d‹Cƒpƒ‰ƒ[ƒ^B
+        // yCŒ´“Tzelse •ªŠò(Fyss1c.c Check_KikimeiC): æ“ª‚ª‰pš‚©”š‚©‚Å—\–ñŒê(yoyakugo)‚Ì
+        // Ø‚èo‚µ‚ğ•Ï‚¦‚éBnextname ‚Í”š‚ğ sym_DIGITA‚»‚êˆÈŠO(‰pšE‹L†)‚ğ sym_OTHER ‚Æ‚İ‚È‚µA
+        // Find_Name(stop) ‚Í stop í•Ê‚ª—ˆ‚é‚Ü‚Å•¶š‚ğûW‚·‚éB
         int i = 0;
-        while (i < head.Length && char.IsAsciiLetter(head[i])) i++;   // ‰pš•”(yoyakugo)
-        while (i < head.Length && char.IsAsciiDigit(head[i])) i++;    // ”Ô†•”(yoyakunum)
+        if (i < head.Length && char.IsAsciiDigit(head[i]))
+        {
+            // ”šn‚Ü‚è(27A/2ERY “™‚Ìæ“ª”š—\–ñŒê):
+            // yCŒ´“TzFind_Name(sym_OTHER, yoyakugo) ‚Åæ“ª”š•”A‘±‚¯‚Ä
+            //          Find_Name(sym_DIGIT, yoyakunum) ‚Å‘±‚­‰pš•”‚ğûW‚µ—\–ñŒê‚É˜AŒ‹B
+            while (i < head.Length && char.IsAsciiDigit(head[i])) i++;   // æ“ª”š•”
+            while (i < head.Length && !char.IsAsciiDigit(head[i])) i++;  // ‘±‚­‰pš•”
+        }
+        else
+        {
+            // ‰pšn‚Ü‚è: Å‰‚Ì”š‚Ü‚Å‚ª—\–ñŒê(”šˆÈ~‚Í electron)B
+            // yCŒ´“TzFind_Name(sym_DIGIT, yoyakugo)B
+            while (i < head.Length && !char.IsAsciiDigit(head[i])) i++;
+        }
         string electron = head[i..];
 
-        // yCŒ´“TzCheckNumeric(electron): electron ‚ª”’l‚Ì‚İ‚È‚ç—\–ñŒê”Ô†‘¤‚Ö‹zû‚µ‹ó‚É‚·‚éB
-        if (electron.Length > 0 && electron.All(char.IsAsciiDigit))
+        // yCŒ´“TzCheckNumeric(electron): electron ‚ª‹ó‚©”’l‚Ì‚İ‚È‚ç—\–ñŒê”Ô†‘¤‚Ö‹zû‚µ‹ó‚É‚·‚é
+        // (CheckNumeric ‚Í‹ó•¶š—ñ/‹ó”’‚Ì‚İ‚Å‚à TRUE ‚ğ•Ô‚·)B
+        if (electron.Length == 0 || electron.All(char.IsAsciiDigit))
         {
             electron = string.Empty;
         }
