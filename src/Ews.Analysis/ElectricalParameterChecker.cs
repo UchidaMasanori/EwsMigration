@@ -1897,6 +1897,29 @@ public sealed class ElectricalParameterChecker
     private static Func<string, bool> FloatRange(double lo, double hi)
         => v => { double f = AtofC(v); return f >= lo && f <= hi; };
 
+    // 【C原典】複数予約語が同一 key_check_XXX を共有する場合の共通ルール配列。
+    // key_check_GX(G/G1/G2/G3/G4/GI/GP/GPN)。
+    private static readonly KeyCheckRule[] GxRules =
+        [new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A')];
+
+    // key_check_XL(GL/RL/OL/BL/WL 表示灯)。
+    private static readonly KeyCheckRule[] XlRules =
+    [
+        new(["V", "VAC"], "v", FloatRange(1.0, 250.0), "FY-801E", "FY-802E", "fv", 'A'),
+        new(["VDC"], "v", FloatRange(1.0, 125.0), "FY-801E", "FY-802E", "fv", 'D'),
+        new(["W"], "w", FloatRange(0.01, 9.00), "FY-829E", "FY-830E"),
+        new(["P"], "p", FloatRange(0.1, 99.9), "FY-890E", "FY-891E"),
+    ];
+
+    // key_check_XERY(2ERY/3ERY/4ERY 静止形電動機保護継電器)。
+    private static readonly KeyCheckRule[] XeryRules =
+    [
+        new(["AF"], "af", FloatRange(1.00, 360.00), "FY-894E", "FY-895E"),
+        new(["AT"], "at", FloatRange(1.00, 360.00), "FY-899E", "FY-800E"),
+        new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+        new(["VC", "VCAC"], "vc", IntRange(1, 500), "FY-813E", "FY-814E", "fvc", 'A'),
+    ];
+
     /// <summary>
     /// 予約語別 key_check ルール表。【C原典】key_check_MCB/MC/MG/THR/MCDT/CSDT/SC(Fyss1d.c)。
     /// 範囲値の改訂タグ(改訂&lt;3&gt;/&lt;5&gt;等)や離散許容値は C 原典を忠実に反映する。
@@ -2239,6 +2262,110 @@ public sealed class ElectricalParameterChecker
                 new(["AC"], "ac", IntRange(1, 9), "FY-817E", "FY-818E"),
                 new(["BC"], "bc", IntRange(1, 9), "FY-819E", "FY-820E"),
                 new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
+            ],
+            // 【C原典】key_check_GX(Fyss1d.c:4584) … 液面リレー。予約語 G/G1/G2/G3/G4/GI/GP/GPN。
+            ["G"] = GxRules,
+            ["G1"] = GxRules,
+            ["G2"] = GxRules,
+            ["G3"] = GxRules,
+            ["G4"] = GxRules,
+            ["GI"] = GxRules,
+            ["GP"] = GxRules,
+            ["GPN"] = GxRules,
+            // 【C原典】key_check_XL(Fyss1d.c:4611) … 表示灯。予約語 GL/RL/OL/BL/WL。
+            ["GL"] = XlRules,
+            ["RL"] = XlRules,
+            ["OL"] = XlRules,
+            ["BL"] = XlRules,
+            ["WL"] = XlRules,
+            // 【C原典】key_check_COS(Fyss1d.c:4680) … 切替スイッチ。
+            ["COS"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["P"], "p", FloatRange(0.1, 99.9), "FY-890E", "FY-891E"),
+            ],
+            // 【C原典】key_check_PBS(Fyss1d.c:4752) … 押ボタンスイッチ。
+            ["PBS"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["P"], "p", FloatRange(0.1, 99.9), "FY-890E", "FY-891E"),
+            ],
+            // 【C原典】key_check_SSW(Fyss1d.c:4824) … セレクタスイッチ。
+            ["SSW"] =
+            [
+                new(["P"], "p", IntRange(1, 6), "FY-890E", "FY-891E"),
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_TSW(Fyss1d.c:4900) … トグルスイッチ。
+            ["TSW"] =
+            [
+                new(["P"], "p", IntIn(1, 2), "FY-890E", "FY-891E"),
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_BZ(Fyss1d.c:4980) … ブザー。W/VA→wva(fwva='W'/'V')。
+            ["BZ"] =
+            [
+                new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["W"], "wva", FloatRange(0.01, 9.00), "FY-851E", "FY-852E", "fwva", 'W'),
+                new(["VA"], "wva", FloatRange(0.01, 9.00), "FY-851E", "FY-852E", "fwva", 'V'),
+            ],
+            // 【C原典】key_check_BEL(Fyss1d.c:5000) … ベル。W/VA→wva(fwva='W'/'V')。
+            ["BEL"] =
+            [
+                new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["W"], "wva", FloatRange(0.01, 9.00), "FY-851E", "FY-852E", "fwva", 'W'),
+                new(["VA"], "wva", FloatRange(0.01, 9.00), "FY-851E", "FY-852E", "fwva", 'V'),
+                new(["P"], "p", FloatRange(1, 999), "FY-890E", "FY-891E"),
+            ],
+            // 【C原典】key_check_CP(Fyss1d.c:5069) … 制御盤。AF は 30 固定、AT/A は同一 at。
+            ["CP"] =
+            [
+                new(["P"], "p", FloatRange(1, 3), "FY-890E", "FY-891E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", IntRange(1, 30), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 500), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_RSW(Fyss1d.c:5155) … 回転スイッチ。
+            ["RSW"] =
+            [
+                new(["K"], "k", IntRange(1, 256), "FY-841E", "FY-842E"),
+                new(["VC", "VCAC"], "vc", IntRange(1, 30), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_EE(Fyss1d.c:5195) … 非常停止。
+            ["EE"] =
+            [
+                new(["A"], "a", IntRange(1, 30), "FY-815E", "FY-816E"),
+                new(["VC", "VCAC"], "vc", IntRange(1, 250), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_HM(Fyss1d.c:5233) … 時計。HZ は 50/60 固定。
+            ["HM"] =
+            [
+                new(["HZ"], "Hz", IntIn(50, 60), "FY-823E", "FY-824E"),
+                new(["VC", "VCAC"], "vc", IntRange(1, 250), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_XERY(Fyss1d.c:5266) … 静止形電動機保護継電器。予約語 2ERY/3ERY/4ERY。
+            ["2ERY"] = XeryRules,
+            ["3ERY"] = XeryRules,
+            ["4ERY"] = XeryRules,
+            // 【C原典】key_check_CKS(Fyss1d.c:5340) … 断路器。E は 0/2/3 の離散、V/VDC は同一 v。
+            ["CKS"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["A"], "a", IntRange(1, 600), "FY-815E", "FY-816E"),
+                new(["VAC", "V"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
             ],
         };
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────

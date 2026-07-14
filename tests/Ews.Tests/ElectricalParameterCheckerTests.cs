@@ -774,4 +774,84 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal("100", values.Get("v"));
         Assert.Equal("D", values.Get("fv"));
     }
+
+    // „Ÿ„Ÿ •\¦“”EƒXƒCƒbƒ`EƒuƒU[Œn key_check(GX/XL/COS/PBS/SSW/TSW/BZ/BEL/CP/RSW/EE/HM/XERY/CKS) „Ÿ„Ÿ
+
+    [Fact]
+    public void GX‚Í—\–ñŒêG‚Å‹¤—L‚³‚êVC‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_GX(—\–ñŒê G/G1/c/GPN ‹¤—L): VC 1..260Afvc='A'B
+        (short rc, RatingValues values, string err) = CheckValues("G", "100VC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("vc"));
+        Assert.Equal("A", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void XL‚Í—\–ñŒêGL‚Å‹¤—L‚³‚êVDC‚ªfvD‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_XL(—\–ñŒê GL/RL/OL/BL/WL ‹¤—L): VDC ¨ fv='D'A”ÍˆÍ 1.0..125.0B
+        (short rc, RatingValues values, string err) = CheckValues("GL", "100VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("v"));
+        Assert.Equal("D", values.Get("fv"));
+    }
+
+    [Fact]
+    public void BZ‚ÌW‚Íwva‚ÖŠi”[‚³‚êfwva‚ªW‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_BZ: W/VA ¨ “¯ˆê wvaAfwva='W'/'V'B
+        (short rc, RatingValues values, string err) = CheckValues("BZ", "1.00W");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("1.00", values.Get("wva"));
+        Assert.Equal("W", values.Get("fwva"));
+    }
+
+    [Fact]
+    public void CP‚ÌAF‚Í30ˆÈŠO‚ÅFY895E()
+    {
+        // yCŒ´“Tzkey_check_CP: AF ‚Í 30 ŒÅ’è ¨ 40 ‚Í FY-895EB
+        (short rc, _, string err) = CheckValues("CP", "40AF");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-895E", err);
+    }
+
+    [Fact]
+    public void CKS‚ÌE‚Í0‚©2‚©3ˆÈŠO‚ÅFY893E()
+    {
+        // yCŒ´“Tzkey_check_CKS: E¸{0,2,3} ˆÈŠO ¨ FY-893EB
+        (short rc, _, string err) = CheckValues("CKS", "2P1E");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-893E", err);
+    }
+
+    [Fact]
+    public void HM‚ÌHZ‚Í50‚©60ˆÈŠO‚ÅFY824E()
+    {
+        // yCŒ´“Tzkey_check_HM: HZ¸{50,60} ˆÈŠO ¨ FY-824EB
+        (short rc, _, string err) = CheckValues("HM", "55HZ");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-824E", err);
+    }
+
+    [Fact]
+    public void XERY‚Í—\–ñŒê2ERY‚Å‹¤—L‚³‚êVC”ÍˆÍŠO‚ÍFY814E()
+    {
+        // yCŒ´“Tzkey_check_XERY(—\–ñŒê 2ERY/3ERY/4ERY ‹¤—L): VC 1..500 ‚Ì”ÍˆÍŠO ¨ FY-814EB
+        (short rc, _, string err) = CheckValues("2ERY", "600VC");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-814E", err);
+    }
+
+    [Fact]
+    public void RSW‚ÌK‚Í”ÍˆÍŠO‚ÅFY842E()
+    {
+        // yCŒ´“Tzkey_check_RSW: K 1..256 ‚Ì”ÍˆÍŠO ¨ FY-842EB
+        (short rc, _, string err) = CheckValues("RSW", "300K");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-842E", err);
+    }
 }
