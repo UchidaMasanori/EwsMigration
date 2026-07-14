@@ -1014,4 +1014,37 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal(string.Empty, err);
         Assert.Equal("10.00", values.Get("kw"));
     }
+
+    // ── ユニット化スイッチ系 key_check(Wave7: TSU/SSWU/PBSU/COSU/2COSU/OLU) ──
+
+    [Fact]
+    public void TSUのVDCは直流区分fvがDになる()
+    {
+        // 【C原典】key_check_TSU: VDC → fv='D'、V/VDC は同一 v(1..999)。
+        (short rc, RatingValues values, string err) = CheckValues("TSU", "10.50A200VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("200", values.Get("v"));
+        Assert.Equal("D", values.Get("fv"));
+    }
+
+    [Fact]
+    public void OLUのKは範囲外でFY842E()
+    {
+        // 【C原典】key_check_OLU: K 1..99 の範囲外(0)→ FY-842E。
+        (short rc, _, string err) = CheckValues("OLU", "0K");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-842E", err);
+    }
+
+    [Fact]
+    public void COSUのVCACは交流区分fvcがAになる()
+    {
+        // 【C原典】key_check_COSU: VCAC → fvc='A'、VC/VCAC/VCDC は同一 vc。
+        (short rc, RatingValues values, string err) = CheckValues("COSU", "100VCAC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("vc"));
+        Assert.Equal("A", values.Get("fvc"));
+    }
 }

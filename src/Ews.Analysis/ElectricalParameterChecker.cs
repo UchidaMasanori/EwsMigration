@@ -1937,6 +1937,18 @@ public sealed class ElectricalParameterChecker
         new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
     ];
 
+    // key_check_TSU/SSWU/PBSU/COSU/2COSU/OLU(ユニット化スイッチ、同一構造)。
+    // V/VAC→fv='A'、VDC→fv='D'(同一 v)。VC/VCAC→fvc='A'、VCDC→fvc='D'(同一 vc)。
+    private static readonly KeyCheckRule[] UnitSwitchRules =
+    [
+        new(["A"], "a", FloatRange(0.01, 99.99), "FY-815E", "FY-816E"),
+        new(["V", "VAC"], "v", IntRange(1, 999), "FY-801E", "FY-802E", "fv", 'A'),
+        new(["VDC"], "v", IntRange(1, 999), "FY-801E", "FY-802E", "fv", 'D'),
+        new(["VC", "VCAC"], "vc", IntRange(1, 999), "FY-813E", "FY-814E", "fvc", 'A'),
+        new(["VCDC"], "vc", IntRange(1, 999), "FY-813E", "FY-814E", "fvc", 'D'),
+        new(["K"], "k", IntRange(1, 99), "FY-841E", "FY-842E"),
+    ];
+
     /// <summary>
     /// 予約語別 key_check ルール表。【C原典】key_check_MCB/MC/MG/THR/MCDT/CSDT/SC(Fyss1d.c)。
     /// 範囲値の改訂タグ(改訂&lt;3&gt;/&lt;5&gt;等)や離散許容値は C 原典を忠実に反映する。
@@ -2608,6 +2620,14 @@ public sealed class ElectricalParameterChecker
                 new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
                 new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
             ],
+            // 【C原典】key_check_TSU/SSWU/PBSU/COSU/2COSU/OLU(Fyss1d.c:7552~) … ユニット化スイッチ。
+            //   STM/SIR/C/R/D/NICA/RE/VVVF は C 原典 return 0 のため構造検証のみ(ルール未登録)。
+            ["TSU"] = UnitSwitchRules,
+            ["SSWU"] = UnitSwitchRules,
+            ["PBSU"] = UnitSwitchRules,
+            ["COSU"] = UnitSwitchRules,
+            ["2COSU"] = UnitSwitchRules,
+            ["OLU"] = UnitSwitchRules,
         };
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────
 
