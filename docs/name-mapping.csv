@@ -163,3 +163,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体/モデル,FYRT800(分解結果),MainCircuitSegment,toku/sekkei/src/Fyss1f.c,主回路数量分解結果(レコード整形は段階移植)
 列挙,(分解種別),MainCircuitSegmentKind,toku/sekkei/src/Fyss1f.c,分解種別(Simple/Iteration/CircuitNumber)
 テーブル,t_vs/t_tb/…/t_vvvf(残り約70表),ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,単純構造の残り定格キー表を追加(先頭数字2ERY系含む。'/'含む表・TR/TM/PT/BPは後続)
+テーブル,t_am/t_vt/t_ct/t_rtr/t_bltr/t_pltr/t_thsw/t_wh,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,CT/VT付き('/')定格キー表を追加(構造検証。特殊展開VM/TM/TR/PT/BPは後続)
+関数,next_1_get,ElectricalParameterChecker.NextOneGet,toku/sekkei/src/Fyss1d.c,CT/VT付き'/'直後の副記号n_kigoを取得(消費先key_check_WHはE.2)

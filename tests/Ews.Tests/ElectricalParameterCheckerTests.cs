@@ -133,8 +133,8 @@ public sealed class ElectricalParameterCheckerTests
     public void 未収録予約語は構造検証をスキップする()
     {
         // 本フェーズ未収録の定格キー表はスキップ(後続フェーズで追加)。
-        // CT は CT/VT付き('/')表のため引き続き未収録。
-        (short rc, string err) = Check("CT", "3P");
+        // PT は特殊展開(tkak_tbl flag 非0)のため引き続き未収録。
+        (short rc, string err) = Check("PT", "3P");
         Assert.Equal(0, rc);
         Assert.Equal(string.Empty, err);
     }
@@ -174,6 +174,42 @@ public sealed class ElectricalParameterCheckerTests
         (short rc, string err) = Check("STM", "12.3S");
         Assert.Equal(-1, rc);
         Assert.Equal("FY-883E", err);
+    }
+
+    // ── CT/VT付き('/')表の構造検証 ──────────────────────
+
+    [Theory]
+    [InlineData("AM", "50/5A")]        // t_am: "/"(3,0,1,1) + A(3,0,1,0)
+    [InlineData("VT", "110/110VAC")]   // t_vt: "/"(3,0,1,0) + VAC(3,0,1,0)
+    [InlineData("CT", "1000/5A")]      // t_ct: "/"(4,0,1,0) + A(3,0,1,0)
+    [InlineData("RTR", "75/22VA")]     // t_rtr: "/"(3,0,1,0) + VA(2,0,1,0)
+    [InlineData("BLTR", "75/22VA")]    // t_bltr: "/"(3,0,1,0) + VA(2,0,1,0)
+    [InlineData("PLTR", "75/5.5VAC")]  // t_pltr: "/"(3,0,1,0) + VAC(3,1,1,0)
+    [InlineData("THSW", "3C/2C")]      // t_thsw: "C/"(3,0,1,0) + C(3,0,1,0)
+    [InlineData("WH", "1P100/5A50HZ")] // t_wh: P + "/"(3,0,1,1) + A + HZ
+    public void CT_VT付き表の正常系は正常終了する(string yoyaku, string parm)
+    {
+        (short rc, string err) = Check(yoyaku, parm);
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+    }
+
+    [Fact]
+    public void CTの一次電流桁数超過はFY882E()
+    {
+        // t_ct "/"(4,0,1,0): 一次値は4桁まで。5桁 → Check_1_Group FY-882E。
+        (short rc, string err) = Check("CT", "10000/5A");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-882E", err);
+    }
+
+    [Fact]
+    public void CT_VT付き表の未定義記号はFY699E()
+    {
+        // t_ct は "/"/A/VA のみ。V は未定義 → Check_1_Group FY-699E。
+        (short rc, string err) = Check("CT", "1000/5V");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-699E", err);
     }
 
     // ── E.2: key_check 値格納・範囲検証 ─────────────────────────────

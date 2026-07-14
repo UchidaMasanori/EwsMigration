@@ -23,8 +23,8 @@ using Ews.Domain.Analysis;
 /// <see cref="KeyCheckMain"/> が型別ルール(<see cref="KeyCheckRules"/>)で重複・範囲を検証する。
 /// E.2では MCB/MC/MG/THR/MCDT/CSDT/SC を収録(いずれも走査単位が単純な機種)。
 /// MA[3][3] 等の inum 索引配列を持つ ELB/R* や、奇数丸め特殊処理の NT、
-/// および TR(変圧器)専用パーサ TR_check_main()・CT/VT付き('/')・特殊展開(VM/TM/WH)は
-/// 後続フェーズで対応する。
+/// および TR(変圧器)専用パーサ TR_check_main()・特殊展開(VM/TM/PT/BP)は
+/// 後続フェーズで対応する。CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)は移植済み。
 /// </summary>
 public sealed class ElectricalParameterChecker
 {
@@ -47,12 +47,11 @@ public sealed class ElectricalParameterChecker
     /// 予約語 → 定格キー表 の対応辞書。【C原典】FySinTkakt.h の <c>tkak_tbl[]</c> と各 <c>t_xxx[]</c>。
     /// 値はメンバ表(TKAK_T[])。末尾の NULL 番兵({NULL,0,0,0,0})は移植しない(配列長で判定)。
     ///
-    /// 記号部に '/'(CT/VT付き)を含まず特殊展開でもない単純構造の定格キー表を収録する
-    /// (遮断器・電磁接触器・表示灯・計器・端子台など大多数の機種)。
+    /// 単純構造の定格キー表に加え、記号 '/' を含む CT/VT付き表(AM/VT/CT/RTR/BLTR/PLTR/THSW/WH)も収録する
+    /// (遮断器・電磁接触器・表示灯・計器・端子台・計器用変成器など大多数の機種)。
     /// 引き続き後続フェーズで扱うのは次のみ:
-    ///   - CT/VT付き('/' を含む表): AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM
-    ///     (独自パーサ next_1_get/n_kigo の移植が前提)
-    ///   - 特殊展開(tkak_tbl の flag が非0): TR/TM/PT/BP
+    ///   - 特殊展開(tkak_tbl の flag が非0): VM/TM/TR/PT/BP
+    ///     (予約語展開・専用パーサ TR_check_main が前提。VM は t_vm も全 '/' 記号)
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
@@ -228,8 +227,9 @@ public sealed class ElectricalParameterChecker
             ],
 
             // ==== 追加バッチ(残りの型): FySinTkakt.h の単純構造表(記号 '/' なし・非特殊展開)を転記 ====
-            // 【C原典】tkak_tbl[] の予約語名で登録。CT/VT付き('/': AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM)と
-            //          特殊展開(TR/TM/PT/BP)は独自パーサ依存のため引き続き後続フェーズ。
+            // 【C原典】tkak_tbl[] の予約語名で登録。CT/VT付き('/': AM/VT/CT/RTR/BLTR/PLTR/THSW/WH)は
+            //          後段の「CT/VT付き('/')表」セクションで追加。特殊展開(VM/TM/TR/PT/BP)は
+            //          独自パーサ(予約語展開・TR_check_main)依存のため引き続き後続フェーズ。
 
             // t_vs[] … VS
             ["VS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
@@ -611,6 +611,46 @@ public sealed class ElectricalParameterChecker
             ["RE"] = [new("KW", 4, 1, 1, 0)],
             // t_vvvf[] … VVVF
             ["VVVF"] = [new("KW", 4, 2, 1, 0), new("VAC", 3, 0, 2, 0)],
+
+            // ==== CT/VT付き('/')表: 記号 '/' を先頭に含む定格キー表 ====
+            // 【C原典】Get_1_Group は '/' で数値部走査を打ち切り、not_digit_skip で '/' を記号として
+            //          切り出し、next_1_get(=NextOneGet)が '/' 直後の副記号を n_kigo に取得する。
+            //          Parm_Check_Main の主ループは keta1+ketak 分だけ前進するため、'/' 後続の
+            //          「副数値＋記号」も通常グループとして順次検証される。
+            //          特殊展開(tkak_tbl flag 非0)の VM/TM/PT/BP と TR は引き続き後続フェーズ。
+            // t_am[] … AM
+            ["AM"] = [new("/", 3, 0, 1, 1), new("A", 3, 0, 1, 0)],
+            // t_vt[] … VT
+            ["VT"] = [new("/", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("VA", 3, 0, 1, 0)],
+            // t_ct[] … CT
+            ["CT"] = [new("/", 4, 0, 1, 0), new("A", 3, 0, 1, 0), new("VA", 3, 0, 1, 0)],
+            // t_rtr[] … RTR
+            ["RTR"] = [new("/", 3, 0, 1, 0), new("VAC", 2, 0, 1, 0), new("VA", 2, 0, 1, 0)],
+            // t_bltr[] … BLTR
+            ["BLTR"] = [new("/", 3, 0, 1, 0), new("VAC", 2, 0, 1, 0), new("VA", 2, 0, 1, 0)],
+            // t_pltr[] … PLTR
+            ["PLTR"] = [new("/", 3, 0, 1, 0), new("VAC", 3, 1, 1, 0), new("VA", 1, 0, 1, 0)],
+            // t_thsw[] … THSW('C/' は英字始まりのため通常走査で記号として切り出される)
+            ["THSW"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("C/", 3, 0, 1, 0),
+                new("C", 3, 0, 1, 0),
+            ],
+            // t_wh[] … WH('/' 記号が2回。副記号 A/V を n_kigo で判別 → key_check_WH は E.2)
+            ["WH"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("W", 1, 0, 1, 0),
+                new("/", 3, 0, 1, 1),
+                new("A", 3, 0, 1, 0),
+                new("/", 3, 0, 1, 1),
+                new("VAC", 3, 0, 1, 0),
+                new("HZ", 2, 0, 1, 0),
+            ],
         };
 
     /// <summary>本フェーズで構造検証を提供できる予約語かどうか(定格キー表を収録済みか)。</summary>
@@ -656,8 +696,8 @@ public sealed class ElectricalParameterChecker
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
         {
             // 本フェーズ未収録の予約語は構造検証をスキップ(後続フェーズで表を追加)。
-            // TODO(E.1続き): 残る CT/VT付き('/') AM/VT/CT/RTR/BLTR/PLTR/THSW/WH/VM と
-            //                特殊展開 TR/TM/PT/BP を FySinTkakt.h から移植。
+            // TODO(E.1続き): 特殊展開(VM/TM/TR/PT/BP)を FySinTkakt.h から移植
+            //                (予約語展開・TR_check_main 前提)。
             return 0;
         }
 
@@ -667,13 +707,13 @@ public sealed class ElectricalParameterChecker
         // 【C原典】while( *p != '\0' )
         while (CharAt(parm, p) != '\0')
         {
-            short irc = GetOneGroup(parm, p, out int keta1, out int ketak, out errorCode);
+            short irc = GetOneGroup(parm, p, out int keta1, out int ketak, out string nextSymbol, out errorCode);
             if (irc == -1)
             {
                 return -1; // 取得不可
             }
 
-            irc = CheckOneGroup(parm, p, keta1, table, reservedWord, values, out errorCode);
+            irc = CheckOneGroup(parm, p, keta1, table, reservedWord, values, nextSymbol, out errorCode);
             if (irc == -1)
             {
                 return -1; // チェックエラー
@@ -700,12 +740,14 @@ public sealed class ElectricalParameterChecker
     /// <param name="top">グループ先頭位置(【C原典】p_top)。</param>
     /// <param name="keta1">数値部(整数/ピリオド/小数/区切り)の合計桁数(【C原典】keta1)。</param>
     /// <param name="ketak">記号部の桁数(【C原典】ketak)。</param>
+    /// <param name="nextSymbol">CT/VT付き('/')の副記号(【C原典】n_kigo)。'/' 以外では空。</param>
     /// <param name="errorCode">エラーNo.(【C原典】ErrNo)。</param>
     /// <returns>0=正常 / -1=エラー。</returns>
-    private static short GetOneGroup(string s, int top, out int keta1, out int ketak, out string errorCode)
+    private static short GetOneGroup(string s, int top, out int keta1, out int ketak, out string nextSymbol, out string errorCode)
     {
         keta1 = 0;
         ketak = 0;
+        nextSymbol = string.Empty;
         errorCode = string.Empty;
 
         int p = top;
@@ -768,10 +810,11 @@ public sealed class ElectricalParameterChecker
 
         if (CharAt(s, p) == '/')
         {
-            // CT/VT付きデータ('/')。【C原典】not_digit_skip + next_1_get(++p)。
-            // TODO(E.2): next_1_get()(n_kigo 設定)の移植。本フェーズは記号長のみ計上。
+            // CT/VT付きデータ('/')。【C原典】not_digit_skip( p, &ketak ); next_1_get( ++p );
+            //   ketak は '/'(=記号)の桁数。'/' 直後の副記号は NextOneGet で n_kigo に取得する。
             int ketaN0 = NotDigitSkip(s, p);
             ketak = ketaN0;
+            nextSymbol = NextOneGet(s, p + 1); // 【C原典】next_1_get( ++p )
         }
         else
         {
@@ -788,6 +831,41 @@ public sealed class ElectricalParameterChecker
     }
 
     /// <summary>
+    /// CT付き/VT付きデータの副記号取得。【C原典】<c>next_1_get(P_CHAR p_top)</c>(Fyss1d.c:677)。
+    /// '/' の直後から数値部を読み飛ばし、続く記号部(非数字)を n_kigo として返す。
+    /// 現状の消費先は WH の値検証 <c>key_check_WH</c>(n_kigo[0]=='A'/'V' で副定格 sa/sv を判別)であり、
+    /// 同関数は E.2 で移植予定のため、本フェーズでは取得のみ行う(構造検証には影響しない)。
+    /// </summary>
+    /// <param name="s">パラメータ全体。</param>
+    /// <param name="top">'/' の直後位置(【C原典】p_top = ++p)。</param>
+    /// <returns>副記号(【C原典】n_kigo)。記号が無い場合は空文字列。</returns>
+    private static string NextOneGet(string s, int top)
+    {
+        int p = top;
+        int c = CharAt(s, p);
+
+        // 【C原典】while( isupper( c ) == 0 ){ digit_skip; if(keta==0) break; p+=keta; c=*p; }
+        while (!IsUpper(c))
+        {
+            int keta = DigitSkip(s, p);
+            if (keta == 0)
+            {
+                break;
+            }
+            p += keta;
+            c = CharAt(s, p);
+        }
+
+        // 【C原典】not_digit_skip( p, &keta ); if(keta==0) return; strncpy( n_kigo, p, keta );
+        int ketaN = NotDigitSkip(s, p);
+        if (ketaN == 0)
+        {
+            return string.Empty; // 記号なし
+        }
+        return Substr(s, p, ketaN);
+    }
+
+    /// <summary>
     /// 切り出した1グループを定格キー表と照合し桁・繰返数を検証する。
     /// 【C原典】<c>Check_1_Group(P_CHAR p_top, SHORT keta1, SHORT ketak, SHORT iNo, P_CHAR ErrNo)</c>(Fyss1d.c:723)。
     /// </summary>
@@ -797,9 +875,10 @@ public sealed class ElectricalParameterChecker
     /// <param name="table">当該予約語の定格キー表(【C原典】fyak_tbl[iNo].tkak_t)。</param>
     /// <param name="reservedWord">解決済み予約語(【C原典】s_yoyaku)。key_check の型分岐に用いる。</param>
     /// <param name="values">定格値の格納先(【C原典】key_tbl)。</param>
+    /// <param name="nextSymbol">CT/VT付き('/')の副記号(【C原典】n_kigo)。値検証 key_check へ伝搬する。</param>
     /// <param name="errorCode">エラーNo.(【C原典】ErrNo)。</param>
     /// <returns>0=正常 / -1=エラー。</returns>
-    private short CheckOneGroup(string s, int top, int keta1, RatingKeySpec[] table, string reservedWord, RatingValues values, out string errorCode)
+    private short CheckOneGroup(string s, int top, int keta1, RatingKeySpec[] table, string reservedWord, RatingValues values, string nextSymbol, out string errorCode)
     {
         errorCode = string.Empty;
 
@@ -892,7 +971,7 @@ public sealed class ElectricalParameterChecker
 
             // 【C原典】strncpy(val, p_str, all_keta); key_check_main(val, inum, ErrNo)
             string val = Substr(s, valueStart, allKeta);
-            short irc = KeyCheckMain(reservedWord, tbl.Symbol, val, inum, values, out errorCode);
+            short irc = KeyCheckMain(reservedWord, tbl.Symbol, val, inum, values, nextSymbol, out errorCode);
             if (irc == -1)
             {
                 return -1;
@@ -936,12 +1015,14 @@ public sealed class ElectricalParameterChecker
     /// <param name="val">値文字列(【C原典】val)。</param>
     /// <param name="index">繰返し添字(【C原典】inum)。E.2 収録型では未使用。</param>
     /// <param name="values">格納先(【C原典】key_tbl)。</param>
+    /// <param name="nextSymbol">CT/VT付き('/')の副記号(【C原典】global n_kigo)。key_check_WH が参照する。</param>
     /// <param name="errorCode">エラーNo.(【C原典】ErrNo)。</param>
     /// <returns>0=正常 / -1=エラー。</returns>
-    private short KeyCheckMain(string reservedWord, string symbol, string val, int index, RatingValues values, out string errorCode)
+    private short KeyCheckMain(string reservedWord, string symbol, string val, int index, RatingValues values, string nextSymbol, out string errorCode)
     {
         errorCode = string.Empty;
         _ = index; // E.2 収録型は inum 非依存(ELB/R* の ma[3][3] は後続フェーズ)。
+        _ = nextSymbol; // 【C原典】key_check_main が参照する global n_kigo。消費先 key_check_WH は E.2 のため現状未使用。
 
         if (!KeyCheckRules.TryGetValue(reservedWord, out KeyCheckRule[]? rules))
         {
