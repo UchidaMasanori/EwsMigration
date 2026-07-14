@@ -216,6 +216,12 @@ public sealed class EquipmentTableEntry
     /// </summary>
     public char AutoGenerationKind { get; set; } = ' ';
 
+    /// <summary>”—ÊByCŒ´“TzKosuB</summary>
+    public short Quantity { get; set; }
+
+    /// <summary>ƒOƒ‹[ƒv”—ÊByCŒ´“TzGKosuB</summary>
+    public short GroupQuantity { get; set; }
+
     /// <summary>
     /// kikitable_add() ‚ªƒ^ƒO•t‚«‚Åİ’è‚·‚é‘®«ŒQB
     /// yCŒ´“Tzkikitable_add(tag, value, ...) ‚Ì tag("0","1","11","CM","LN" “™)¨valueB

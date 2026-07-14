@@ -126,7 +126,9 @@ public sealed class MainCircuitBuilder
         // 7. 機器テーブルソート。【C原典】qsort(P_Kiki,*i_Kikic,sizeof(KIKITABLE),cmp)。機器No(D_No)昇順。
         SortEquipmentByNumber(parse);
 
-        // 8. 行種ランクセット。【C原典】Gyosyu_Rank_Set()。TODO。
+        // 8. 行種ランクセット。【C原典】Gyosyu_Rank_Set()。
+        SetLineTypeRanks(parse);
+
         // 9. 機器ランクセット。【C原典】Kiki_Rank_Set()。TODO。
         // 10. 機器ランク更新。【C原典】Kiki_Rank_Update()。TODO。
         // 11. 行種ランク更新。【C原典】Gyosyu_Rank_Update()。TODO。
@@ -195,7 +197,203 @@ public sealed class MainCircuitBuilder
 
 
     /// <summary>
-    /// 系統チェック(系統内に存在すべき/できる行種の検証)。
+    /// 行種ランクセット。【C原典】Gyosyu_Rank_Set(Fyss12.c:2417)。
+    ///
+    /// 系統(K_No)ごとに、行種(GYOSYU)の階層ランク(Rank)と出現数(Cnt)を設定する。
+    /// アルゴリズムは2パス:
+    ///   1) 入線(P)/機器系行種(TM/M/S/SM/B/O/BO/PM)を対象に、入線を Rank=0/Cnt=1 の基点とし、
+    ///      同一系統・同一親(O_No)の兄弟行種の機器数量(Kiki_Suryou_Set の合計)を Cnt に集計。
+    ///      PM/O 以外は、親行種(O_No==G_No)を後方走査で探し、親が入線(P)なら
+    ///      「Cnt&gt;0 で親Rank+1、それ以外は親Rank」、親が入線以外なら
+    ///      「Cnt&gt;1 で親Rank+1、それ以外は親Rank」を設定する。
+    ///   2) PM/O 行種は、同一系統内で後続の TM/M/SM/B/BO 行種の Rank を継承する。
+    ///
+    /// PM 行種は、主回路機器(CT/AM/WH)が存在する(Main_Exist_Check)か、直後も PM の場合は
+    /// 数量集計の対象から除外する(950412 改訂)。
+    /// 【C原典】Find_Gyosyu_Sym=<see cref="FindLineTypeSymbol"/>, Main_Exist_Check, Kiki_Suryou_Set。
+    /// </summary>
+    private void SetLineTypeRanks(CircuitParseResult parse)
+    {
+        List<LineTypeTableEntry> lineTypes = parse.LineTypes;
+        int count = lineTypes.Count;
+
+        // === パス1: 系統行種にランク/出現数をセット ===
+        // 【C原典】K_No=0; for(i=0;i<*i_Gyosyuc;i++){...}
+        short systemNo = 0;
+        int parentIndex = 0;
+        for (int i = 0; i < count; i++)
+        {
+            LineTypeTableEntry s = lineTypes[i];
+            s.Count = 0;
+            short existCount = 0;
+            LineTypeSymbol sym = FindLineTypeSymbol(s.LineType);
+
+            if (sym is LineTypeSymbol.P or LineTypeSymbol.Tm or LineTypeSymbol.M
+                or LineTypeSymbol.S or LineTypeSymbol.Sm or LineTypeSymbol.B
+                or LineTypeSymbol.O or LineTypeSymbol.Bo or LineTypeSymbol.Pm)
+            {
+                if (sym == LineTypeSymbol.P)
+                {
+                    // 【C原典】入線は基点。Rank=0, Cnt=1。
+                    s.Rank = 0;
+                    s.Count = 1;
+                    systemNo = s.SystemNumber;
+                    parentIndex = i;
+                }
+                else if (systemNo == s.SystemNumber)
+                {
+                    // 【C原典】同一系統・同一親(O_No)の兄弟行種の機器数量を集計。
+                    for (int j = parentIndex + 1; j < count; j++)
+                    {
+                        LineTypeTableEntry w = lineTypes[j];
+                        if (systemNo != w.SystemNumber) break;
+
+                        if (FindLineTypeSymbol(w.LineType) == LineTypeSymbol.Pm)
+                        {
+                            // 【C原典】主回路機器(CT/AM/WH)を持つ PM は集計対象外。
+                            if (MainEquipmentExists(parse, w.GroupNumber)) continue;
+                            // 【C原典】950412: 直後も PM なら対象外。
+                            if (j + 1 < count
+                                && FindLineTypeSymbol(lineTypes[j + 1].LineType) == LineTypeSymbol.Pm)
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (s.ParentGroupNumber == w.ParentGroupNumber)
+                        {
+                            short quantity = SetEquipmentQuantity(parse, w.GroupNumber);
+                            if (quantity != -1) existCount += quantity;
+                        }
+                    }
+
+                    s.Count = existCount;
+
+                    if (sym != LineTypeSymbol.Pm && sym != LineTypeSymbol.O)
+                    {
+                        // 【C原典】親行種(O_No==G_No)を後方走査で探しランクを決定。
+                        for (int j = i; j >= parentIndex; j--)
+                        {
+                            LineTypeTableEntry w = lineTypes[j];
+                            if (systemNo != w.SystemNumber) break;
+
+                            if (s.ParentGroupNumber == w.GroupNumber)
+                            {
+                                LineTypeSymbol parentSym = FindLineTypeSymbol(w.LineType);
+                                if (parentSym == LineTypeSymbol.P)
+                                {
+                                    // 【C原典】960403: 親が入線なら Cnt>0 で親Rank+1。
+                                    s.Rank = existCount > 0 ? (short)(w.Rank + 1) : w.Rank;
+                                }
+                                else
+                                {
+                                    // 【C原典】親が入線以外なら Cnt>1 で親Rank+1。
+                                    s.Rank = existCount > 1 ? (short)(w.Rank + 1) : w.Rank;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 【C原典】K_No = S_Gyosyu->K_No; (毎行末に更新)
+            systemNo = s.SystemNumber;
+        }
+
+        // === パス2: PM/O 行種は後続の TM/M/SM/B/BO のランクを継承 ===
+        // 【C原典】2つ目の for ループ。
+        for (int i = 0; i < count; i++)
+        {
+            LineTypeTableEntry s = lineTypes[i];
+            LineTypeSymbol sym = FindLineTypeSymbol(s.LineType);
+
+            if (sym == LineTypeSymbol.Pm || sym == LineTypeSymbol.O)
+            {
+                short kNo = s.SystemNumber;
+                for (int j = i; j < count; j++)
+                {
+                    LineTypeTableEntry w = lineTypes[j];
+                    if (kNo != w.SystemNumber) break;
+
+                    LineTypeSymbol sym2 = FindLineTypeSymbol(w.LineType);
+                    if (sym2 is LineTypeSymbol.Tm or LineTypeSymbol.M or LineTypeSymbol.Sm
+                        or LineTypeSymbol.B or LineTypeSymbol.Bo)
+                    {
+                        s.Rank = w.Rank;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 主回路機器存在チェック。【C原典】Main_Exist_Check(Fyss12.c:5032)。
+    /// 指定グループ(G_No)に主回路機器(CT/AM/WH)が存在すれば true。
+    /// C原典は G_No 昇順を仮定した早期打ち切り(<c>else if (G_No &lt; entry.G_No) break</c>)を
+    /// 行うため、その挙動を忠実に再現する(機器テーブルの現在の並び順で走査)。
+    /// </summary>
+    private static bool MainEquipmentExists(CircuitParseResult parse, short groupNumber)
+    {
+        foreach (EquipmentTableEntry kiki in parse.MainEquipment)
+        {
+            if (kiki.GroupNumber == groupNumber)
+            {
+                if (kiki.ReservedWord is "CT" or "AM" or "WH")
+                {
+                    return true;
+                }
+            }
+            else if (groupNumber < kiki.GroupNumber)
+            {
+                break;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 系統行種の重複度(機器数量)セット。【C原典】Kiki_Suryou_Set(Fyss12.c:2772)。
+    /// 指定グループ(G_No)の先頭機器について、グループ数量(GKosu)があればそれを、
+    /// なければ <see cref="CalcEquipmentQuantity"/> の結果(0 のとき 1)を返す。
+    /// 該当機器が無ければ -1。
+    /// </summary>
+    private static short SetEquipmentQuantity(CircuitParseResult parse, short groupNumber)
+    {
+        foreach (EquipmentTableEntry kiki in parse.MainEquipment)
+        {
+            if (kiki.GroupNumber == groupNumber)
+            {
+                if (kiki.GroupQuantity != 0)
+                {
+                    return kiki.GroupQuantity;
+                }
+                short quantity = CalcEquipmentQuantity(kiki);
+                return quantity == 0 ? (short)1 : quantity;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// 機器数量セット。【C原典】Kiki_Suryou_Calc(Fyss12.c:2637)。
+    /// 数量(Kosu)が設定されており、予約語が F/CT/VT のいずれでもなければ Kosu を返す。
+    /// それ以外は 0(数量未設定扱い)。
+    /// </summary>
+    private static short CalcEquipmentQuantity(EquipmentTableEntry kiki)
+    {
+        if (kiki.Quantity != 0
+            && kiki.ReservedWord != "F"
+            && kiki.ReservedWord != "CT"
+            && kiki.ReservedWord != "VT")
+        {
+            return kiki.Quantity;
+        }
+        return 0;
+    }
+
+
     /// 【C原典】Keitou_Check()。系統(K_No)ごとに次を検証する。
     ///   ・盤タイトル(BN)は系統内に1つ以下, 入線直上(FY-671E/FY-672E)
     ///   ・系統終了(SEP)は系統内に1つ以下, 入線直上(FY-673E/FY-674E)

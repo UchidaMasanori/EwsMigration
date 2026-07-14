@@ -814,4 +814,69 @@ public sealed class MainCircuitBuilderTests
 
         Assert.Equal(new[] { "A", "B", "C" }, parse.MainEquipment.Select(k => k.ReservedWord).ToArray());
     }
+
+    // ==== step8: Gyosyu_Rank_Set(çséÌÉâÉìÉN/èoåªêîÉZÉbÉg) ====
+
+    [Fact]
+    public void Gyosyu_Rank_Set_ì¸ê¸PÇÕäÓì_Ç≈Rank0_Cnt1_ã@äÌñ≥ÇµéqçséÌÇÕRankêòíu()
+    {
+        // ÅyCå¥ìTÅzGyosyu_Rank_Set: ì¸ê¸(P)ÇÕ Rank=0/Cnt=1 ÇÃäÓì_ÅB
+        //   éqçséÌ(M)ÇÕã@äÌÇ™ñ≥ÇØÇÍÇŒ Cnt=0 Ç≈ÅAêe(P)Rank Ç∆ìØílÇÃÇ‹Ç‹(Cnt>0 Ç≈ +1 ÇÃÇΩÇﬂêòíu)ÅB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = MakeMain(p, m);
+
+        Assert.True(result.IsValid);
+        Assert.Equal((short)0, p.Rank);
+        Assert.Equal((short)1, p.Count);
+        Assert.Equal((short)0, m.Rank);
+        Assert.Equal((short)0, m.Count);
+    }
+
+    [Fact]
+    public void Gyosyu_Rank_Set_ã@äÌêîó ÇÃÇ†ÇÈéqçséÌÇÕRankÇ∆CntÇ™â¡éZÇ≥ÇÍÇÈ()
+    {
+        // ÅyCå¥ìTÅzGyosyu_Rank_Set + Kiki_Suryou_Set/Calc:
+        //   éqçséÌ(M)ÇÃÉOÉãÅ[ÉvÇ…êîó 2ÇÃã@äÌÇ™Ç†ÇÈÇ∆ Cnt=2ÅAêeÇ™ì¸ê¸(P)Ç≈ Cnt>0 ÇÃÇΩÇﬂ Rank=P.Rank+1=1ÅB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        // ÉOÉãÅ[Év2Ç…êîó 2ÇÃ MCB(F/CT/VT à»äOÇ»ÇÃÇ≈ Kiki_Suryou_Calc Ç™êîó Çï‘Ç∑)ÅB
+        var mcb = new EquipmentTableEntry
+        {
+            ReservedWord = "MCB",       // ÅyCå¥ìTÅzyoyaku
+            ReservedWordNumber = "0",   // ÅyCå¥ìTÅzysno(0 ÇÕìØàÍÉ`ÉFÉbÉNëŒè€äO)
+            GroupNumber = 2,            // ÅyCå¥ìTÅzG_No
+            LineNumber = 2,             // ÅyCå¥ìTÅzK_Gyo
+            Quantity = 2,               // ÅyCå¥ìTÅzKosu
+        };
+        var result = RunYoyakugo(new[] { p, m }, mcb);
+
+        Assert.True(result.IsValid);
+        Assert.Equal((short)2, m.Count);
+        Assert.Equal((short)1, m.Rank);
+    }
+
+    [Fact]
+    public void Gyosyu_Rank_Set_PMçséÌÇÕå„ë±MçséÌÇÃRankÇåpè≥Ç∑ÇÈ()
+    {
+        // ÅyCå¥ìTÅzGyosyu_Rank_Set ÉpÉX2: PM/O çséÌÇÕìØàÍånìùì‡Ç≈å„ë±ÇÃ TM/M/SM/B/BO ÇÃ Rank Çåpè≥ÅB
+        //   PÅ®PMÅ®M ç\ê¨Ç≈ÅAM ÉOÉãÅ[ÉvÇ…êîó 2ÇÃã@äÌÇíuÇ≠Ç∆ M.Rank=1(êe PM ÇÕì¸ê¸à»äOÇ≈ Cnt>1)ÅB
+        //   PM ÇÕå„ë± M ÇÃ Rank(1)Çåpè≥Ç∑ÇÈÅB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var pm = Gyo(1, "PM", '1', 2, groupNumber: 2);
+        var m = Gyo(1, "M", '1', 3, groupNumber: 3);
+        var mcb = new EquipmentTableEntry
+        {
+            ReservedWord = "MCB",
+            ReservedWordNumber = "0",
+            GroupNumber = 3,            // ÅyCå¥ìTÅzM ÇÃÉOÉãÅ[Év
+            LineNumber = 3,
+            Quantity = 2,               // ÅyCå¥ìTÅzKosu(Cnt>1 Ç≈êe PM ÇÃ Rank+1)
+        };
+        var result = RunYoyakugo(new[] { p, pm, m }, mcb);
+
+        Assert.True(result.IsValid);
+        Assert.Equal((short)1, m.Rank);
+        Assert.Equal((short)1, pm.Rank);
+    }
 }

@@ -137,3 +137,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,cmp,MainCircuitBuilder.SortEquipmentByNumber,toku/sekkei/src/Fyss12.c,機器テーブルソート(qsort比較関数、D_No昇順)
 フィールド,E_No,EquipmentTableEntry.EquipmentIdentityNumber,toku/include/sekkei/struct.h,同一機器認識番号
 フィールド,yoyakkbn,EquipmentTableEntry.AutoGenerationKind,toku/include/sekkei/struct.h,自動生成区分(SEP/CT/WH/ZCT等の追加機器)
+関数,Gyosyu_Rank_Set,MainCircuitBuilder.SetLineTypeRanks,toku/sekkei/src/Fyss12.c,行種の階層ランク/出現数セット
+関数,Main_Exist_Check,MainCircuitBuilder.MainEquipmentExists,toku/sekkei/src/Fyss12.c,主回路機器(CT/AM/WH)存在チェック
+関数,Kiki_Suryou_Set,MainCircuitBuilder.SetEquipmentQuantity,toku/sekkei/src/Fyss12.c,グループ機器数量セット
+関数,Kiki_Suryou_Calc,MainCircuitBuilder.CalcEquipmentQuantity,toku/sekkei/src/Fyss12.c,機器数量計算(F/CT/VT除外)
+フィールド,Kosu,EquipmentTableEntry.Quantity,toku/include/sekkei/struct.h,数量
+フィールド,GKosu,EquipmentTableEntry.GroupQuantity,toku/include/sekkei/struct.h,グループ数量
