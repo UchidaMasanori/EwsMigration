@@ -1724,12 +1724,21 @@ public sealed class ElectricalParameterChecker
     private short KeyCheckMain(string reservedWord, string symbol, string val, int index, RatingValues values, string nextSymbol, out string errorCode)
     {
         errorCode = string.Empty;
-        _ = nextSymbol; // 【C原典】key_check_main が参照する global n_kigo。消費先 key_check_WH は E.2 のため現状未使用。
+
+        // 【C原典】key_check_NT/WH は標準データ駆動に載らない特殊処理のため専用ハンドラへ委譲。
+        //   NT: P の奇数丸め(+1 して2桁格納)。WH: '/' が副記号 n_kigo(A/V)で sa/sv を判別。
+        if (reservedWord == "NT")
+        {
+            return KeyCheckNt(symbol, val, values, out errorCode);
+        }
+        if (reservedWord == "WH")
+        {
+            return KeyCheckWh(symbol, val, values, nextSymbol, out errorCode);
+        }
 
         if (!KeyCheckRules.TryGetValue(reservedWord, out KeyCheckRule[]? rules))
         {
-            // 本フェーズ未収録の型(NT/WH/LGR/ELR 等)は構造検証のみ。
-            // TODO(続き): NT(奇数丸め)・WH(n_kigo 消費)・LGR/ELR を移植。
+            // 本フェーズ未収録の型は構造検証のみ(値ルール未登録)。
             return 0;
         }
 
@@ -1778,6 +1787,102 @@ public sealed class ElectricalParameterChecker
         // 【C原典】memcpy( field, val, n );
         values.Set(field, val);
         return 0;
+    }
+
+    /// <summary>
+    /// NT(中性線用トランス)の値検証。【C原典】<c>key_check_NT</c>(Fyss1d.c:2754)。
+    /// P は 4..60。940822 改訂で奇数値のときのみ +1 して 2 桁右詰め("%2d")で格納する。
+    /// </summary>
+    private static short KeyCheckNt(string symbol, string val, RatingValues values, out string errorCode)
+    {
+        errorCode = string.Empty;
+        switch (symbol)
+        {
+            case "P":
+                if (values.Has("p")) { errorCode = "FY-890E"; return -1; }
+                int p = AtoiC(val);
+                if (p < 4 || p > 60) { errorCode = "FY-891E"; return -1; }
+                // 【C原典】if(( i_val % 2 ) == 1 ){ i_val++; sprintf(cwork,"%2d",i_val); memcpy(nt.p,cwork,2); }
+                values.Set("p", (p % 2 == 1) ? (p + 1).ToString().PadLeft(2) : val);
+                return 0;
+            case "A":
+                if (values.Has("a")) { errorCode = "FY-815E"; return -1; }
+                int a = AtoiC(val);
+                if (a < 1 || a > 50) { errorCode = "FY-816E"; return -1; }
+                values.Set("a", val);
+                return 0;
+            case "V":
+            case "VAC":
+            case "VDC":
+                if (values.Has("v")) { errorCode = "FY-801E"; return -1; }
+                int v = AtoiC(val);
+                if (v < 1 || v > 260) { errorCode = "FY-802E"; return -1; }
+                // 【C原典】VDC→fv='D'、それ以外→fv='A'。
+                values.Set("fv", symbol == "VDC" ? "D" : "A");
+                values.Set("v", val);
+                return 0;
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// WH(電力量計)の値検証。【C原典】<c>key_check_WH</c>(Fyss1d.c:2816)。
+    /// '/' の格納先は直後の副記号 <paramref name="nextSymbol"/>(【C原典】n_kigo)の先頭文字が
+    /// 'A' なら二次電流 sa、'V' なら二次電圧 sv になる。
+    /// </summary>
+    private static short KeyCheckWh(string symbol, string val, RatingValues values, string nextSymbol, out string errorCode)
+    {
+        errorCode = string.Empty;
+        int i = AtoiC(val);
+        switch (symbol)
+        {
+            case "P":
+                if (values.Has("p")) { errorCode = "FY-890E"; return -1; }
+                if (i != 1 && i != 3) { errorCode = "FY-891E"; return -1; }
+                values.Set("p", val);
+                return 0;
+            case "W":
+                if (values.Has("w")) { errorCode = "FY-829E"; return -1; }
+                if (i < 2 || i > 4) { errorCode = "FY-830E"; return -1; }
+                values.Set("w", val);
+                return 0;
+            case "A":
+                if (values.Has("a")) { errorCode = "FY-815E"; return -1; }
+                if (i < 1 || i > 800) { errorCode = "FY-816E"; return -1; }
+                values.Set("a", val);
+                return 0;
+            case "V":
+            case "VAC":
+                if (values.Has("v")) { errorCode = "FY-801E"; return -1; }
+                if (i < 1 || i > 440) { errorCode = "FY-802E"; return -1; }
+                values.Set("fv", "A");
+                values.Set("v", val);
+                return 0;
+            case "/":
+                // 【C原典】n_kigo[0]=='A'→sa(二次電流)、'V'→sv(二次電圧)。いずれでもなければ格納なし。
+                char head = nextSymbol.Length > 0 ? nextSymbol[0] : '\0';
+                if (head == 'A')
+                {
+                    if (values.Has("sa")) { errorCode = "FY-831E"; return -1; }
+                    if (i < 1 || i > 800) { errorCode = "FY-832E"; return -1; }
+                    values.Set("sa", val);
+                }
+                else if (head == 'V')
+                {
+                    if (values.Has("sv")) { errorCode = "FY-833E"; return -1; }
+                    if (i < 1 || i > 440) { errorCode = "FY-834E"; return -1; }
+                    values.Set("sv", val);
+                }
+                return 0;
+            case "HZ":
+                if (values.Has("Hz")) { errorCode = "FY-823E"; return -1; }
+                if (i != 50 && i != 60) { errorCode = "FY-824E"; return -1; }
+                values.Set("Hz", val);
+                return 0;
+            default:
+                return 0;
+        }
     }
 
     // ── スキップ補助(【C原典】Fyss1d.c:10332~) ────────────────────────────────

@@ -1047,4 +1047,67 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal("100", values.Get("vc"));
         Assert.Equal("A", values.Get("fvc"));
     }
+
+    // „Ÿ„Ÿ “Áêˆ— key_check(NT Šï”ŠÛ‚ß / WH •›‹L† n_kigo) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+
+    [Fact]
+    public void NT‚ÌŠï”P‚ÍŠÛ‚ßã‚°‚ÄŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_NT(940822): P ‚ªŠï”‚Ì‚Æ‚« +1 ‚µ‚ÄŠi”[("59"¨"60")B
+        (short rc, RatingValues values, string err) = CheckValues("NT", "59P");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("60", values.Get("p"));
+    }
+
+    [Fact]
+    public void NT‚ÌP‚Í”ÍˆÍŠO‚ÅFY891E()
+    {
+        // yCŒ´“Tzkey_check_NT: P 4..60 ‚Ì”ÍˆÍŠO(3)¨ FY-891EB
+        (short rc, _, string err) = CheckValues("NT", "3P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
+
+    [Fact]
+    public void NT‚ÌVDC‚Í’¼—¬‹æ•ªfv‚ªD‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_NT: VDC ¨ fv='D'AV/VAC/VDC ‚Í“¯ˆê v(1..260)B
+        (short rc, RatingValues values, string err) = CheckValues("NT", "10A200VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("200", values.Get("v"));
+        Assert.Equal("D", values.Get("fv"));
+    }
+
+    [Fact]
+    public void WH‚Ì•›‹L†V‚ÅƒXƒ‰ƒbƒVƒ…‚Ísv‚ÖV‚Åv‚ÖŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_WH: '/' ‚Ì’¼Œã•›‹L†(n_kigo)‚ª 'V' ‚È‚ç“ñŸ“dˆ³ svB
+        (short rc, RatingValues values, string err) = CheckValues("WH", "3P100/200V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("sv"));
+        Assert.Equal("200", values.Get("v"));
+    }
+
+    [Fact]
+    public void WH‚Ì•›‹L†A‚ÅƒXƒ‰ƒbƒVƒ…‚Ísa‚ÖA‚Åa‚ÖŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_WH: '/' ‚Ì’¼Œã•›‹L†(n_kigo)‚ª 'A' ‚È‚ç“ñŸ“d—¬ saB
+        (short rc, RatingValues values, string err) = CheckValues("WH", "1P100/5A");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("sa"));
+        Assert.Equal("5", values.Get("a"));
+    }
+
+    [Fact]
+    public void WH‚ÌP‚Í1‚©3ˆÈŠO‚ÅFY891E()
+    {
+        // yCŒ´“Tzkey_check_WH: P¸{1,3} ˆÈŠO ¨ FY-891EB
+        (short rc, _, string err) = CheckValues("WH", "2P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
 }
