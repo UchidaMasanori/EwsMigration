@@ -143,3 +143,13 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kiki_Suryou_Calc,MainCircuitBuilder.CalcEquipmentQuantity,toku/sekkei/src/Fyss12.c,機器数量計算(F/CT/VT除外)
 フィールド,Kosu,EquipmentTableEntry.Quantity,toku/include/sekkei/struct.h,数量
 フィールド,GKosu,EquipmentTableEntry.GroupQuantity,toku/include/sekkei/struct.h,グループ数量
+関数,Kiki_Rank_Set,MainCircuitBuilder.SetEquipmentRanks,toku/sekkei/src/Fyss12.c,機器ランクセット(主機器の階層ランク)
+関数,Kiki_Rank_Update,MainCircuitBuilder.UpdateEquipmentRanks,toku/sekkei/src/Fyss12.c,機器先頭フラグ(TOP_Flg)セット
+関数,Gyosyu_Rank_Update,MainCircuitBuilder.UpdateLineTypeRanks,toku/sekkei/src/Fyss12.c,行種ランク更新
+関数,Find_Max_Rank,MainCircuitBuilder.FindMaxRank,toku/sekkei/src/Fyss12.c,行種内機器ランクの最大値
+関数,Pattern_Rank_Update,MainCircuitBuilder.UpdatePatternRanks,toku/sekkei/src/Fyss12.c,計器パターンのランク/先頭フラグ更新
+関数,WH_Rank_Set,MainCircuitBuilder.SetWattHourMeterRanks,toku/sekkei/src/Fyss12.c,WHランク再設定(改訂14 無限ループ回避)
+関数,TR_Rank_Set,MainCircuitBuilder.SetTransformerRanks,toku/sekkei/src/Fyss12.c,2電源トランスのランク再設定
+フィールド,Rank(KIKITABLE),EquipmentTableEntry.Rank,toku/include/sekkei/struct.h,機器ランク
+フィールド,TOP_Flg,EquipmentTableEntry.TopFlag,toku/include/sekkei/struct.h,機器先頭フラグ
+フィールド,C_Flg,EquipmentTableEntry.PowerSourceFlag,toku/include/sekkei/struct.h,電源フラグ

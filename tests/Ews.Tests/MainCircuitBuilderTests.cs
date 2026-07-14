@@ -879,4 +879,61 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal((short)1, m.Rank);
         Assert.Equal((short)1, pm.Rank);
     }
+
+    // ==== step9-13.5: Kiki_Rank_Set / Kiki_Rank_Update / Gyosyu_Rank_Update /
+    //                  Pattern_Rank_Update / WH_Rank_Set / TR_Rank_Set ====
+
+    [Fact]
+    public void Pattern_Rank_Update_グループ先頭の主機器はTOP_Flgが1になる()
+    {
+        // 【C原典】Kiki_Rank_Update/Pattern_Rank_Update: 行種グループ先頭の主機器(K_Kubun='M')は
+        //   先頭機器フラグ(TOP_Flg)が '1'。有効な P→M 構成で MCCB(主機器)を1台配置する。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var mccb = new EquipmentTableEntry
+        {
+            ReservedWord = "MCCB",      // 【C原典】yoyaku(type_MCB → 主機器)
+            ReservedWordNumber = "0",
+            SystemNumber = 1,           // 【C原典】K_No
+            GroupNumber = 2,            // 【C原典】G_No(M 行種)
+            EquipmentNumber = 1,        // 【C原典】D_No
+            LineNumber = 2,
+        };
+        var result = RunYoyakugo(new[] { p, m }, mccb);
+
+        Assert.True(result.IsValid);
+        Assert.Equal('M', mccb.CircuitDivision); // step5 で主機器区分
+        Assert.Equal('1', mccb.TopFlag);         // グループ先頭
+    }
+
+    [Fact]
+    public void TR_Rank_Set_2電源トランスはTRのRankが0にリセットされる()
+    {
+        // 【C原典】TR_Rank_Set: 「TR」直後に「PS」がある2電源トランス(行種が PS 以外)は、
+        //   後続 PS のランクを TR に合わせた後、TR 自身とその行種のランクを 0 にする。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var tr = new EquipmentTableEntry
+        {
+            ReservedWord = "TR",        // 【C原典】yoyaku
+            ReservedWordNumber = "0",   // 番号なし(FY-683E 回避)
+            SystemNumber = 1,           // 【C原典】K_No
+            GroupNumber = 2,            // 行種 M(≠PS)
+            EquipmentNumber = 1,        // 【C原典】D_No(TR が先)
+            LineNumber = 1,
+        };
+        var ps = new EquipmentTableEntry
+        {
+            ReservedWord = "PS",        // 【C原典】yoyaku
+            ReservedWordNumber = "0",
+            SystemNumber = 1,
+            GroupNumber = 2,
+            EquipmentNumber = 2,        // 【C原典】D_No(TR の直後)
+            LineNumber = 2,
+        };
+        var result = RunYoyakugo(new[] { p, m }, tr, ps);
+
+        Assert.True(result.IsValid);
+        Assert.Equal((short)0, tr.Rank); // TR_Rank_Set が最終的に 0 へリセット
+    }
 }

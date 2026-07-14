@@ -223,6 +223,25 @@ public sealed class EquipmentTableEntry
     public short GroupQuantity { get; set; }
 
     /// <summary>
+    /// 機器ランク(階層番号)。【C原典】Rank。
+    /// Kiki_Rank_Set/Pattern_Rank_Update/TR_Rank_Set/WH_Rank_Set(Fyss12 step9-13.5)が設定する。
+    /// </summary>
+    public short Rank { get; set; }
+
+    /// <summary>
+    /// 機器先頭フラグ。【C原典】TOP_Flg。
+    /// Kiki_Rank_Update/Pattern_Rank_Update(Fyss12 step10/12)が設定する。
+    /// '1'=グループ先頭機器, ' '=非先頭。
+    /// </summary>
+    public char TopFlag { get; set; } = ' ';
+
+    /// <summary>
+    /// 電源フラグ。【C原典】C_Flg。
+    /// 電源機器(2電源等)の識別に使用(941220 改訂で Kiki_Rank_Update が参照)。
+    /// </summary>
+    public char PowerSourceFlag { get; set; } = ' ';
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>

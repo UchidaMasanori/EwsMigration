@@ -129,12 +129,25 @@ public sealed class MainCircuitBuilder
         // 8. 行種ランクセット。【C原典】Gyosyu_Rank_Set()。
         SetLineTypeRanks(parse);
 
-        // 9. 機器ランクセット。【C原典】Kiki_Rank_Set()。TODO。
-        // 10. 機器ランク更新。【C原典】Kiki_Rank_Update()。TODO。
-        // 11. 行種ランク更新。【C原典】Gyosyu_Rank_Update()。TODO。
-        // 12. パターンのランク更新。【C原典】Pattern_Rank_Update()。TODO。
-        // 13. トランスのランク再設定。【C原典】TR_Rank_Set()。TODO。
-        // 13.5 WH のランク再設定。【C原典】WH_Rank_Set()(改訂<14>)。TODO。
+        // 9. 機器ランクセット。【C原典】Kiki_Rank_Set()。
+        SetEquipmentRanks(parse);
+
+        // 10. 機器ランク更新(先頭機器フラグ TOP_Flg セット)。【C原典】Kiki_Rank_Update()。
+        UpdateEquipmentRanks(parse);
+
+        // 11. 行種ランク更新。【C原典】Gyosyu_Rank_Update()。
+        UpdateLineTypeRanks(parse);
+
+        // 12. パターンのランク更新(計器パターンの TOP_Flg / Rank 再設定)。【C原典】Pattern_Rank_Update()。
+        UpdatePatternRanks(parse);
+
+        // 13.5 WH のランク再設定(改訂<14>: 追加WHと元WHのランク不一致による後続無限ループ回避)。
+        //      【C原典】WH_Rank_Set()。C原典の呼び出し順は TR_Rank_Set より前。
+        SetWattHourMeterRanks(parse);
+
+        // 13. トランス(2電源)のランク再設定。【C原典】TR_Rank_Set()。
+        SetTransformerRanks(parse);
+
         // 14. グループセット。【C原典】Kairo_Group_Set()(C原典でも無効化)。
         // 15/16. 同一機器認識番号セット。【C原典】Kiki_Equal_Bangou_Set()(C原典でも無効化)。
 
@@ -394,7 +407,600 @@ public sealed class MainCircuitBuilder
     }
 
 
-    /// 【C原典】Keitou_Check()。系統(K_No)ごとに次を検証する。
+    /// <summary>
+    /// 機器ランクセット。【C原典】Kiki_Rank_Set(Fyss12.c:2607)。
+    /// 系統(K_No)ごとに、主回路機器(K_Kubun=='M')の機器ランク(Rank)を設定する。
+    /// 入線(P)を基点に Rank/BRank/NRank を 0 に初期化し、行種グループ(G_No)・
+    /// 文字列連番(B_No)・回路番号連番(N_No)の切り替わりに応じてランクを加算する。
+    /// </summary>
+    private void SetEquipmentRanks(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        short systemNo = 0;   // 【C原典】K_No
+        short groupNo = 0;    // 【C原典】G_No
+        short stringNo = 0;   // 【C原典】B_No
+        short circuitNo = 0;  // 【C原典】N_No
+        short rank = 0;       // 【C原典】Rank
+        short baseRank = 0;   // 【C原典】BRank
+        short circuitRank = 0;// 【C原典】NRank
+        short groupRank = 0;  // 【C原典】GRank
+        short groupQuantity = 0; // 【C原典】GKosu
+        char division = ' ';  // 【C原典】Kubun
+        bool existMain = false;  // 【C原典】exist_M
+        LineTypeTableEntry? gyosyu = null; // 【C原典】S_Gyosyu
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry s = equipment[i];
+
+            if (systemNo != s.SystemNumber)
+            {
+                s.Rank = 0;
+            }
+
+            if (s.ReservedWord == "P")
+            {
+                // 【C原典】入線を基点に初期化。
+                systemNo = s.SystemNumber;
+                rank = baseRank = circuitRank = 0;
+                groupRank = 0;
+                groupQuantity = 0;
+                stringNo = 1;
+                circuitNo = 0;
+                existMain = false;
+            }
+            else
+            {
+                gyosyu = FindLineType(parse, s.GroupNumber);
+                if (gyosyu != null)
+                {
+                    if (groupNo != gyosyu.GroupNumber)
+                    {
+                        // 【C原典】行種グループが切り替わったらランクを初期化(条件付き)。
+                        if (groupRank != gyosyu.Rank || gyosyu.Count > 1)
+                        {
+                            rank = baseRank = circuitRank = 0;
+                            groupQuantity = 0;
+                            stringNo = 1;
+                            circuitNo = 0;
+                            existMain = false;
+                        }
+
+                        if (s.CircuitDivision == 'M')
+                        {
+                            rank = ComputeMainRank(s, rank, division, groupQuantity, existMain);
+                            existMain = true;
+                            s.Rank = rank;
+                            groupQuantity = s.GroupQuantity;
+                        }
+                    }
+                    else if (stringNo == s.StringSequence && circuitNo == s.CircuitNumberSequence)
+                    {
+                        if (s.CircuitDivision == 'M')
+                        {
+                            rank = ComputeMainRank(s, rank, division, groupQuantity, existMain);
+                            existMain = true;
+                            s.Rank = rank;
+                            groupQuantity = s.GroupQuantity;
+                        }
+                    }
+                    else if (stringNo != s.StringSequence)
+                    {
+                        // 【C原典】文字列連番(B_No)切り替わり。
+                        groupQuantity = 0;
+                        if (s.StringSequence == 2) baseRank = rank;
+                        if (s.StringSequence >= 2) rank = (short)(baseRank + 1);
+                        if (s.CircuitDivision == 'M')
+                        {
+                            existMain = true;
+                            s.Rank = rank;
+                            groupQuantity = s.GroupQuantity;
+                        }
+                    }
+                    else if (circuitNo != s.CircuitNumberSequence)
+                    {
+                        // 【C原典】回路番号連番(N_No)切り替わり。
+                        groupQuantity = 0;
+                        if (s.CircuitNumberSequence == 1) circuitRank = rank;
+                        if (s.CircuitNumberSequence >= 1)
+                        {
+                            if (CalcEquipmentQuantity(s) > 1 || s.GroupQuantity > 1)
+                                rank = (short)(circuitRank + 1);
+                            else
+                                rank = circuitRank;
+                        }
+                        if (s.CircuitDivision == 'M')
+                        {
+                            existMain = true;
+                            s.Rank = rank;
+                            groupQuantity = s.GroupQuantity;
+                        }
+                    }
+                }
+            }
+
+            groupNo = s.GroupNumber;
+            stringNo = s.StringSequence;
+            circuitNo = s.CircuitNumberSequence;
+            division = s.CircuitDivision;
+            if (gyosyu != null) groupRank = gyosyu.Rank;
+        }
+    }
+
+    /// <summary>
+    /// 主機器ランク加算の共通部。【C原典】Kiki_Rank_Set の K_Kubun=='M' 分岐(先頭2ケース共通)。
+    /// 回路区分(Kubun)が 'K'/'S'、または新規グループ数量、または数量&gt;1 の場合、
+    /// 既に主機器が存在(exist_M)していれば Rank+1、なければ据置。
+    /// </summary>
+    private static short ComputeMainRank(EquipmentTableEntry s, short rank, char division,
+        short groupQuantity, bool existMain)
+    {
+        if (division is 'K' or 'S')
+        {
+            return existMain ? (short)(rank + 1) : rank;
+        }
+        if (groupQuantity != s.GroupQuantity && groupQuantity == 0)
+        {
+            return existMain ? (short)(rank + 1) : rank;
+        }
+        if (CalcEquipmentQuantity(s) > 1)
+        {
+            return existMain ? (short)(rank + 1) : rank;
+        }
+        return rank;
+    }
+
+    /// <summary>
+    /// 機器ランク更新(先頭機器フラグ TOP_Flg セット)。【C原典】Kiki_Rank_Update(Fyss12.c:2807)。
+    /// 系統内の各機器について、行種ランク・文字列連番・回路番号連番・数量の変化に応じて
+    /// 先頭機器フラグ(TOP_Flg='1'/' ')を設定する。
+    /// </summary>
+    private void UpdateEquipmentRanks(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        short systemNo = 0;   // 【C原典】K_No
+        short groupNo = 0;    // 【C原典】G_No
+        short stringNo = 0;   // 【C原典】B_No
+        short circuitNo = 0;  // 【C原典】N_No
+        short groupQuantity = 0; // 【C原典】GKosu
+        char division = ' ';  // 【C原典】Kubun
+        short rank = 0;       // 【C原典】Rank(=S_Gyosyu->Rank)
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry s = equipment[i];
+            s.TopFlag = ' ';
+            LineTypeTableEntry? gyosyu = FindLineType(parse, s.GroupNumber);
+
+            if (s.ReservedWord == "P")
+            {
+                systemNo = s.SystemNumber;
+            }
+            else if (systemNo == s.SystemNumber)
+            {
+                if (s.CircuitDivision == 'M' && gyosyu != null)
+                {
+                    if (division is 'K' or 'S')
+                    {
+                        // 【C原典】直前が計器/SC区分の主機器は基本的に先頭。
+                        s.TopFlag = '1';
+                        if (groupNo == s.GroupNumber && s.PowerSourceFlag == '1')
+                        {
+                            s.TopFlag = ' '; // 【C原典】941220: 同一グループで電源機器は非先頭。
+                        }
+                    }
+                    else
+                    {
+                        if (groupNo != s.GroupNumber)
+                        {
+                            s.TopFlag = '1'; // 行種ランク差/Cnt>1 いずれでも '1'。
+                        }
+                        else if (stringNo != s.StringSequence)
+                        {
+                            s.TopFlag = '1';
+                        }
+                        else if (circuitNo != s.CircuitNumberSequence)
+                        {
+                            if (s.GroupQuantity != 0) s.TopFlag = '1';
+                            else if (CalcEquipmentQuantity(s) > 1) s.TopFlag = '1';
+                            else s.TopFlag = ' ';
+                        }
+                        else if (groupQuantity != s.GroupQuantity && groupQuantity == 0)
+                        {
+                            s.TopFlag = '1';
+                        }
+                        else if (CalcEquipmentQuantity(s) > 1)
+                        {
+                            s.TopFlag = '1';
+                        }
+                        else if (s.PowerSourceFlag == '1')
+                        {
+                            s.TopFlag = ' '; // 【C原典】941220。
+                        }
+                        else if (i > 0 && equipment[i - 1].PowerSourceFlag == '1')
+                        {
+                            s.TopFlag = '1'; // 【C原典】941220: 直前が電源機器なら先頭。
+                        }
+                        else
+                        {
+                            s.TopFlag = ' ';
+                        }
+                    }
+                }
+            }
+            else
+            {
+                s.TopFlag = '1';
+            }
+
+            groupNo = s.GroupNumber;
+            stringNo = s.StringSequence;
+            circuitNo = s.CircuitNumberSequence;
+            groupQuantity = s.GroupQuantity;
+            division = s.CircuitDivision;
+            if (gyosyu != null) rank = gyosyu.Rank;
+        }
+    }
+
+    /// <summary>
+    /// 行種ランク更新。【C原典】Gyosyu_Rank_Update(Fyss12.c:2929)。
+    /// 行種テーブルのランクを、直前の同/近ランク行種および行種内機器の最大ランク
+    /// (<see cref="FindMaxRank"/>)を参照して再計算する。PM/O 行種は特別扱い。
+    /// </summary>
+    private void UpdateLineTypeRanks(CircuitParseResult parse)
+    {
+        List<LineTypeTableEntry> lineTypes = parse.LineTypes;
+        int count = lineTypes.Count;
+
+        // 【C原典】更新前のランクを退避(OldRank[])。
+        short[] oldRank = new short[count];
+        for (int i = 0; i < count; i++) oldRank[i] = lineTypes[i].Rank;
+
+        for (int i = 0; i < count; i++)
+        {
+            LineTypeTableEntry s = lineTypes[i];
+            if (s.Rank == 0) continue;
+
+            short rank = (short)(s.Rank - 1);
+            for (int j = i - 1; j >= 0; j--)
+            {
+                LineTypeTableEntry r = lineTypes[j];
+
+                if (s.Rank == r.Rank)
+                {
+                    if (r.LineType == "PM")
+                    {
+                        if (!MainEquipmentExists(parse, r.GroupNumber))
+                        {
+                            s.Rank = r.Rank;
+                            break;
+                        }
+                    }
+                    else if (r.LineType == "O")
+                    {
+                        s.Rank = r.Rank;
+                        break;
+                    }
+                    else if (oldRank[i] > oldRank[j])
+                    {
+                        short maxRank = FindMaxRank(parse, r.GroupNumber);
+                        s.Rank = (short)(maxRank + r.Rank + 1);
+                        break;
+                    }
+                }
+                else if (rank == r.Rank)
+                {
+                    short maxRank = FindMaxRank(parse, r.GroupNumber);
+                    s.Rank = (short)(maxRank + r.Rank + 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 行種内の機器ランクの最大値。【C原典】Find_Max_Rank(Fyss12.c:3119)。
+    /// 指定グループ(G_No)に属する主機器(K_Kubun=='M')の Rank の最大値を返す。
+    /// C原典は G_No 昇順を仮定した早期打ち切りを行うため、その挙動を忠実に再現する。
+    /// </summary>
+    private static short FindMaxRank(CircuitParseResult parse, short groupNumber)
+    {
+        short rank = 0;
+        foreach (EquipmentTableEntry k in parse.MainEquipment)
+        {
+            if (k.GroupNumber == groupNumber)
+            {
+                if (k.CircuitDivision == 'M' && rank < k.Rank) rank = k.Rank;
+            }
+            else if (groupNumber < k.GroupNumber)
+            {
+                break;
+            }
+        }
+        return rank;
+    }
+
+    /// <summary>
+    /// パターンのランク再設定(計器パターンの TOP_Flg / Rank 更新)。
+    /// 【C原典】Pattern_Rank_Update(Fyss12.c:3039)。
+    /// 主機器(K_Kubun=='M')・SC分岐('S')・計器('K')の並びに応じて、計器グループの
+    /// 先頭フラグ(TOP_Flg)と計器ランク(KRank)を設定する。
+    /// F/CT/VT/VM/XL などの機器種別(<see cref="FindEquipmentType"/>)で分岐する。
+    /// </summary>
+    private void UpdatePatternRanks(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        short instrumentRank = 0; // 【C原典】KRank
+        short rank = 0;           // 【C原典】Rank
+        char division = ' ';      // 【C原典】Kubun
+        short groupQuantity = 0;  // 【C原典】GKosu
+        short groupRank = 0;      // 【C原典】GRank
+        short groupNo = 0;        // 【C原典】G_No
+        bool existMain = false;   // 【C原典】exist_M
+        bool existInstrument = false; // 【C原典】exist_K
+        EquipmentType preType = EquipmentType.Other; // 【C原典】pretype
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry s = equipment[i];
+            EquipmentType findType = FindEquipmentType(s.ReservedWord);
+            LineTypeTableEntry? gyosyu = FindLineType(parse, s.GroupNumber);
+            short gyosyuRank = gyosyu?.Rank ?? 0;
+            short gyosyuCount = gyosyu?.Count ?? 0;
+
+            if (groupNo != gyosyu?.GroupNumber)
+            {
+                if (groupRank != gyosyuRank || gyosyuCount > 1)
+                {
+                    s.TopFlag = '1';
+                    instrumentRank = rank = 0;
+                    existMain = false;
+                    existInstrument = false;
+                }
+            }
+
+            if (s.CircuitDivision == 'M')
+            {
+                existMain = true;
+                existInstrument = false;
+                groupQuantity = 0;
+                groupNo = s.GroupNumber;
+                division = s.CircuitDivision;
+                rank = s.Rank;
+                groupRank = gyosyuRank;
+                preType = findType;
+            }
+            else if (s.CircuitDivision == 'S')
+            {
+                s.TopFlag = '1';
+                if (existMain) rank = (short)(rank + 1);
+                groupQuantity = 0;
+                groupNo = s.GroupNumber;
+                division = s.CircuitDivision;
+                s.Rank = rank;
+                groupRank = gyosyuRank;
+                preType = findType;
+            }
+            else
+            {
+                string nextReserved = i + 1 < count ? equipment[i + 1].ReservedWord : string.Empty;
+                char nextDivision = i + 1 < count ? equipment[i + 1].CircuitDivision : ' ';
+                string prevReserved = i > 0 ? equipment[i - 1].ReservedWord : string.Empty;
+
+                if (findType == EquipmentType.F && preType != EquipmentType.Vt)
+                {
+                    // 【C原典】950601: ヒューズ(直前がVT以外)は計器先頭。
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank = existMain ? (short)(rank + 1) : rank;
+                }
+                else if (preType == EquipmentType.F)
+                {
+                    if (findType == EquipmentType.Ct)
+                    {
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                    }
+                    else if (s.ReservedWord == "VS")
+                    {
+                        // 【C原典】950207。
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                        instrumentRank++;
+                    }
+                    else if (groupQuantity != s.GroupQuantity && groupQuantity == 0)
+                    {
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                        instrumentRank++;
+                    }
+                    else if (CalcEquipmentQuantity(s) > 1)
+                    {
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                        instrumentRank++;
+                    }
+                    else if (findType is EquipmentType.Vm or EquipmentType.Xl)
+                    {
+                        if (nextDivision == 'K' && nextReserved != "F")
+                        {
+                            existInstrument = true;
+                            s.TopFlag = '1';
+                            instrumentRank++;
+                        }
+                        else
+                        {
+                            s.TopFlag = existInstrument ? ' ' : '1';
+                            existInstrument = true;
+                        }
+                    }
+                    else if (preType is EquipmentType.Vm or EquipmentType.Xl)
+                    {
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                    }
+                    else
+                    {
+                        s.TopFlag = existInstrument ? ' ' : '1';
+                        existInstrument = true;
+                    }
+                }
+                else if (division is 'M' or 'S')
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank = existMain ? (short)(rank + 1) : rank;
+                }
+                else if (findType == EquipmentType.Ct)
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank = existMain ? (short)(rank + 1) : rank;
+                }
+                else if (findType == EquipmentType.Vt)
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank = existMain ? (short)(rank + 1) : rank;
+                }
+                else if (groupQuantity != s.GroupQuantity && groupQuantity == 0)
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank++;
+                }
+                else if (CalcEquipmentQuantity(s) > 1)
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                    instrumentRank++;
+                }
+                else if (findType is EquipmentType.Vm or EquipmentType.Xl)
+                {
+                    if (preType is not EquipmentType.Vm and not EquipmentType.Xl)
+                    {
+                        if (nextDivision == 'K' && nextReserved != "F" && prevReserved != "VS")
+                        {
+                            // 【C原典】950207。
+                            existInstrument = true;
+                            s.TopFlag = '1';
+                            instrumentRank++;
+                        }
+                        else
+                        {
+                            s.TopFlag = existInstrument ? ' ' : '1';
+                            existInstrument = true;
+                        }
+                    }
+                    else
+                    {
+                        existInstrument = true;
+                        s.TopFlag = '1';
+                    }
+                }
+                else if (preType is EquipmentType.Vm or EquipmentType.Xl)
+                {
+                    existInstrument = true;
+                    s.TopFlag = '1';
+                }
+                else
+                {
+                    s.TopFlag = existInstrument ? ' ' : '1';
+                    existInstrument = true;
+                }
+
+                s.Rank = instrumentRank;
+                groupNo = s.GroupNumber;
+                groupRank = gyosyuRank;
+                groupQuantity = s.GroupQuantity;
+                division = s.CircuitDivision;
+                preType = findType;
+            }
+        }
+    }
+
+    /// <summary>
+    /// WH のランク再設定(改訂&lt;14&gt;)。【C原典】WH_Rank_Set(Fyss12.c:5298)。
+    /// 「PM F,WL / PM WH」記述で追加WHと元WHの階層番号(Rank)が異なると後続処理
+    /// (FyCrLineMain)が無限ループするため、同一行桁で D_No が連続する WH の Rank を合わせる。
+    /// </summary>
+    private static void SetWattHourMeterRanks(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry ei = equipment[i];
+            if (!ei.ReservedWord.StartsWith("WH", StringComparison.Ordinal)) continue;
+
+            for (int j = 0; j < count; j++)
+            {
+                EquipmentTableEntry ej = equipment[j];
+                if (!ej.ReservedWord.StartsWith("WH", StringComparison.Ordinal)) continue;
+
+                // 【C原典】同一行桁で D_No が連続(i の D_No == j の D_No + 1)する WH。
+                if (ei.LineNumber == ej.LineNumber
+                    && ei.Column == ej.Column
+                    && ei.EquipmentNumber == ej.EquipmentNumber + 1)
+                {
+                    if (ei.Rank != ej.Rank)
+                    {
+                        ej.Rank = ei.Rank;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// トランス(2電源)のランク再設定。【C原典】TR_Rank_Set(Fyss12.c:4977)。
+    /// 「TR」直後に「PS」がある2電源トランスで、行種が PS でない場合、同一系統内の後続 PS
+    /// 機器およびその行種のランクを TR のランクに合わせ、TR 自身とその行種のランクを 0 にする。
+    /// </summary>
+    private void SetTransformerRanks(CircuitParseResult parse)
+    {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+        int count = equipment.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            EquipmentTableEntry s = equipment[i];
+            if (s.ReservedWord != "TR") continue;
+            if (i + 1 >= count || equipment[i + 1].ReservedWord != "PS") continue;
+
+            LineTypeTableEntry? sGyosyu = FindLineType(parse, s.GroupNumber);
+            if (sGyosyu == null || sGyosyu.LineType == "PS") continue;
+
+            short systemNo = s.SystemNumber;
+            for (int j = i + 1; j < count; j++)
+            {
+                EquipmentTableEntry w = equipment[j];
+                if (systemNo != w.SystemNumber) break;
+
+                if (w.ReservedWord == "PS")
+                {
+                    LineTypeTableEntry? wGyosyu = FindLineType(parse, w.GroupNumber);
+                    w.Rank = s.Rank;
+                    if (wGyosyu != null) wGyosyu.Rank = sGyosyu.Rank;
+                }
+            }
+
+            s.Rank = 0;
+            sGyosyu.Rank = 0;
+        }
+    }
+
+
+    /// <summary>
+    /// 系統チェック。【C原典】Keitou_Check()。系統(K_No)ごとに次を検証する。
     ///   ・盤タイトル(BN)は系統内に1つ以下, 入線直上(FY-671E/FY-672E)
     ///   ・系統終了(SEP)は系統内に1つ以下, 入線直上(FY-673E/FY-674E)
     ///   ・入線分岐(PS)は系統内に2つ(1つ=FY-679E, 3つ以上=FY-678E)
