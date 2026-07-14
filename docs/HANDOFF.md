@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 193 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 196 テスト成功 / 1 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -135,7 +135,8 @@ EwsMigration/
   - 電気パラメータ → 定格値（key_tbl）格納の配線（`Check_Kikimei`→`Parm_Check_Main` 相当）
 - **電気パラメータ検証** `ElectricalParameterChecker`（`Fyss1d.c` の表駆動パーサ）
   - 定格キー表・型非依存パーサ・MCB/ELB/MC/MG/THR 等の型別検証、`RatingValues` へ格納
-  - 定格キー表を拡充: '/'(CT/VT付き)・特殊展開・先頭数字予約語を除く単純構造の残り約67表（VS/TB/CON/GL系/CR/TS/MV/KPRY/MCFR/MGFR/STM/VVVF 等）を移植
+  - 定格キー表を拡充: '/'(CT/VT付き)・特殊展開を除く単純構造の残り約70表（VS/TB/CON/GL系/CR/TS/MV/KPRY/MCFR/MGFR/STM/VVVF 等）を移植
+  - 先頭数字予約語(2ERY/3ERY/4ERY)を解禁。ExtractElectricalParameter を C原典 Check_KikimeiC(Fyss1c.c)に忠実化し、予約語/電気パラメータ(d_parm)の分離を修正(MCB3P→d_parm 3P、2ERY100AF→予約語2ERY+d_parm 100AF)
 - **主回路生成** `MainCircuitBuilder`（`Fyss12.c` の 17 ステップのうち）
   - step1 系統構成 / step2 行種階層 / step4 機器情報 / step5 回路区分（`Kairo_Kubun_Set`）
   - step6 `Yoyakugo_Add_Main` の前段 `D_No*=10` スケーリング / step7 D_No 昇順ソート（`qsort` 相当）
