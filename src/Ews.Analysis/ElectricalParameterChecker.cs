@@ -1709,9 +1709,10 @@ public sealed class ElectricalParameterChecker
     /// C は型別の巨大な if/else 連鎖(key_check_MCB 等)だが、いずれも
     /// 「記号一致 → 重複チェック(field[0]!='\0' → FY-89xE) → 範囲チェック(→ FY-xxxE)
     ///   → fv/fvc 設定 → memcpy 格納」という同一構造のため、本移植ではデータ駆動
-    /// (<see cref="KeyCheckRules"/>)へ集約する。収録型: MCB/MC/MG/THR/MCDT/CSDT/SC/
-    /// VM/AM/VT/CT/VS/AS/TB/CON。TR は専用パーサ <see cref="TrCheckMain"/>。
-    /// 未収録の予約語は構造検証のみ(値格納なし)で正常扱いとする。
+    /// (<see cref="KeyCheckRules"/>)へ集約する。全 key_check_&lt;TYPE&gt; を収録済み。
+    /// TR は専用パーサ <see cref="TrCheckMain"/>、NT(奇数丸め)/WH(副記号 n_kigo)は
+    /// 専用ハンドラ <see cref="KeyCheckNt"/>/<see cref="KeyCheckWh"/> で処理する。
+    /// STM/SIR/C/R/D/NICA/RE/VVVF/TVX は C 原典 return 0 のため構造検証のみ。
     /// </summary>
     /// <param name="reservedWord">予約語(【C原典】s_yoyaku)。型別 key_check の選択に用いる。</param>
     /// <param name="symbol">照合済みの記号(【C原典】s_kigo)。</param>

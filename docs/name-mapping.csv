@@ -104,8 +104,11 @@
 関数,Check_1_Group,ElectricalParameterChecker.CheckOneGroup,toku/sekkei/src/Fyss1d.c,定格キー表と照合し桁・繰返数検証(FY-699/882/883/884/885E)
 関数,change_parm_data,ElectricalParameterChecker.ChangeParmData,toku/sekkei/src/Fyss1d.c,記号部文字列の切り出し
 関数,digit_skip/not_digit_skip/delimit_skip/piriod_skip,ElectricalParameterChecker.DigitSkip/NotDigitSkip/DelimitSkip/PiriodSkip,toku/sekkei/src/Fyss1d.c,数値/非数値/区切り'･'/ピリオドのスキップ桁数計上
-関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain,toku/sekkei/src/Fyss1d.c,値をRatingValues(key_tbl)へ格納し型別に重複・範囲検証(MCB/MC/MG/THR/MCDT/CSDT/SC/VM/AM/VT/CT/VS/AS/TB/CON収録)
+関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain,toku/sekkei/src/Fyss1d.c,値をRatingValues(key_tbl)へ格納し型別に重複・範囲検証(全 key_check 型を収録。TR/NT/WH は専用処理へ委譲)
 構造体/モデル,key_check_<TYPE>の各if/else分岐,ElectricalParameterChecker.KeyCheckRule/KeyCheckRules,toku/sekkei/src/Fyss1d.c,記号ごとの格納先・範囲・fv/fvc・重複/範囲エラーNo.をデータ駆動化(TBのP下限i_minは実行時グローバル依存のため既定2を採用)
+テーブル,GxRules(G/G1/G2/G3/G4/GI/GP/GPN)/XlRules(GL/RL/OL/BL/WL)/XeryRules(2ERY/3ERY/4ERY)/SlxRules(SL23/SL32/SL42/SL43)/FltxRules(FLT1-4/FLTI)/UnitSwitchRules(TSU/SSWU/PBSU/COSU/2COSU/OLU),ElectricalParameterChecker,toku/sekkei/src/Fyss1d.c,同一 key_check を共有する予約語別名グループの共通ルール配列
+関数,key_check_NT,ElectricalParameterChecker.KeyCheckNt,toku/sekkei/src/Fyss1d.c,NTの値検証(P 4..60。940822改訂で奇数値は+1丸め2桁格納)
+関数,key_check_WH,ElectricalParameterChecker.KeyCheckWh,toku/sekkei/src/Fyss1d.c,WHの値検証('/'の格納先を直後副記号 n_kigo(A→sa/V→sv)で判別)
 関数,atoi/atof,ElectricalParameterChecker.AtoiC/AtofC,toku/sekkei/src/Fyss1d.c,Cのatoi/atofセマンティクス(先頭数値部のみ解釈)
 関数,TR_check_main,ElectricalParameterChecker.TrCheckMain,toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き sw_kugiri/sw_v2v3/ior1)。ft_tr をシーケンシャル走査
 関数,key_check_TR,ElectricalParameterChecker.KeyCheckTr,toku/sekkei/src/Fyss1d.c,TR 1値の範囲検証・格納(p1/w1・v1[]・p2,p3/w2,w3・fv2,v2[]・fv3,v3[]・va。KVAは×1000)
