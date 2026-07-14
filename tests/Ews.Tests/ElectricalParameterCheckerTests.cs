@@ -939,4 +939,79 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal(-1, rc);
         Assert.Equal("FY-891E", err);
     }
+
+    // „Ÿ„Ÿ ƒtƒB[ƒ_EƒCƒ“ƒo[ƒ^E’¼—¬“dŒ¹Œn key_check(Wave6) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+
+    [Fact]
+    public void MCFR‚ÌA‚ÆKW‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_MCFR: A 0.01..800AKW 0.01..140AV 1..550B
+        (short rc, RatingValues values, string err) = CheckValues("MCFR", "100.00A5.50KW200V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100.00", values.Get("a"));
+        Assert.Equal("5.50", values.Get("kw"));
+        Assert.Equal("200", values.Get("v"));
+    }
+
+    [Fact]
+    public void MGFR‚ÌE‚Í0‚©2‚©3ˆÈŠO‚ÅFY893E()
+    {
+        // yCŒ´“Tzkey_check_MGFR: E¸{0,2,3} ˆÈŠO ¨ FY-893EB
+        (short rc, _, string err) = CheckValues("MGFR", "1E");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-893E", err);
+    }
+
+    [Fact]
+    public void FLTX‚Í—\–ñŒêFLT1‚Å‹¤—L‚³‚êVCDC‚ÍfvcD‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_FLTX(—\–ñŒê FLT1/c/FLTI ‹¤—L): VCDC ¨ fvc='D'A”ÍˆÍ 1..125B
+        (short rc, RatingValues values, string err) = CheckValues("FLT1", "100VCDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("vc"));
+        Assert.Equal("D", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void DCSIR‚ÌVDC‚Í“Æ—§ƒtƒB[ƒ‹ƒhvdc‚ÉŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_DCSIR: V¨v(1..440)AVDC¨vdc(1..50, fvdc='D')B
+        (short rc, RatingValues values, string err) = CheckValues("DCSIR", "50.00A100.0W200V50VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("200", values.Get("v"));
+        Assert.Equal("50", values.Get("vdc"));
+        Assert.Equal("D", values.Get("fvdc"));
+    }
+
+    [Fact]
+    public void DCNI‚ÌMAH‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_DCNI: MAH 1..99999B
+        (short rc, RatingValues values, string err) = CheckValues("DCNI", "50.00A12345MAH");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("12345", values.Get("mah"));
+    }
+
+    [Fact]
+    public void MGFRSD‚ÌAT‚ÆA‚Í“¯ˆêƒtƒB[ƒ‹ƒh‚Åd•¡‚ÍFY899E()
+    {
+        // yCŒ´“Tzkey_check_MGFRSD: AT/A ‚Í“¯ˆê aBd•¡“o˜^‚Í FY-899EB
+        (short rc, _, string err) = CheckValues("MGFRSD", "100.00AT200.00A");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-899E", err);
+    }
+
+    [Fact]
+    public void MCFRSD‚ÌKW‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_MCFRSD: KW 0.01..140AV 1..550B
+        (short rc, RatingValues values, string err) = CheckValues("MCFRSD", "50.00A10.00KW200V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("10.00", values.Get("kw"));
+    }
 }

@@ -1924,6 +1924,19 @@ public sealed class ElectricalParameterChecker
     private static readonly KeyCheckRule[] SlxRules =
         [new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A')];
 
+    // key_check_FLTX(FLT1/FLT2/FLT3/FLT4/FLTI フィルタ)。
+    private static readonly KeyCheckRule[] FltxRules =
+    [
+        new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+        new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+        new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+        new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+        new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+        new(["AC"], "ac", IntRange(1, 9), "FY-817E", "FY-818E"),
+        new(["BC"], "bc", IntRange(1, 9), "FY-819E", "FY-820E"),
+        new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
+    ];
+
     /// <summary>
     /// 予約語別 key_check ルール表。【C原典】key_check_MCB/MC/MG/THR/MCDT/CSDT/SC(Fyss1d.c)。
     /// 範囲値の改訂タグ(改訂&lt;3&gt;/&lt;5&gt;等)や離散許容値は C 原典を忠実に反映する。
@@ -2485,6 +2498,116 @@ public sealed class ElectricalParameterChecker
             ["MDF"] = [new(["P"], "p", IntRange(1, 999), "FY-890E", "FY-891E")],
             // 【C原典】key_check_WDP(Fyss1d.c:6440) … 予備品。T 1..30。
             ["WDP"] = [new(["T"], "t", IntRange(1, 30), "FY-853E", "FY-854E")],
+            // 【C原典】key_check_MCFR(Fyss1d.c:6430) … MC付フィーダ。AC/BC は補助接点数。
+            ["MCFR"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 800.00), "FY-815E", "FY-816E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["AC"], "ac", IntRange(1, 4), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 4), "FY-819E", "FY-820E"),
+            ],
+            // 【C原典】key_check_MGFR(Fyss1d.c:6535) … MG付フィーダ。E 離散{0,2,3}、AT/A は別フィールド。
+            ["MGFR"] =
+            [
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AT"], "at", FloatRange(0.01, 800.00), "FY-899E", "FY-800E"),
+                new(["A"], "a", FloatRange(0.01, 800.00), "FY-815E", "FY-816E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["AC"], "ac", IntRange(1, 4), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 4), "FY-819E", "FY-820E"),
+            ],
+            // 【C原典】key_check_MCSD(Fyss1d.c:6675) … MC付サーマル。
+            ["MCSD"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 800.00), "FY-815E", "FY-816E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_MGSD(Fyss1d.c:6750) … MG付サーマル。E 離散{0,2,3}。
+            ["MGSD"] =
+            [
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AT"], "at", FloatRange(0.01, 800.00), "FY-899E", "FY-800E"),
+                new(["A"], "a", FloatRange(0.01, 800.00), "FY-815E", "FY-816E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_MGLD(Fyss1d.c:6870) … MG付負荷。
+            ["MGLD"] =
+            [
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_MGCS(Fyss1d.c:6935) … MG付コンデンサ。
+            ["MGCS"] =
+            [
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_INV(Fyss1d.c:6982) … インバータ。
+            ["INV"] =
+            [
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_FLTX(Fyss1d.c:7057) … フィルタ。予約語 FLT1/FLT2/FLT3/FLT4/FLTI。
+            ["FLT1"] = FltxRules,
+            ["FLT2"] = FltxRules,
+            ["FLT3"] = FltxRules,
+            ["FLT4"] = FltxRules,
+            ["FLTI"] = FltxRules,
+            // 【C原典】key_check_DCSIR(Fyss1d.c:7189) … 直流SIR。VDC は独立 vdc(fvdc='D')。
+            ["DCSIR"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 100.00), "FY-815E", "FY-816E"),
+                new(["W"], "w", FloatRange(0.1, 999.0), "FY-829E", "FY-830E"),
+                new(["V", "VAC"], "v", IntRange(1, 440), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "vdc", IntRange(1, 50), "FY-801E", "FY-802E", "fvdc", 'D'),
+            ],
+            // 【C原典】key_check_DCNI(Fyss1d.c:7261) … 直流NI。VDC は実数、MAH 追加。
+            ["DCNI"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 100.00), "FY-815E", "FY-816E"),
+                new(["W"], "w", FloatRange(0.1, 999.0), "FY-829E", "FY-830E"),
+                new(["V", "VAC"], "v", IntRange(1, 440), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "vdc", FloatRange(1.0, 50.0), "FY-801E", "FY-802E", "fvdc", 'D'),
+                new(["MAH"], "mah", FloatRange(1.0, 99999.0), "FY-861E", "FY-862E"),
+            ],
+            // 【C原典】key_check_MCFRSD(Fyss1d.c:7350) … MCFR+サーマル。
+            ["MCFRSD"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 800.00), "FY-815E", "FY-816E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.0), "FY-811E", "FY-812E"),
+                new(["V", "VAC"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
+            // 【C原典】key_check_MGFRSD(Fyss1d.c:7430) … MGFR+サーマル。AT/A は同一 a(FY-899E/FY-800E)。
+            ["MGFRSD"] =
+            [
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AT", "A"], "a", FloatRange(0.01, 800.00), "FY-899E", "FY-800E"),
+                new(["KW"], "kw", FloatRange(0.01, 140.00), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 550), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 120), "FY-813E", "FY-814E", "fvc", 'D'),
+            ],
         };
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────
 
