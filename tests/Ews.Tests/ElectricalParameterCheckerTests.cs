@@ -359,13 +359,13 @@ public sealed class ElectricalParameterCheckerTests
     }
 
     [Fact]
-    public void ñ¢é˚ò^å^ÇÕç\ë¢åüèÿÇÃÇ›Ç≈ílÇÕäiî[Ç≥ÇÍÇ»Ç¢()
+    public void MMCBÇÃATè¨êîílÇ™äiî[Ç≥ÇÍÇÈ()
     {
-        // MMCB ÇÕíËäiÉLÅ[ï\é˚ò^çœÇ›ÇæÇ™ key_check ñ¢é˚ò^ Å® ç\ë¢åüèÿÇÃÇ›
+        // ÅyCå¥ìTÅzkey_check_MMCB: AT f_val 0.01..225.0 Å® mmcb.at Ç÷äiî[ÅB
         (short rc, RatingValues values, string err) = CheckValues("MMCB", "12.34AT");
         Assert.Equal(0, rc);
         Assert.Equal(string.Empty, err);
-        Assert.Null(values.Get("at"));
+        Assert.Equal("12.34", values.Get("at"));
     }
 
     // ÑüÑü TR(ïœà≥äÌ)êÍópÉpÅ[ÉT TR_check_main / key_check_TR ÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑü
@@ -549,5 +549,79 @@ public sealed class ElectricalParameterCheckerTests
         (short rc2, _, string err2) = CheckValues("CON", "2P200VDC");
         Assert.Equal(-1, rc2);
         Assert.Equal("FY-802E", err2);
+    }
+
+    // ÑüÑü ÉuÉåÅ[ÉJån key_check(ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB) ÑüÑüÑüÑüÑü
+
+    [Fact]
+    public void ELBÇÃäeãLçÜÇ™äiî[Ç≥ÇÍMAÉXÉçÉbÉgÇ÷ì¸ÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_ELB: P/E/AF/AT/V + MA ÇÕ ma[inum] ìYéöÅB15 ÇÕãñóeó£éUílÅB
+        (short rc, RatingValues values, string err) = CheckValues("ELB", "3P225AF150A200V15MA");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("3", values.Get("p"));
+        Assert.Equal("225", values.Get("af"));
+        Assert.Equal("150", values.Get("at"));
+        Assert.Equal("200", values.Get("v"));
+        Assert.Equal("A", values.Get("fv"));
+        Assert.Equal("15", values.Get("ma[0]"));
+    }
+
+    [Fact]
+    public void ELBÇÃMAó£éUílà»äOÇÕFY810E()
+    {
+        // ÅyCå¥ìTÅzkey_check_ELB: MAÅ∏{15,30,100,200,500} à»äO Å® FY-810EÅB
+        (short rc, _, string err) = CheckValues("ELB", "3P225AF150A50MA");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-810E", err);
+    }
+
+    [Fact]
+    public void MMCBÇÃKWîÕàÕäOÇÕFY812E()
+    {
+        // ÅyCå¥ìTÅzkey_check_MMCB: KW f_val>110.0 Å® FY-812EÅB
+        (short rc, _, string err) = CheckValues("MMCB", "150.00KW");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-812E", err);
+    }
+
+    [Fact]
+    public void SBÇÃPÇÕ2ÇÃÇ›Ç≈Ç†ÇËFY891E()
+    {
+        // ÅyCå¥ìTÅzkey_check_SB: P!=2 Å® FY-891EÅB
+        (short rc, _, string err) = CheckValues("SB", "3P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
+
+    [Fact]
+    public void RMCBÇÃVCÇÕï‚èïìdà≥fvcÇ™AÇ…Ç»ÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_RMCB: VCAC/VC Å® rmcb.vc(fvc='A')ÅA1..240ÅB
+        (short rc, RatingValues values, string err) = CheckValues("RMCB", "2P30AF20A100V200VC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("200", values.Get("vc"));
+        Assert.Equal("A", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void RMMCBÇÃATè¨êîîÕàÕäOÇÕFY800E()
+    {
+        // ÅyCå¥ìTÅzkey_check_RMMCB: AT f_val>40.0 Å® FY-800EÅB
+        (short rc, _, string err) = CheckValues("RMMCB", "2P30AF50.00A");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-800E", err);
+    }
+
+    [Fact]
+    public void RELMBÇÃKWÇ™äiî[Ç≥ÇÍMAê≥èÌånÇÕê≥èÌèIóπÇ∑ÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_RELMB: KW 0.01..999ÅAMA=ma[inum]ÅB
+        (short rc, RatingValues values, string err) = CheckValues("RELMB", "2P30AF20.00A5.50KW200V15MA");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("5.50", values.Get("kw"));
     }
 }

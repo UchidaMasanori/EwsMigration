@@ -1724,13 +1724,12 @@ public sealed class ElectricalParameterChecker
     private short KeyCheckMain(string reservedWord, string symbol, string val, int index, RatingValues values, string nextSymbol, out string errorCode)
     {
         errorCode = string.Empty;
-        _ = index; // E.2 収録型は inum 非依存(ELB/R* の ma[3][3] は後続フェーズ)。
         _ = nextSymbol; // 【C原典】key_check_main が参照する global n_kigo。消費先 key_check_WH は E.2 のため現状未使用。
 
         if (!KeyCheckRules.TryGetValue(reservedWord, out KeyCheckRule[]? rules))
         {
-            // 本フェーズ未収録の型(MMCB/ELMB/SB/R*/NT/WH 等)は構造検証のみ。
-            // TODO(続き): ELB/R*(ma[3][3] inum 添字配列)・NT(奇数丸め)・WH(n_kigo 消費)を移植。
+            // 本フェーズ未収録の型(NT/WH/LGR/ELR 等)は構造検証のみ。
+            // TODO(続き): NT(奇数丸め)・WH(n_kigo 消費)・LGR/ELR を移植。
             return 0;
         }
 
@@ -1753,8 +1752,11 @@ public sealed class ElectricalParameterChecker
 
         KeyCheckRule r = found.Value;
 
+        // 【C原典】ma[inum] のような inum 添字フィールドは繰返しごとに別スロット。
+        string field = r.Indexed ? $"{r.Field}[{index}]" : r.Field;
+
         // 【C原典】if( field[0] != '\0' ){ strcpy(ErrNo,"FY-89xE"); return -1; }  … 登録済み
-        if (values.Has(r.Field))
+        if (values.Has(field))
         {
             errorCode = r.DuplicateError;
             return -1;
@@ -1774,7 +1776,7 @@ public sealed class ElectricalParameterChecker
         }
 
         // 【C原典】memcpy( field, val, n );
-        values.Set(r.Field, val);
+        values.Set(field, val);
         return 0;
     }
 
@@ -1880,7 +1882,8 @@ public sealed class ElectricalParameterChecker
         string DuplicateError,
         string RangeError,
         string? FvField = null,
-        char FvChar = '\0');
+        char FvChar = '\0',
+        bool Indexed = false);
 
     /// <summary>整数範囲 [lo,hi] 判定。【C原典】i_val = atoi(val); if( i_val &lt; lo || i_val &gt; hi )。</summary>
     private static Func<string, bool> IntRange(int lo, int hi)
@@ -2030,6 +2033,91 @@ public sealed class ElectricalParameterChecker
                 new(["A"], "a", IntRange(1, 99), "FY-815E", "FY-816E"),
                 new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
                 new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_ELB(Fyss1d.c:1532) … 漏電ブレーカ。MA は ma[inum] 添字配列。
+            ["ELB"] =
+            [
+                new(["P"], "p", IntRange(2, 4), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntRange(0, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntRange(1, 1000), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", IntRange(0, 1000), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 500), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["MA"], "ma", IntIn(15, 30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
+            ],
+            // 【C原典】key_check_MMCB(Fyss1d.c:1626) … モータ用MCB。
+            ["MMCB"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntRange(1, 225), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", FloatRange(0.01, 225.0), "FY-899E", "FY-800E"),
+                new(["KW"], "kw", FloatRange(0.01, 110.0), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 500), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_ELMB(Fyss1d.c:1722) … モータ用漏電ブレーカ。MA=ma[inum]。
+            ["ELMB"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntRange(1, 225), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", FloatRange(0.01, 225.0), "FY-899E", "FY-800E"),
+                new(["KW"], "kw", FloatRange(0.01, 110.0), "FY-811E", "FY-812E"),
+                new(["MA"], "ma", IntIn(15, 30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
+                new(["VAC", "V"], "v", IntRange(1, 500), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_SB(Fyss1d.c:1831) … 安全ブレーカ。
+            ["SB"] =
+            [
+                new(["P"], "p", IntIn(2), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 1, 2), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", IntRange(1, 30), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_RMCB(Fyss1d.c:1925) … リモコンMCB。
+            ["RMCB"] =
+            [
+                new(["P"], "p", IntRange(1, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntRange(0, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", IntRange(1, 30), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VCAC", "VC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_RELB(Fyss1d.c:2020) … リモコン漏電ブレーカ。MA=ma[inum]。
+            ["RELB"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", IntRange(1, 30), "FY-899E", "FY-800E"),
+                new(["MA"], "ma", IntIn(15, 30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VCAC", "VC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_RMMCB(Fyss1d.c:2125) … リモコンモータ用MCB。
+            ["RMMCB"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", FloatRange(0.01, 40.00), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VCAC", "VC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["KW"], "kw", FloatRange(0.01, 999.00), "FY-811E", "FY-812E"),
+            ],
+            // 【C原典】key_check_RELMB(Fyss1d.c:2230) … リモコンモータ用漏電ブレーカ。MA=ma[inum]。
+            ["RELMB"] =
+            [
+                new(["P"], "p", IntRange(2, 3), "FY-890E", "FY-891E"),
+                new(["E"], "e", IntIn(0, 2, 3), "FY-892E", "FY-893E"),
+                new(["AF"], "af", IntIn(30), "FY-894E", "FY-895E"),
+                new(["AT", "A"], "at", FloatRange(0.01, 40.00), "FY-899E", "FY-800E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VCAC", "VC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["KW"], "kw", FloatRange(0.01, 999.00), "FY-811E", "FY-812E"),
+                new(["MA"], "ma", IntIn(15, 30, 100, 200, 500), "FY-809E", "FY-810E", Indexed: true),
             ],
         };
 
