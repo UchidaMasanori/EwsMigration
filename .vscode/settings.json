@@ -1,0 +1,26 @@
+{
+  // EwsMigration フォルダのエンコーディング固定。
+  // ソース(.cs/.csv/.sql)は Shift-JIS/CP932、ドキュメント・設定(.md/.json/.props/.editorconfig 等)は UTF-8。
+  // これにより、UTF-8 の README/Directory.Build.props/.editorconfig が CP932 で誤保存され
+  // 文字化けする事故を防ぐ。
+
+  // 既定はソースに合わせて Shift-JIS(CP932)。.cs/.csv/.sql/.sln はこれを継承する。
+  "files.encoding": "shiftjis",
+  // 自動判定による誤検出でエンコーディングが勝手に切り替わるのを防ぐ。
+  "files.autoGuessEncoding": false,
+
+  // .editorconfig を properties 言語として扱い、下の [properties] 設定(UTF-8)を効かせる。
+  "files.associations": {
+    ".editorconfig": "properties"
+  },
+
+  // GitHub 表示・一般的な慣習に合わせ、ドキュメント/設定ファイルは UTF-8 で保存する。
+  "[markdown]": { "files.encoding": "utf8" },
+  "[json]": { "files.encoding": "utf8" },
+  "[jsonc]": { "files.encoding": "utf8" },
+  "[xml]": { "files.encoding": "utf8" },
+  "[yaml]": { "files.encoding": "utf8" },
+  "[properties]": { "files.encoding": "utf8" },
+  "[ignore]": { "files.encoding": "utf8" },
+  "[git-commit]": { "files.encoding": "utf8" }
+}
