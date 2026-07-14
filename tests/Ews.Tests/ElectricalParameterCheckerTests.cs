@@ -195,7 +195,7 @@ public sealed class ElectricalParameterCheckerTests
     [InlineData("CT", "1000/5A")]      // ft_ct: "/"(4,0,1,0) + A(3,0,1,0)
     [InlineData("RTR", "200/22VA")]    // ft_rtr: "/"(3,0,1,0)—£U{100,200} + VA(2,0,1,0)
     [InlineData("BLTR", "75/22VA")]    // ft_bltr: "/"(3,0,1,0) + VA(2,0,1,0)
-    [InlineData("PLTR", "75/55VAC")]   // ft_pltr: "/"(3,0,1,0) + VAC(2,0,1,0)
+    [InlineData("PLTR", "75/40VAC")]   // ft_pltr: "/"(3,0,1,0)sv1..440 + VAC(2,0,1,0)v1.0..50.0
     [InlineData("THSW", "3C/2C")]      // ft_thsw: "C/"(3,0,1,0) + C(3,0,1,0)
     [InlineData("WH", "1P100/5A50HZ")] // ft_wh: P + "/"(3,0,1,1) + A + HZ
     public void CT_VT•t‚«•\‚Ì³íŒn‚Í³íI—¹‚·‚é(string yoyaku, string parm)
@@ -853,5 +853,90 @@ public sealed class ElectricalParameterCheckerTests
         (short rc, _, string err) = CheckValues("RSW", "300K");
         Assert.Equal(-1, rc);
         Assert.Equal("FY-842E", err);
+    }
+
+    // „Ÿ„Ÿ ƒ†ƒjƒbƒgEÆ–¾E•Ïˆ³ŠíEƒXƒCƒbƒ`Œn key_check(Wave5) „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+
+    [Fact]
+    public void NHMB‚ÌAT‚ÆA‚Í“¯ˆêƒtƒB[ƒ‹ƒh‚ÉŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_NHMB: AT/A ¨ “¯ˆê at(0.01..99.99)BP 1..3B
+        (short rc, RatingValues values, string err) = CheckValues("NHMB", "3P50.00A200V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("50.00", values.Get("at"));
+        Assert.Equal("200", values.Get("v"));
+    }
+
+    [Fact]
+    public void SLX‚Í—\–ñŒêSL23‚Å‹¤—L‚³‚êVC‚ªŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_SLX(—\–ñŒê SL23/SL32/SL42/SL43 ‹¤—L): VC 1..240Afvc='A'B
+        (short rc, RatingValues values, string err) = CheckValues("SL23", "100VC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("vc"));
+        Assert.Equal("A", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void MV‚ÌW‚Íva‚ÖŠi”[‚³‚êfwva‚ªW‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_MV: VA/W ¨ “¯ˆê vaAfwva='V'/'W'B
+        (short rc, RatingValues values, string err) = CheckValues("MV", "100W");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("100", values.Get("va"));
+        Assert.Equal("W", values.Get("fwva"));
+    }
+
+    [Fact]
+    public void THSW‚ÌC‹L†‚ÍcsƒtƒB[ƒ‹ƒh‚ÖŠi”[‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_THSW: C/¨csAC¨cACSET¨cset(‚¢‚¸‚ê‚à 1..999)B
+        (short rc, RatingValues values, string err) = CheckValues("THSW", "3C/2C");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("3", values.Get("cs"));
+        Assert.Equal("2", values.Get("c"));
+    }
+
+    [Fact]
+    public void L‚Ì‹L†P‚Í1ˆÈŠO‚ÅFY891E()
+    {
+        // yCŒ´“Tzkey_check_L: P ‚Í 1 ŒÅ’è ¨ 2 ‚Í FY-891EB
+        (short rc, _, string err) = CheckValues("L", "2P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
+
+    [Fact]
+    public void PLTR‚Ì“ñŸ“dˆ³sv‚Í1‚©‚ç440‚Ü‚Å‹–—e‚³‚ê‚é()
+    {
+        // yCŒ´“Tzkey_check_PLTR: '/' ¨ sv 1..440(BLTR ‚Ì 1..240 ‚Æ‘Šˆá)B
+        (short rc, RatingValues values, string err) = CheckValues("PLTR", "440/40VAC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("440", values.Get("sv"));
+    }
+
+    [Fact]
+    public void KPRY‚ÌVCDC‚Í’¼—¬‹æ•ªfvc‚ªD‚É‚È‚é()
+    {
+        // yCŒ´“Tzkey_check_KPRY: VCDC ¨ fvc='D'A”ÍˆÍ 1..60B
+        (short rc, RatingValues values, string err) = CheckValues("KPRY", "60VCDC");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("60", values.Get("vc"));
+        Assert.Equal("D", values.Get("fvc"));
+    }
+
+    [Fact]
+    public void IDF‚ÌP‚Í”ÍˆÍŠO‚ÅFY891E()
+    {
+        // yCŒ´“Tzkey_check_IDF: P 1..999 ‚Ì”ÍˆÍŠO(0)¨ FY-891EB
+        (short rc, _, string err) = CheckValues("IDF", "0P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
     }
 }

@@ -1920,6 +1920,10 @@ public sealed class ElectricalParameterChecker
         new(["VC", "VCAC"], "vc", IntRange(1, 500), "FY-813E", "FY-814E", "fvc", 'A'),
     ];
 
+    // key_check_SLX(SL23/SL32/SL42/SL43 表示灯)。
+    private static readonly KeyCheckRule[] SlxRules =
+        [new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A')];
+
     /// <summary>
     /// 予約語別 key_check ルール表。【C原典】key_check_MCB/MC/MG/THR/MCDT/CSDT/SC(Fyss1d.c)。
     /// 範囲値の改訂タグ(改訂&lt;3&gt;/&lt;5&gt;等)や離散許容値は C 原典を忠実に反映する。
@@ -2367,6 +2371,120 @@ public sealed class ElectricalParameterChecker
                 new(["VAC", "V"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
                 new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
             ],
+            // 【C原典】key_check_CU(Fyss1d.c:5473) … コンデンサユニット。
+            ["CU"] = [new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A')],
+            // 【C原典】key_check_TU(Fyss1d.c:5498) … タイマユニット。
+            ["TU"] =
+            [
+                new(["K"], "k", IntRange(1, 4), "FY-841E", "FY-842E"),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+            ],
+            // 【C原典】key_check_NHMB(Fyss1d.c:5539) … 中性線欠相保護付MB。AT/A は同一 at。
+            ["NHMB"] =
+            [
+                new(["P"], "p", IntRange(1, 3), "FY-890E", "FY-891E"),
+                new(["AT", "A"], "at", FloatRange(0.01, 99.99), "FY-899E", "FY-800E"),
+                new(["KW"], "kw", FloatRange(0.01, 9.99), "FY-811E", "FY-812E"),
+                new(["VAC", "V"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_APN(Fyss1d.c:5605) … アンプ。
+            ["APN"] = [new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A')],
+            // 【C原典】key_check_SLX(Fyss1d.c:5632) … 表示灯。予約語 SL23/SL32/SL42/SL43。
+            ["SL23"] = SlxRules,
+            ["SL32"] = SlxRules,
+            ["SL42"] = SlxRules,
+            ["SL43"] = SlxRules,
+            // 【C原典】key_check_LGT(Fyss1d.c:5680) … 照明。
+            ["LGT"] =
+            [
+                new(["P"], "p", IntRange(1, 4), "FY-890E", "FY-891E"),
+                new(["A"], "a", IntRange(1, 2000), "FY-815E", "FY-816E"),
+                new(["T"], "t", FloatRange(0.1, 99.9), "FY-853E", "FY-854E"),
+                new(["W"], "w", IntRange(1, 99), "FY-829E", "FY-830E"),
+            ],
+            // 【C原典】key_check_BLTR(Fyss1d.c:5744) … ベル変圧器。'/' は二次電圧 sv。
+            ["BLTR"] =
+            [
+                new(["/"], "sv", IntRange(1, 240), "FY-833E", "FY-834E"),
+                new(["VAC", "V"], "v", IntRange(1, 50), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VA"], "va", IntRange(1, 99), "FY-835E", "FY-836E"),
+            ],
+            // 【C原典】key_check_PLTR(Fyss1d.c:5808) … パイロット変圧器。'/' 二次電圧 sv(1..440)。
+            ["PLTR"] =
+            [
+                new(["/"], "sv", IntRange(1, 440), "FY-833E", "FY-834E"),
+                new(["VAC", "V"], "v", FloatRange(1.0, 50.0), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VA"], "va", IntRange(1, 9), "FY-835E", "FY-836E"),
+            ],
+            // 【C原典】key_check_FL(Fyss1d.c:5873) … 蛍光灯。
+            ["FL"] =
+            [
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["W"], "w", IntRange(1, 99), "FY-829E", "FY-830E"),
+            ],
+            // 【C原典】key_check_LSW(Fyss1d.c:5915) … リミットスイッチ。
+            ["LSW"] =
+            [
+                new(["A"], "a", FloatRange(0.001, 30.000), "FY-815E", "FY-816E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 120), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_DSW(Fyss1d.c:5967) … ドアスイッチ。
+            ["DSW"] =
+            [
+                new(["A"], "a", FloatRange(0.001, 30.000), "FY-815E", "FY-816E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 120), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_SV(Fyss1d.c:5973) … 電磁弁。
+            ["SV"] =
+            [
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VA"], "va", IntRange(1, 99), "FY-835E", "FY-836E"),
+            ],
+            // 【C原典】key_check_MV(Fyss1d.c:6010) … 電磁弁MV。VA/W→同一 va(fwva='V'/'W')。
+            ["MV"] =
+            [
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 120), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["VA"], "va", IntRange(1, 999), "FY-851E", "FY-852E", "fwva", 'V'),
+                new(["W"], "va", IntRange(1, 999), "FY-851E", "FY-852E", "fwva", 'W'),
+            ],
+            // 【C原典】key_check_KPRY(Fyss1d.c:6072) … 補助継電器。AC/BC/CC は補助接点数。
+            ["KPRY"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 120), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 240), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 60), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["AC"], "ac", IntRange(1, 4), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 4), "FY-819E", "FY-820E"),
+                new(["CC"], "cc", IntRange(1, 4), "FY-821E", "FY-822E"),
+            ],
+            // 【C原典】key_check_THSW(Fyss1d.c:6210) … サーマルスイッチ。C/→cs、C→c、CSET→cset。
+            ["THSW"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["VAC", "V"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 120), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["C/"], "cs", IntRange(1, 999), "FY-855E", "FY-856E"),
+                new(["C"], "c", IntRange(1, 999), "FY-857E", "FY-858E"),
+                new(["CSET"], "cset", IntRange(1, 999), "FY-859E", "FY-860E"),
+            ],
+            // 【C原典】key_check_L(Fyss1d.c:6310) … ランプ。P は 1 固定、W は 2/3。
+            ["L"] =
+            [
+                new(["P"], "p", IntIn(1), "FY-890E", "FY-891E"),
+                new(["W"], "w", IntIn(2, 3), "FY-829E", "FY-830E"),
+                new(["A"], "a", IntRange(1, 99), "FY-815E", "FY-816E"),
+            ],
+            // 【C原典】key_check_IDF/HDF/MDF(Fyss1d.c:6360~) … 分電盤フレーム。P 1..999。
+            ["IDF"] = [new(["P"], "p", IntRange(1, 999), "FY-890E", "FY-891E")],
+            ["HDF"] = [new(["P"], "p", IntRange(1, 999), "FY-890E", "FY-891E")],
+            ["MDF"] = [new(["P"], "p", IntRange(1, 999), "FY-890E", "FY-891E")],
+            // 【C原典】key_check_WDP(Fyss1d.c:6440) … 予備品。T 1..30。
+            ["WDP"] = [new(["T"], "t", IntRange(1, 30), "FY-853E", "FY-854E")],
         };
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────
 
