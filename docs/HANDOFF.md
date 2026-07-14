@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 207 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 212 テスト成功 / 1 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -137,7 +137,8 @@ EwsMigration/
   - 定格キー表・型非依存パーサ・MCB/ELB/MC/MG/THR 等の型別検証、`RatingValues` へ格納
   - 定格キー表を拡充: '/'(CT/VT付き)・特殊展開を除く単純構造の残り約70表（VS/TB/CON/GL系/CR/TS/MV/KPRY/MCFR/MGFR/STM/VVVF 等）を移植
   - 先頭数字予約語(2ERY/3ERY/4ERY)を解禁。ExtractElectricalParameter を C原典 Check_KikimeiC(Fyss1c.c)に忠実化し、予約語/電気パラメータ(d_parm)の分離を修正(MCB3P→d_parm 3P、2ERY100AF→予約語2ERY+d_parm 100AF)
-  - CT/VT付き('/')定格キー表 AM/VT/CT/RTR/BLTR/PLTR/THSW/WH を追加。next_1_get(NextOneGet)を移植し副記号 n_kigo を key_check へ伝搬(消費先 key_check_WH は E.2)。残る特殊展開 TR/PT/BP は後続
+  - CT/VT付き('/')定格キー表 AM/VT/CT/RTR/BLTR/PLTR/THSW/WH を追加。next_1_get(NextOneGet)を移植し副記号 n_kigo を key_check へ伝搬(消費先 key_check_WH は E.2)。残る特殊展開 PT/BP は後続(TR は移植済み)
+  - **TR(変圧器)専用パーサ移植**: `TR_check_main`→`TrCheckMain` / `key_check_TR`→`KeyCheckTr` / `ft_tr`→`TransformerKeyTable`。多スロット(p1/w1・v1[]・p2,p3/w2,w3・fv2,v2[]・fv3,v3[]・va)＋状態(sw_kugiri/sw_v2v3/ior1)を忠実移植。flag2(V/VAC いずれか必須)未受理は FY-889E、KVA は×1000 で va 格納。PT/BP のみ後続。
   - **定格キー表の出典是正（重要）**: 検証用の定格キー表を、表示展開モジュール `FySinTkakt.h`(`t_*`/`tkak_tbl`) から検証権威である `toku/include/sekkei/fyrt810.h`(`ft_*`/`fyak_tbl`) へ全面再ベース。`fyak_tbl` 経由で `Check_1_Group` が参照する値に一致。空表(STM/SIR/C/R/D/NICA/RE/VVVF/TVZ/TVB/TVH/TVK/SPACE/AL 等)は忠実に空配列（予約語は存在=構造検証対象、非空パラメータは FY-699E）。予約語 RECB→RMCB 是正。VM/TM を追加移植、PT/BP/TR は保留。`fyak_tbl` マッピングのクセ(G→ft_g1/GI→ft_i/GP→ft_p/GPN→ft_n、SMTKP/SMTSS/SMTRY は ft_tsu 共有)を反映
 - **主回路生成** `MainCircuitBuilder`（`Fyss12.c` の 17 ステップのうち）
   - step1 系統構成 / step2 行種階層 / step4 機器情報 / step5 回路区分（`Kairo_Kubun_Set`）
@@ -154,7 +155,7 @@ EwsMigration/
   グループ別 souden の全面設定、`Find_Keitou`。消費側の後段ステップも未移植のため、
   データで検証できるようになってから着手する（推測移植は忠実性を損なうため保留）。
 - **主回路生成の step14/15, 19**: `Kairo_Group_Set`(無効化) 等（TODO コメントで明示済み）。step17 は数量分解（`Find_Iteration/Nobangou/Group` + `Main_File_Area_Make`）を移植済み。FYRT800 レコード整形（`mainfile_set`）は最難関の作図系依存のため保留。
-- **電気パラメータエンジンの残り型**（約90種の `key_check_XXX`）、TR 系パーサ。
+- **電気パラメータエンジンの残り型**（約90種の `key_check_XXX`）。TR 専用パーサ(`TrCheckMain`/`KeyCheckTr`/`ft_tr`)は移植済み。
 - **データ層**: `.cns` マスタ取込・SQL Server スキーマの本格整備（`sql/001_schema.sql` は初期のみ）。
 - **作図系（DWI）**: 最難関。DLL 化 + P/Invoke か C# 再実装かは未決。
 

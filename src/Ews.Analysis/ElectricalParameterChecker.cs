@@ -23,9 +23,9 @@ using Ews.Domain.Analysis;
 /// <see cref="KeyCheckMain"/> が型別ルール(<see cref="KeyCheckRules"/>)で重複・範囲を検証する。
 /// E.2では MCB/MC/MG/THR/MCDT/CSDT/SC を収録(いずれも走査単位が単純な機種)。
 /// MA[3][3] 等の inum 索引配列を持つ ELB/R* や、奇数丸め特殊処理の NT、
-/// および TR(変圧器)専用パーサ TR_check_main()・特殊展開プレースホルダ(PT/BP)は
-/// 後続フェーズで対応する。CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)と
-/// VM/TM は通常構造として移植済み。
+/// および特殊展開プレースホルダ(PT/BP)は後続フェーズで対応する。
+/// CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)と VM/TM は通常構造として移植済み。
+/// TR(変圧器)は専用パーサ TR_check_main()(多スロット/状態付き)として <see cref="TrCheckMain"/> へ移植済み。
 /// </summary>
 public sealed class ElectricalParameterChecker
 {
@@ -56,8 +56,8 @@ public sealed class ElectricalParameterChecker
     /// (Get_1_Group が '/' を記号として切り出し、NextOneGet が副記号を取得)。
     /// 空表(検証記号なし)は C 原典に忠実に空配列で収録し、任意パラメータは FY-699E とする:
     ///   STM/SIR/C/R/D/NICA/RE/VVVF/TVZ/TVB/TVH/TVK/SPACE/AL。
-    /// 後続フェーズ扱い(通常検証に載らない特殊展開): TR(専用パーサ TR_check_main)、
-    ///   PT/BP(空記号プレースホルダ len25、fyak_tbl の flag 非0)は本辞書に含めない。
+    /// 通常検証に載らない特殊展開は本辞書に含めない: TR(専用パーサ <see cref="TrCheckMain"/> へ分岐、ft_tr は <see cref="TransformerKeyTable"/> に別保持)、
+    ///   PT/BP(空記号プレースホルダ len25、fyak_tbl の flag 非0)。
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
@@ -302,7 +302,7 @@ public sealed class ElectricalParameterChecker
                 new("VAC", 3, 0, 1, 0),
                 new("VDC", 3, 0, 1, 0),
             ],
-            // (TR は fyak_tbl flag=FY_SY_TR。専用パーサ TR_check_main のため本辞書に含めず後続フェーズ)
+            // (TR は fyak_tbl flag=FY_SY_TR。専用パーサ TrCheckMain へ分岐し ft_tr は TransformerKeyTable に別保持)
 
             // ==== リレー・接地・保護・付属機器系 ====
             // ft_zct[] … ZCT
@@ -1046,6 +1046,33 @@ public sealed class ElectricalParameterChecker
             ["AL"] = [],
         };
 
+    /// <summary>
+    /// TR(変圧器)専用の定格キー表。【C原典】fyrt810.h <c>ft_tr[]</c>(予約語 TR, fyak_tbl flag=FY_SY_TR)。
+    ///
+    /// 通常の <see cref="RatingKeyTables"/> とは別に、専用パーサ <see cref="TrCheckMain"/> が
+    /// C の <c>fyak_tbl[iNo].tkak_t</c> として順次(シーケンシャルに)走査する。
+    /// 一次側 P/W → '/'(定格電圧1) → 二次側 P/W/V/VAC → 三次側 P/W/V/VAC → VA/KVA の順。
+    /// flag: 0=通常 / 1=必須(未入力で FY-889E) / 2=いずれか1つ必須(受理で ior1=1)。
+    /// 末尾の空記号エントリ({"",0,0,0,0})は C の終端判定 <c>p_tbl->symbol[0]=='\0'</c> を再現するため保持する。
+    /// </summary>
+    private static readonly RatingKeySpec[] TransformerKeyTable =
+    [
+        new("P", 1, 0, 1, 0),
+        new("W", 1, 0, 1, 0),
+        new("/", 3, 0, 3, 0),      // 950522 3,0,3,1 -> 3,0,3,0
+        new("P", 1, 0, 1, 0),
+        new("W", 1, 0, 1, 0),
+        new("V", 3, 0, 3, 2),
+        new("VAC", 3, 0, 3, 2),
+        new("P", 1, 0, 1, 0),
+        new("W", 1, 0, 1, 0),
+        new("V", 3, 0, 3, 0),      // 940727
+        new("VAC", 3, 0, 2, 0),
+        new("VA", 3, 0, 1, 0),
+        new("KVA", 5, 2, 1, 0),
+        new("", 0, 0, 0, 0),       // 終端番兵(【C原典】{"",0,0,0,0})
+    ];
+
     /// <summary>本フェーズで構造検証を提供できる予約語かどうか(定格キー表を収録済みか)。</summary>
     public bool IsSupported(string reservedWord) => RatingKeyTables.ContainsKey(reservedWord);
 
@@ -1063,7 +1090,7 @@ public sealed class ElectricalParameterChecker
     ///
     /// C では <c>iNo</c>(= fyak_tbl 添字)で定格キー表を引くが、本移植では予約語名で引く。
     /// C の union <c>key_tbl</c>(1機器=1型)に相当するのが <paramref name="values"/>。
-    /// TR(変圧器)は専用パーサ <c>TR_check_main()</c> へ分岐する(本フェーズ未実装 → TODO)。
+    /// TR(変圧器)は専用パーサ <see cref="TrCheckMain"/> へ分岐する(移植済み)。
     /// </summary>
     /// <param name="reservedWord">解決済み予約語(【C原典】s_yoyaku)。</param>
     /// <param name="parameter">電気パラメータ文字列(【C原典】d_parm)。</param>
@@ -1078,12 +1105,8 @@ public sealed class ElectricalParameterChecker
         // 【C原典】if( strcmp( s_yoyaku, "TR" ) != 0 ) … else TR_check_main()
         if (string.Equals(reservedWord, "TR", StringComparison.Ordinal))
         {
-            // TODO(E.2続き): TR_check_main() の移植。
-            // TR は独自の多スロット構造(p1/p2/p3, w1/w2/w3, v1[][], v2[][], v3[][], va,
-            // sw_kugiri/sw_v2v3 状態)+ key_check_TR + ft_tr(flag 0/1/2) を持つため、
-            // 本フェーズの単純フィールド辞書モデルには収まらない。別途対応。
-            // 参照: Fyss1d.c TR_check_main@873 / key_check_TR@3329 / fyrt810.h ft_tr。
-            return 0;
+            // 【C原典】TR_check_main() 専用パーサへ分岐(多スロット/状態付き)。
+            return TrCheckMain(parameter ?? string.Empty, values, out errorCode);
         }
 
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
@@ -1125,6 +1148,290 @@ public sealed class ElectricalParameterChecker
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// TR(変圧器)専用パーサ。【C原典】<c>TR_check_main(P_CHAR p_top, SHORT iNo, P_CHAR ErrNo)</c>(Fyss1d.c:872)。
+    ///
+    /// 通常の Get_1_Group/Check_1_Group ループとは別構造で、独自の走査を行う:
+    ///   1グループ = 整数部＋ピリオド＋小数部＋'T'(タップ)を <c>value[irep]</c> に蓄積し、
+    ///   '-'(一次)/'･'(二次以降)の区切りで繰返しスロット irep を進める。
+    ///   続く記号部を定格キー表 <see cref="TransformerKeyTable"/>(ft_tr)に対しシーケンシャル照合し、
+    ///   スロット0..irep の各値を <see cref="KeyCheckTr"/> で範囲検証・格納する。
+    /// 状態: <c>sw_kugiri</c>(0='-'区切り / 1='･'区切り)、<c>sw_v2v3</c>(0=二次 V→v2 / 1=三次 V→v3)、
+    ///   <c>ior1</c>(flag2 記号を1つ以上受理したか。0 のままなら FY-889E)。
+    /// </summary>
+    /// <param name="parm">電気パラメータ文字列(【C原典】p_top = d_parm)。</param>
+    /// <param name="values">定格値の格納先(【C原典】key_tbl.tr)。</param>
+    /// <param name="errorCode">エラーNo.(【C原典】ErrNo)。正常時は空。</param>
+    /// <returns>0=正常 / -1=エラー(【C原典】irc)。</returns>
+    private static short TrCheckMain(string parm, RatingValues values, out string errorCode)
+    {
+        errorCode = string.Empty;
+
+        RatingKeySpec[] table = TransformerKeyTable;
+        int tblIdx = 0;               // 【C原典】p_tbl = fyak_tbl[iNo].tkak_t(シーケンシャルに前進)
+        int p = 0;                    // 【C原典】p = p_top
+        int swKugiri = 0;             // 【C原典】sw_kugiri
+        int swV2v3 = 0;               // 【C原典】sw_v2v3
+        int ior1 = 0;                 // 【C原典】ior1(flag2 記号を1つ以上受理したか)
+        int irep = 0;                 // 【C原典】irep(繰返し値スロット添字)
+        string[] value = NewValueSlots(); // 【C原典】CHAR value[10][20]
+
+        // 【C原典】while( *p != '\0' )
+        while (CharAt(parm, p) != '\0')
+        {
+            int jrep = 0;             // 【C原典】現スロット内の文字数(value[irep] の長さ)
+            int ketaA = 0, ketaB = 0, ketaP = 0, ketaT = 0, ketaM = 0;
+
+            // 【C原典】整数部 スキップ(value に蓄積)
+            while (IsDigit(CharAt(parm, p)))
+            {
+                value[irep] += CharAt(parm, p);
+                p++; jrep++; ketaA++;
+                if (jrep >= 20) { errorCode = "FY-886E"; return -1; } // 配列文字数 over
+            }
+            // 【C原典】ピリオド
+            while (CharAt(parm, p) == '.')
+            {
+                value[irep] += CharAt(parm, p);
+                p++; ketaP++;
+                if (ketaP > 1) { errorCode = "FY-880E"; return -1; }  // 小数点 over
+                jrep++;
+                if (jrep >= 20) { errorCode = "FY-886E"; return -1; }
+            }
+            // 【C原典】小数部
+            while (IsDigit(CharAt(parm, p)))
+            {
+                value[irep] += CharAt(parm, p);
+                p++; jrep++; ketaB++;
+                if (jrep >= 20) { errorCode = "FY-886E"; return -1; }
+            }
+            // 【C原典】'T'(タップ)
+            while (CharAt(parm, p) == 'T')
+            {
+                value[irep] += CharAt(parm, p);
+                p++; ketaT++;
+                if (ketaT > 1) { errorCode = "FY-887E"; return -1; }  // T 連続エラー
+                jrep++;
+                if (jrep >= 20) { errorCode = "FY-886E"; return -1; }
+            }
+            // 【C原典】if( keta_a + keta_b == 0 ) FY-695E(対象外文字あり)
+            if (ketaA + ketaB == 0) { errorCode = "FY-695E"; return -1; }
+
+            // 【C原典】'-' 区切り(sw_kugiri==0)。irep を進める。
+            while (CharAt(parm, p) == '-' && swKugiri == 0)
+            {
+                p++; ketaM++;
+                if (ketaM > 1) { errorCode = "FY-888E"; return -1; }  // '-' 連続エラー
+                irep++;
+                if (irep >= 10) { errorCode = "FY-886E"; return -1; } // 配列数 over
+            }
+            // 【C原典】'･' 区切り(sw_kugiri==1)。irep を進める。
+            while (CharAt(parm, p) == '･' && swKugiri == 1)
+            {
+                p++; ketaM++;
+                if (ketaM > 1) { errorCode = "FY-881E"; return -1; }  // 区切り 連続エラー
+                irep++;
+                if (irep >= 10) { errorCode = "FY-886E"; return -1; }
+            }
+
+            // 【C原典】not_digit_skip( p, &keta_n ); if( keta_n == 0 ) continue;
+            //   記号がまだ現れない(次に数値が続く)場合は次スロットの値取得へ戻る。
+            int ketaN = NotDigitSkip(parm, p);
+            if (ketaN == 0) continue;
+
+            // 【C原典】記号照合(p_tbl はシーケンシャルに前進)。
+            string kigo = Substr(parm, p, ketaN);
+            while (table[tblIdx].Symbol.Length != 0)
+            {
+                if (kigo == table[tblIdx].Symbol)
+                {
+                    if (table[tblIdx].Flag == 2) ior1 = 1; // いずれか1つ必須の記号を受理
+                    break;
+                }
+                if (table[tblIdx].Flag == 1) { errorCode = "FY-889E"; return -1; } // 必須未入力
+                tblIdx++;
+            }
+            // 【C原典】if( p_tbl->symbol[0] == '\0' ) FY-699E(テーブルに記号なし)
+            if (table[tblIdx].Symbol.Length == 0) { errorCode = "FY-699E"; return -1; }
+            // 【C原典】if( p_tbl->num - 1 < irep ) FY-885E(繰返し数 over)
+            if (table[tblIdx].Count - 1 < irep) { errorCode = "FY-885E"; return -1; }
+
+            // 【C原典】strncpy( s_kigo, p, keta_n ); p += keta_n;
+            p += ketaN;
+
+            // 【C原典】for( i=0; i<irep+1; i++ ){ 桁数 check → key_check_TR }
+            for (int i = 0; i < irep + 1; i++)
+            {
+                int len = value[i].Length;
+                int mlen = table[tblIdx].Length + 1;            // +1 余裕(T)
+                if (table[tblIdx].DecimalLength > 0) mlen++;
+                if (mlen < len) { errorCode = "FY-882E"; return -1; } // 桁数 over
+                short irc = KeyCheckTr(kigo, value[i], i, values, ref swKugiri, ref swV2v3, out errorCode);
+                if (irc == -1) return -1;
+            }
+
+            // 【C原典】if( *p == '-' ){ sw_kugiri=1; sw_v2v3=1; p++; }(一次⇔二次の区切り)
+            if (CharAt(parm, p) == '-')
+            {
+                swKugiri = 1;
+                swV2v3 = 1;
+                p++;
+            }
+            // 【C原典】if( p_tbl->symbol[0] != '\0' ) p_tbl++;
+            if (table[tblIdx].Symbol.Length != 0) tblIdx++;
+            irep = 0;
+            value = NewValueSlots();
+        }
+
+        // 【C原典】if( ior1 == 0 ) FY-889E(V/VAC 等の必須項目 未入力)
+        if (ior1 == 0) { errorCode = "FY-889E"; return -1; }
+
+        // 【C原典】残りの p_tbl に flag==1(必須)があれば FY-889E
+        if (table[tblIdx].Symbol.Length != 0)
+        {
+            tblIdx++;
+            while (table[tblIdx].Symbol.Length != 0)
+            {
+                if (table[tblIdx].Flag == 1) { errorCode = "FY-889E"; return -1; }
+                tblIdx++;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// TR(変圧器)1値の範囲検証・格納。【C原典】<c>key_check_TR(CHAR val[], SHORT inum, P_CHAR ErrNo)</c>(Fyss1d.c:3329)。
+    ///
+    /// <c>key_tbl.tr</c>(fyrt811.h struct TR_F)の多スロットへ格納する:
+    ///   p1/w1(一次) / v1[0..2]('/'定格電圧1) / p2,p3・w2,w3(二次・三次) /
+    ///   fv2,v2[0..2](二次電圧) / fv3,v3[0..1](三次電圧) / va(容量, VA はそのまま・KVA は×1000)。
+    /// 一次/二次の切替は <c>v1[0]</c> 登録済みか(= '/' を通過したか)で判定する(【C原典】key_tbl.tr.v1[0][0]!='\0')。
+    /// </summary>
+    /// <param name="symbol">照合済み記号(【C原典】s_kigo)。</param>
+    /// <param name="val">値文字列(【C原典】val。'T' タップ付きを含む)。</param>
+    /// <param name="inum">繰返し添字(【C原典】inum)。'/'/V/VAC の配列添字。</param>
+    /// <param name="values">格納先(【C原典】key_tbl.tr)。</param>
+    /// <param name="swKugiri">区切り状態(【C原典】sw_kugiri)。W 判定で 1 に更新することがある。</param>
+    /// <param name="swV2v3">二次/三次 電圧の格納先切替(【C原典】sw_v2v3)。</param>
+    /// <param name="errorCode">エラーNo.(【C原典】ErrNo)。</param>
+    /// <returns>0=正常 / -1=エラー。</returns>
+    private static short KeyCheckTr(string symbol, string val, int inum, RatingValues values, ref int swKugiri, ref int swV2v3, out string errorCode)
+    {
+        errorCode = string.Empty;
+        int iVal = AtoiC(val);
+        double fVal = AtofC(val);
+        int n = val.Length; // 【C原典】n = strlen(val)(桁確認用。値は文字列で保持)
+        _ = n;
+
+        // 【C原典】if( key_tbl.tr.v1[0][0] == '\0' ) … '/' 未通過(一次側 P/W)
+        if (!values.Has("v1[0]"))
+        {
+            if (symbol == "P")
+            {
+                if (iVal != 1 && iVal != 3) { errorCode = "FY-890E"; return -1; }
+                if (values.Has("p1")) { errorCode = "FY-891E"; return -1; }  // 登録済み
+                values.Set("p1", val);
+            }
+            if (symbol == "W")
+            {
+                if (iVal < 2 || iVal > 4) { errorCode = "FY-830E"; return -1; }
+                if (values.Has("w1")) { errorCode = "FY-829E"; return -1; }
+                values.Set("w1", val);
+            }
+        }
+        else
+        {
+            if (symbol == "P")
+            {
+                if (iVal != 1 && iVal != 3) { errorCode = "FY-890E"; return -1; }
+                if (!values.Has("p2"))
+                {
+                    values.Set("p2", val);
+                }
+                else
+                {
+                    if (values.Has("p3")) { errorCode = "FY-891E"; return -1; }
+                    values.Set("p3", val);
+                }
+            }
+            if (symbol == "W")
+            {
+                if (iVal < 2 || iVal > 4) { errorCode = "FY-830E"; return -1; }
+                if (!values.Has("w2"))
+                {
+                    values.Set("w2", val);
+                    if (FieldChar(values, "p2") == '1' && FieldChar(values, "w2") == '3') swKugiri = 1;
+                }
+                else
+                {
+                    if (values.Has("w3")) { errorCode = "FY-829E"; return -1; }
+                    values.Set("w3", val);
+                    if (FieldChar(values, "p3") == '1' && FieldChar(values, "w3") == '3') swKugiri = 1;
+                }
+            }
+        }
+
+        // 【C原典】'/'(定格電圧1)
+        if (symbol == "/")
+        {
+            if (iVal < 1 || iVal > 999) { errorCode = "FY-834E"; return -1; }
+            values.Set($"v1[{inum}]", val);
+        }
+        // 【C原典】V / VAC(二次=v2 / 三次=v3。処理は同一)
+        if (symbol == "V" || symbol == "VAC")
+        {
+            if (iVal < 1 || iVal > 999) { errorCode = "FY-802E"; return -1; }
+            if (swV2v3 == 0)
+            {
+                if (values.Has($"v2[{inum}]")) { errorCode = "FY-801E"; return -1; }
+                values.Set("fv2", "A");
+                values.Set($"v2[{inum}]", val);
+            }
+            else
+            {
+                if (values.Has($"v3[{inum}]")) { errorCode = "FY-801E"; return -1; }
+                values.Set("fv3", "A");
+                values.Set($"v3[{inum}]", val);
+            }
+        }
+        // 【C原典】VA(定格容量、そのまま)
+        if (symbol == "VA")
+        {
+            if (values.Has("va")) { errorCode = "FY-835E"; return -1; }
+            if (iVal < 1 || iVal > 999) { errorCode = "FY-836E"; return -1; }
+            values.Set("va", val);
+        }
+        // 【C原典】KVA(定格容量、×1000 して VA へ格納)
+        if (symbol == "KVA")
+        {
+            if (values.Has("va")) { errorCode = "FY-839E"; return -1; }
+            if (fVal < 0.01 || fVal > 999.99) { errorCode = "FY-840E"; return -1; }
+            long lVal = (long)(fVal * 1000); // 【C原典】l_val = f_val * 1000
+            values.Set("va", lVal.ToString());
+        }
+
+        return 0;
+    }
+
+    /// <summary>TR の値スロット配列(【C原典】CHAR value[10][20])を空文字で初期化して生成する。</summary>
+    private static string[] NewValueSlots()
+    {
+        string[] slots = new string[10];
+        for (int i = 0; i < slots.Length; i++)
+        {
+            slots[i] = string.Empty;
+        }
+        return slots;
+    }
+
+    /// <summary>格納済みフィールドの先頭文字(未登録は '\0')。【C原典】1バイトフィールド key_tbl.tr.pN/wN の参照。</summary>
+    private static char FieldChar(RatingValues values, string field)
+    {
+        string? s = values.Get(field);
+        return string.IsNullOrEmpty(s) ? '\0' : s[0];
     }
 
     /// <summary>

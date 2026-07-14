@@ -107,7 +107,9 @@
 関数,key_check_main/key_check_<TYPE>,ElectricalParameterChecker.KeyCheckMain,toku/sekkei/src/Fyss1d.c,値をRatingValues(key_tbl)へ格納し型別に重複・範囲検証(MCB/MC/MG/THR/MCDT/CSDT/SC収録)
 構造体/モデル,key_check_<TYPE>の各if/else分岐,ElectricalParameterChecker.KeyCheckRule/KeyCheckRules,toku/sekkei/src/Fyss1d.c,記号ごとの格納先・範囲・fv/fvc・重複/範囲エラーNo.をデータ駆動化
 関数,atoi/atof,ElectricalParameterChecker.AtoiC/AtofC,toku/sekkei/src/Fyss1d.c,Cのatoi/atofセマンティクス(先頭数値部のみ解釈)
-関数,TR_check_main/key_check_TR,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き)、E.2bで移植予定
+関数,TR_check_main,ElectricalParameterChecker.TrCheckMain,toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き sw_kugiri/sw_v2v3/ior1)。ft_tr をシーケンシャル走査
+関数,key_check_TR,ElectricalParameterChecker.KeyCheckTr,toku/sekkei/src/Fyss1d.c,TR 1値の範囲検証・格納(p1/w1・v1[]・p2,p3/w2,w3・fv2,v2[]・fv3,v3[]・va。KVAは×1000)
+テーブル,ft_tr,ElectricalParameterChecker.TransformerKeyTable,toku/include/sekkei/fyrt810.h,TR専用定格キー表(flag2=V/VAC いずれか必須)。RatingKeyTables とは別保持
 構造体/モデル,FYAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sekkei/fyrt810.h,定格キー1記号仕様(symbol/len/d_len/num/flag)。検証の権威はfyrt810.h(FySinTkakt.hは表示展開用で別物)
 テーブル,fyak_tbl/ft_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,予約語→定格キー表(fyak_tbl経由でCheck_1_Groupが参照する検証表)
 union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)。E.3でDomainへ移動(KIKITABLEが保持)
