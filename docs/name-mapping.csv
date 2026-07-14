@@ -108,8 +108,8 @@
 構造体/モデル,key_check_<TYPE>の各if/else分岐,ElectricalParameterChecker.KeyCheckRule/KeyCheckRules,toku/sekkei/src/Fyss1d.c,記号ごとの格納先・範囲・fv/fvc・重複/範囲エラーNo.をデータ駆動化
 関数,atoi/atof,ElectricalParameterChecker.AtoiC/AtofC,toku/sekkei/src/Fyss1d.c,Cのatoi/atofセマンティクス(先頭数値部のみ解釈)
 関数,TR_check_main/key_check_TR,ElectricalParameterChecker.CheckParameters(TR分岐スタブ),toku/sekkei/src/Fyss1d.c,変圧器専用パーサ(多スロット/状態付き)、E.2bで移植予定
-構造体/モデル,TKAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sin/FySinTkakt.h,定格キー1記号仕様(symbol/len/d_len/num/flag)
-テーブル,tkak_tbl/t_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,予約語→定格キー表(E.1は基本機種の第1バッチ)
+構造体/モデル,FYAK_T,ElectricalParameterChecker.RatingKeySpec,toku/include/sekkei/fyrt810.h,定格キー1記号仕様(symbol/len/d_len/num/flag)。検証の権威はfyrt810.h(FySinTkakt.hは表示展開用で別物)
+テーブル,fyak_tbl/ft_mcb等,ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,予約語→定格キー表(fyak_tbl経由でCheck_1_Groupが参照する検証表)
 union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt811.h,機器種別の電気パラメータ格納unionをフィールド名→値の辞書で表現(1機器=1型)。E.3でDomainへ移動(KIKITABLEが保持)
 関数,Fyss12_Make_Main,MainCircuitBuilder.MakeMain,toku/sekkei/src/Fyss12.c,主回路生成の統括(17段)
 関数,Keitou_Check,MainCircuitBuilder.CheckSystemComposition,toku/sekkei/src/Fyss12.c,系統チェック(系統内行種検証)
@@ -162,6 +162,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,GNO,EquipmentTableEntry.GroupCircuitNumberText,toku/include/sekkei/struct.h,指定回路番号(グループ集約)
 構造体/モデル,FYRT800(分解結果),MainCircuitSegment,toku/sekkei/src/Fyss1f.c,主回路数量分解結果(レコード整形は段階移植)
 列挙,(分解種別),MainCircuitSegmentKind,toku/sekkei/src/Fyss1f.c,分解種別(Simple/Iteration/CircuitNumber)
-テーブル,t_vs/t_tb/…/t_vvvf(残り約70表),ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,単純構造の残り定格キー表を追加(先頭数字2ERY系含む。'/'含む表・TR/TM/PT/BPは後続)
-テーブル,t_am/t_vt/t_ct/t_rtr/t_bltr/t_pltr/t_thsw/t_wh,ElectricalParameterChecker.RatingKeyTables,toku/include/sin/FySinTkakt.h,CT/VT付き('/')定格キー表を追加(構造検証。特殊展開VM/TM/TR/PT/BPは後続)
+テーブル,ft_vs/ft_tb/…(fyak_tblの単純構造表),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,単純構造の残り定格キー表(先頭数字2ERY系含む。空表STM/SIR/C/R/D等は忠実に空配列。'/'含む表は下段。TR/PT/BPは保留)
+テーブル,ft_am/ft_vt/ft_ct/ft_rtr/ft_bltr/ft_pltr/ft_thsw/ft_wh,ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,CT/VT付き('/')定格キー表(構造検証。VM/TMも移植済。特殊展開TR/PT/BPは保留)
 関数,next_1_get,ElectricalParameterChecker.NextOneGet,toku/sekkei/src/Fyss1d.c,CT/VT付き'/'直後の副記号n_kigoを取得(消費先key_check_WHはE.2)
+テーブル,ft_rmcb(予約語RMCB),ElectricalParameterChecker.RatingKeyTables["RMCB"],toku/include/sekkei/fyrt810.h,fyak_tblの予約語はRMCB(旧誤記RECBから是正)
+テーブル,fyak_tblマッピング(G→ft_g1/GI→ft_i/GP→ft_p/GPN→ft_n),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,fyak_tblの予約語→ft_表マッピングのクセ(G/GI/GP/GPNは別名表を共有)。SMTKP/SMTSS/SMTRYはft_tsuを再利用

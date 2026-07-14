@@ -12,10 +12,10 @@ using Ews.Domain.Analysis;
 ///   - 記号  : change_parm_data()  … 記号部文字列を切り出す。
 ///   - 補助  : digit_skip/not_digit_skip/delimit_skip/piriod_skip(Fyss1d.c:10332~)。
 ///
-/// 【定格キー表】toku/include/sin/FySinTkakt.h
-///   - TKAK_T{symbol[5],len,d_len,num,flag}   → <see cref="RatingKeySpec"/>
-///   - TKAK_TBL{yoyaku[8],flag,tkak_t*}        → <see cref="RatingKeyTables"/> の辞書エントリ
-///   - t_mcb[]/t_elb[]… 約100表(予約語→定格キー表)。
+/// 【定格キー表】toku/include/sekkei/fyrt810.h(検証の正典。表示展開用の FySinTkakt.h t_* とは別)
+///   - FYAK_T{symbol[5],len,d_len,num,flag}    → <see cref="RatingKeySpec"/>
+///   - FYAK_TBL{yoyaku[8],flag,tkak_t*}         → <see cref="RatingKeyTables"/> の辞書エントリ
+///   - ft_mcb[]/ft_elb[]… 約130表(予約語→定格キー表)。
 ///
 /// フェーズE.1で <b>型非依存の中核パーサ(構造検証)</b> を、フェーズE.2で
 /// <b>値格納・範囲検証(key_check)</b> を忠実移植する。
@@ -23,13 +23,14 @@ using Ews.Domain.Analysis;
 /// <see cref="KeyCheckMain"/> が型別ルール(<see cref="KeyCheckRules"/>)で重複・範囲を検証する。
 /// E.2では MCB/MC/MG/THR/MCDT/CSDT/SC を収録(いずれも走査単位が単純な機種)。
 /// MA[3][3] 等の inum 索引配列を持つ ELB/R* や、奇数丸め特殊処理の NT、
-/// および TR(変圧器)専用パーサ TR_check_main()・特殊展開(VM/TM/PT/BP)は
-/// 後続フェーズで対応する。CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)は移植済み。
+/// および TR(変圧器)専用パーサ TR_check_main()・特殊展開プレースホルダ(PT/BP)は
+/// 後続フェーズで対応する。CT/VT付き('/')の構造検証(next_1_get/n_kigo 含む)と
+/// VM/TM は通常構造として移植済み。
 /// </summary>
 public sealed class ElectricalParameterChecker
 {
     /// <summary>
-    /// 定格キー1記号の仕様。【C原典】FySinTkakt.h の <c>TKAK_T</c> 構造体。
+    /// 定格キー1記号の仕様。【C原典】fyrt810.h の <c>FYAK_T</c> 構造体。
     /// </summary>
     /// <param name="Symbol">記号名(例 "AF","AT","VAC")。【C原典】symbol[5]。</param>
     /// <param name="Length">値全体の許容桁数(整数＋小数)。【C原典】len。</param>
@@ -44,30 +45,37 @@ public sealed class ElectricalParameterChecker
         int Flag);
 
     /// <summary>
-    /// 予約語 → 定格キー表 の対応辞書。【C原典】FySinTkakt.h の <c>tkak_tbl[]</c> と各 <c>t_xxx[]</c>。
-    /// 値はメンバ表(TKAK_T[])。末尾の NULL 番兵({NULL,0,0,0,0})は移植しない(配列長で判定)。
+    /// 予約語 → 定格キー表 の対応辞書。【C原典】fyrt810.h(FyInspecTkakt.h)の <c>fyak_tbl[]</c> と各 <c>ft_xxx[]</c>。
+    /// これがパラメータ検証(Parm_Check_Main → Check_1_Group が参照する <c>fyak_tbl[iNo].tkak_t</c>)の正典。
+    /// 値はメンバ表(FYAK_T[])。末尾の NULL 番兵({"",0,0,0,0})は移植しない(配列長で判定)。
     ///
-    /// 単純構造の定格キー表に加え、記号 '/' を含む CT/VT付き表(AM/VT/CT/RTR/BLTR/PLTR/THSW/WH)も収録する
-    /// (遮断器・電磁接触器・表示灯・計器・端子台・計器用変成器など大多数の機種)。
-    /// 引き続き後続フェーズで扱うのは次のみ:
-    ///   - 特殊展開(tkak_tbl の flag が非0): VM/TM/TR/PT/BP
-    ///     (予約語展開・専用パーサ TR_check_main が前提。VM は t_vm も全 '/' 記号)
+    /// 注意: 定格キー"展開"(表示文字列生成 FySinTkaktKeyTenkai)用の FySinTkakt.h <c>t_xxx[]</c> とは
+    ///       別実体であり値も異なる。検証には必ず本 fyrt810.h の <c>ft_xxx[]</c> を用いる。
+    ///
+    /// '/'(CT/VT付き)を含む表(WH/VM/AM/VT/CT/RTR/BLTR/PLTR/THSW)は通常パーサで検証できる
+    /// (Get_1_Group が '/' を記号として切り出し、NextOneGet が副記号を取得)。
+    /// 空表(検証記号なし)は C 原典に忠実に空配列で収録し、任意パラメータは FY-699E とする:
+    ///   STM/SIR/C/R/D/NICA/RE/VVVF/TVZ/TVB/TVH/TVK/SPACE/AL。
+    /// 後続フェーズ扱い(通常検証に載らない特殊展開): TR(専用パーサ TR_check_main)、
+    ///   PT/BP(空記号プレースホルダ len25、fyak_tbl の flag 非0)は本辞書に含めない。
     /// </summary>
     private static readonly IReadOnlyDictionary<string, RatingKeySpec[]> RatingKeyTables =
         new Dictionary<string, RatingKeySpec[]>(StringComparer.Ordinal)
         {
-            // t_mcb[] … MCB
+            // ==== 遮断器・開閉器・計器系(fyak_tbl 順) ====
+            // ft_mcb[] … MCB
             ["MCB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 4, 0, 1, 0),
                 new("AT", 4, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("A", 4, 0, 1, 0),
             ],
-            // t_elb[] … ELB
+            // ft_elb[] … ELB
             ["ELB"] =
             [
                 new("P", 1, 0, 1, 0),
@@ -75,49 +83,61 @@ public sealed class ElectricalParameterChecker
                 new("AF", 4, 0, 1, 0),
                 new("AT", 4, 0, 1, 0),
                 new("MA", 3, 0, 3, 0),
-                new("VAC", 3, 0, 4, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("A", 4, 0, 1, 0),
             ],
-            // t_mmcb[] … MMCB
+            // ft_mmcb[] … MMCB
             ["MMCB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 3, 0, 1, 0),
                 new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
                 new("VAC", 3, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
             ],
-            // t_elmb[] … ELMB
+            // ft_elmb[] … ELMB
             ["ELMB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 3, 0, 1, 0),
                 new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
                 new("MA", 3, 0, 3, 0),
-                new("VAC", 3, 0, 4, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
             ],
-            // t_sb[] … SB
+            // ft_sb[] … SB
             ["SB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 2, 0, 1, 0),
                 new("AT", 2, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
             ],
-            // t_rmcb[] … 予約語 "RECB"(tkak_tbl 上の予約語名は RECB)
-            ["RECB"] =
+            // ft_rmcb[] … RMCB(【C原典】fyak_tbl の予約語名は "RMCB"。旧移植の "RECB" は誤り)
+            ["RMCB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 2, 0, 1, 0),
                 new("AT", 2, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
-                new("VCAC", 3, 0, 2, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
             ],
-            // t_relb[] … 予約語 "RELB"
+            // ft_relb[] … RELB
             ["RELB"] =
             [
                 new("P", 1, 0, 1, 0),
@@ -125,532 +145,905 @@ public sealed class ElectricalParameterChecker
                 new("AF", 2, 0, 1, 0),
                 new("AT", 2, 0, 1, 0),
                 new("MA", 3, 0, 3, 0),
-                new("VAC", 3, 0, 4, 0),
-                new("VCAC", 3, 0, 2, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
             ],
-            // t_rmmcb[] … 予約語 "RMMCB"
+            // ft_rmmcb[] … RMMCB
             ["RMMCB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 2, 0, 1, 0),
                 new("AT", 4, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
-                new("VCAC", 3, 0, 2, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
             ],
-            // t_relmb[] … 予約語 "RELMB"
+            // ft_relmb[] … RELMB
             ["RELMB"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("AF", 2, 0, 1, 0),
                 new("AT", 4, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
                 new("MA", 3, 0, 3, 0),
-                new("VAC", 3, 0, 4, 0),
-                new("VCAC", 3, 0, 2, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
             ],
-            // t_mc[] … MC(AC/BC は特殊コメント ########## 付きだが構造検証上は通常記号)
+            // ft_mc[] … MC(AC/BC は flag1)
             ["MC"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
                 new("AC", 1, 0, 1, 1),
                 new("BC", 1, 0, 1, 1),
             ],
-            // t_thr[] … THR
+            // ft_thr[] … THR
             ["THR"] =
             [
                 new("E", 1, 0, 1, 0),
-                new("AF", 5, 2, 1, 0),
-                new("AT", 5, 2, 2, 0),
+                new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
             ],
-            // t_mg[] … MG
+            // ft_mg[] … MG(AC/BC は flag1)
             ["MG"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("E", 1, 0, 1, 0),
                 new("A", 3, 0, 1, 0),
-                new("AF", 5, 2, 1, 0),
-                new("AT", 5, 2, 2, 0),
+                new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
                 new("AC", 1, 0, 1, 1),
                 new("BC", 1, 0, 1, 1),
             ],
-            // t_sc[] … SC
+            // ft_sc[] … SC
             ["SC"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("KVAR", 5, 2, 1, 0),
                 new("UF", 5, 1, 1, 0),
-                new("VAC", 3, 0, 2, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
                 new("HZ", 2, 0, 1, 0),
             ],
-            // t_nt[] … NT
+            // ft_nt[] … NT
             ["NT"] =
             [
                 new("P", 3, 0, 1, 0),
                 new("A", 2, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_mcdt[] … MCDT(電源切替開閉器 / Ele_Equal_Check step3 対象)
-            ["MCDT"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-            ],
-            // t_csdt[] … CSDT(切替カバースイッチ / Ele_Equal_Check step3 対象)
-            ["CSDT"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-
-            // ==== 追加バッチ(残りの型): FySinTkakt.h の単純構造表(記号 '/' なし・非特殊展開)を転記 ====
-            // 【C原典】tkak_tbl[] の予約語名で登録。CT/VT付き('/': AM/VT/CT/RTR/BLTR/PLTR/THSW/WH)は
-            //          後段の「CT/VT付き('/')表」セクションで追加。特殊展開(VM/TM/TR/PT/BP)は
-            //          独自パーサ(予約語展開・TR_check_main)依存のため引き続き後続フェーズ。
-
-            // t_vs[] … VS
-            ["VS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
-            // t_as[] … AS
-            ["AS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
-            // t_tb[] … TB
-            ["TB"] =
-            [
-                new("P", 3, 0, 1, 0),
-                new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("SQ", 5, 2, 1, 0),
-            ],
-            // t_con[] … CON
-            ["CON"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 2, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_zct[] … ZCT
-            ["ZCT"] = [new("A", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("P", 3, 0, 1, 0)],
-            // t_lgr[] … LGR
-            ["LGR"] = [new("K", 2, 0, 1, 0), new("MA", 4, 0, 4, 0), new("VCAC", 3, 0, 2, 0)],
-            // t_elr[] … ELR
-            ["ELR"] = [new("MA", 3, 0, 3, 0), new("VCAC", 3, 0, 4, 0)],
-            // t_hpsb[] … HPSB
-            ["HPSB"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("AF", 3, 0, 1, 0),
-                new("AT", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
-                new("AM", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
             ],
-            // t_hsb[] … HSB
-            ["HSB"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("AF", 3, 0, 1, 0),
-                new("AT", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("AM", 3, 0, 1, 0),
-            ],
-            // t_rry[] … RRY
-            ["RRY"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 2, 0, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VCAC", 3, 0, 2, 0),
-            ],
-            // t_f[] … F(改訂<1>: A の桁数 2→3)
-            ["F"] =
-            [
-                new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_la[] … LA
-            ["LA"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0), new("VAC", 3, 0, 1, 0)],
-            // t_dcpw[] … DCPW
-            ["DCPW"] = [new("A", 5, 2, 1, 0), new("VAC", 3, 0, 4, 0), new("VDC", 3, 1, 1, 0)],
-            // t_cr[] … CR(AC/BC/CC は ########## 付だが構造検証上は通常記号)
-            ["CR"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AC", 2, 0, 1, 1),
-                new("BC", 2, 0, 1, 1),
-                new("CC", 2, 0, 1, 1),
-            ],
-            // t_ts[] … TS
-            ["TS"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AC", 2, 0, 1, 1),
-                new("BC", 2, 0, 1, 1),
-                new("CC", 2, 0, 1, 1),
-            ],
-            // t_g1[]/t_g2[]/t_g3[]/t_g4[] … G1/G2/G3/G4
-            ["G1"] = [new("VCAC", 3, 0, 4, 0)],
-            ["G2"] = [new("VCAC", 3, 0, 4, 0)],
-            ["G3"] = [new("VCAC", 3, 0, 4, 0)],
-            ["G4"] = [new("VCAC", 3, 0, 4, 0)],
-            // t_i[]/t_p[]/t_n[] … I/P/N
-            ["I"] = [new("VCAC", 3, 0, 4, 0)],
-            ["P"] = [new("VCAC", 3, 0, 4, 0)],
-            ["N"] = [new("VCAC", 3, 0, 4, 0)],
-            // t_gl[]/t_rl[]/t_ol[]/t_bl[]/t_wl[] … 表示灯 GL/RL/OL/BL/WL(同一構造)
-            ["GL"] =
-            [
-                new("V", 4, 1, 1, 1),
-                new("VAC", 4, 1, 1, 1),
-                new("VDC", 4, 1, 1, 1),
-                new("W", 3, 2, 1, 0),
-                new("P", 3, 1, 1, 0),
-            ],
-            ["RL"] =
-            [
-                new("V", 4, 1, 1, 1),
-                new("VAC", 4, 1, 1, 1),
-                new("VDC", 4, 1, 1, 1),
-                new("W", 3, 2, 1, 0),
-                new("P", 3, 1, 1, 0),
-            ],
-            ["OL"] =
-            [
-                new("V", 4, 1, 1, 1),
-                new("VAC", 4, 1, 1, 1),
-                new("VDC", 4, 1, 1, 1),
-                new("W", 3, 2, 1, 0),
-                new("P", 3, 1, 1, 0),
-            ],
-            ["BL"] =
-            [
-                new("V", 4, 1, 1, 1),
-                new("VAC", 4, 1, 1, 1),
-                new("VDC", 4, 1, 1, 1),
-                new("W", 3, 2, 1, 0),
-                new("P", 3, 1, 1, 0),
-            ],
-            ["WL"] =
-            [
-                new("V", 4, 1, 1, 1),
-                new("VAC", 4, 1, 1, 1),
-                new("VDC", 4, 1, 1, 1),
-                new("W", 3, 2, 1, 0),
-                new("P", 3, 1, 1, 0),
-            ],
-            // t_cos[]/t_pbs[] … COS/PBS(同一構造)
-            ["COS"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("P", 3, 1, 1, 0),
-            ],
-            ["PBS"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("P", 3, 1, 1, 0),
-            ],
-            // t_ssw[] … SSW
-            ["SSW"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_tsw[] … TSW
-            ["TSW"] = [new("P", 1, 0, 1, 0), new("A", 4, 2, 1, 0), new("VAC", 3, 0, 1, 0)],
-            // t_bz[] … BZ(全記号 ##########)
-            ["BZ"] =
-            [
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("W", 3, 2, 1, 1),
-                new("VA", 3, 2, 1, 1),
-            ],
-            // t_bel[] … BEL
-            ["BEL"] =
-            [
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("W", 3, 2, 1, 1),
-                new("VA", 3, 2, 1, 1),
-                new("P", 3, 0, 1, 0),
-            ],
-            // t_cp[] … CP
-            ["CP"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("AF", 2, 0, 1, 0),
-                new("AT", 2, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_rsw[] … RSW
-            ["RSW"] = [new("K", 3, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
-            // t_ee[] … EE
-            ["EE"] = [new("A", 2, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
-            // t_hm[] … HM
-            ["HM"] = [new("VCAC", 3, 0, 2, 0), new("HZ", 2, 0, 1, 0)],
-            // t_2ery[]/t_3ery[]/t_4ery[] … 2ERY/3ERY/4ERY(先頭数字予約語, 同一構造)。
-            // d_parm 抽出(CircuitStringChecker.ExtractElectricalParameter)が先頭数字予約語に
-            // 対応済みのため収録。
-            ["2ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
-            ["3ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
-            ["4ERY"] = [new("AF", 5, 2, 1, 0), new("AT", 5, 2, 2, 0), new("VCAC", 3, 0, 4, 0)],
-            // t_cks[] … CKS
-            ["CKS"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("E", 1, 0, 1, 0),
-                new("A", 3, 0, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_cu[] … CU
-            ["CU"] = [new("VCAC", 3, 0, 2, 0)],
-            // t_tu[] … TU
-            ["TU"] = [new("K", 1, 0, 1, 0), new("VCAC", 3, 0, 2, 0)],
-            // t_nhmb[] … NHMB
-            ["NHMB"] = [new("P", 1, 0, 1, 0), new("AT", 4, 2, 1, 0), new("VAC", 3, 0, 4, 0)],
-            // t_apn[] … APN
-            ["APN"] = [new("VCAC", 3, 0, 4, 0)],
-            // t_sl23[]/t_sl32[]/t_sl42[]/t_sl43[] … SL23/SL32/SL42/SL43(同一構造)
-            ["SL23"] = [new("VCAC", 3, 0, 4, 0)],
-            ["SL32"] = [new("VCAC", 3, 0, 4, 0)],
-            ["SL42"] = [new("VCAC", 3, 0, 4, 0)],
-            ["SL43"] = [new("VCAC", 3, 0, 4, 0)],
-            // t_lgt[] … LGT
-            ["LGT"] =
-            [
-                new("P", 1, 0, 1, 0),
-                new("A", 4, 0, 1, 0),
-                new("T", 3, 1, 1, 0),
-                new("W", 3, 0, 1, 0),
-            ],
-            // t_fl[] … FL
-            ["FL"] = [new("VAC", 3, 0, 2, 0), new("W", 2, 0, 1, 0)],
-            // t_lsw[] … LSW
-            ["LSW"] =
-            [
-                new("A", 5, 3, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_dsw[] … DSW
-            ["DSW"] =
-            [
-                new("A", 5, 3, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-            ],
-            // t_sv[] … SV
-            ["SV"] = [new("VAC", 3, 0, 1, 0), new("VA", 2, 0, 1, 0)],
-            // t_mv[] … MV(VA/W は ##########)
-            ["MV"] =
-            [
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VA", 3, 0, 1, 1),
-                new("W", 3, 0, 1, 1),
-            ],
-            // t_kpry[] … KPRY
-            ["KPRY"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AC", 1, 0, 1, 0),
-                new("BC", 1, 0, 1, 0),
-                new("CC", 1, 0, 1, 0),
-            ],
-            // t_l[] … L
-            ["L"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0), new("A", 2, 0, 1, 0)],
-            // t_idf[] … IDF
-            ["IDF"] = [new("P", 3, 0, 1, 0)],
-            // t_mcfr[] … MCFR(AC/BC は ##########)
-            ["MCFR"] =
-            [
-                new("A", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AC", 1, 0, 1, 1),
-                new("BC", 1, 0, 1, 1),
-            ],
-            // t_mgfr[] … MGFR
-            ["MGFR"] =
-            [
-                new("E", 1, 0, 1, 0),
-                new("A", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AC", 1, 0, 1, 1),
-                new("BC", 1, 0, 1, 1),
-                new("AF", 5, 2, 1, 0),
-                new("AT", 5, 2, 2, 0),
-            ],
-            // t_mcsd[] … MCSD
-            ["MCSD"] =
-            [
-                new("A", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-            ],
-            // t_mgsd[] … MGSD
-            ["MGSD"] =
-            [
-                new("E", 1, 0, 1, 0),
-                new("A", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-                new("AF", 5, 2, 1, 0),
-                new("AT", 5, 2, 2, 0),
-            ],
-            // t_mgld[] … MGLD
-            ["MGLD"] =
-            [
-                new("KW", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-            ],
-            // t_mgcs[] … MGCS
-            ["MGCS"] =
-            [
-                new("KW", 5, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VC", 3, 0, 2, 1),
-                new("VCAC", 3, 0, 2, 1),
-                new("VCDC", 3, 0, 2, 1),
-            ],
-            // t_stm[] … STM
-            ["STM"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("VAC", 3, 0, 1, 0),
-                new("VCAC", 3, 0, 3, 0),
-                new("S", 3, 0, 2, 0),
-            ],
-            // t_sir[] … SIR
-            ["SIR"] = [new("A", 2, 0, 1, 0), new("VAC", 3, 0, 1, 0)],
-            // t_c[] … C
-            ["C"] = [new("UF", 4, 0, 1, 0), new("VDC", 3, 0, 1, 0)],
-            // t_r[] … R
-            ["R"] = [new("VDC", 3, 0, 1, 0), new("W", 4, 2, 1, 0), new("O", 4, 0, 1, 0)],
-            // t_d[] … D
-            ["D"] = [new("A", 2, 0, 1, 0), new("VDC", 3, 0, 1, 0)],
-            // t_nica[] … NICA
-            ["NICA"] = [new("VDC", 3, 0, 1, 0), new("MAH", 4, 0, 1, 0)],
-            // t_re[] … RE
-            ["RE"] = [new("KW", 4, 1, 1, 0)],
-            // t_vvvf[] … VVVF
-            ["VVVF"] = [new("KW", 4, 2, 1, 0), new("VAC", 3, 0, 2, 0)],
-
-            // ==== CT/VT付き('/')表: 記号 '/' を先頭に含む定格キー表 ====
-            // 【C原典】Get_1_Group は '/' で数値部走査を打ち切り、not_digit_skip で '/' を記号として
-            //          切り出し、next_1_get(=NextOneGet)が '/' 直後の副記号を n_kigo に取得する。
-            //          Parm_Check_Main の主ループは keta1+ketak 分だけ前進するため、'/' 後続の
-            //          「副数値＋記号」も通常グループとして順次検証される。
-            //          特殊展開(tkak_tbl flag 非0)の VM/TM/PT/BP と TR は引き続き後続フェーズ。
-            // t_am[] … AM
-            ["AM"] = [new("/", 3, 0, 1, 1), new("A", 3, 0, 1, 0)],
-            // t_vt[] … VT
-            ["VT"] = [new("/", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("VA", 3, 0, 1, 0)],
-            // t_ct[] … CT
-            ["CT"] = [new("/", 4, 0, 1, 0), new("A", 3, 0, 1, 0), new("VA", 3, 0, 1, 0)],
-            // t_rtr[] … RTR
-            ["RTR"] = [new("/", 3, 0, 1, 0), new("VAC", 2, 0, 1, 0), new("VA", 2, 0, 1, 0)],
-            // t_bltr[] … BLTR
-            ["BLTR"] = [new("/", 3, 0, 1, 0), new("VAC", 2, 0, 1, 0), new("VA", 2, 0, 1, 0)],
-            // t_pltr[] … PLTR
-            ["PLTR"] = [new("/", 3, 0, 1, 0), new("VAC", 3, 1, 1, 0), new("VA", 1, 0, 1, 0)],
-            // t_thsw[] … THSW('C/' は英字始まりのため通常走査で記号として切り出される)
-            ["THSW"] =
-            [
-                new("A", 4, 2, 1, 0),
-                new("V", 3, 0, 1, 1),
-                new("VAC", 3, 0, 1, 1),
-                new("VDC", 3, 0, 1, 1),
-                new("C/", 3, 0, 1, 0),
-                new("C", 3, 0, 1, 0),
-            ],
-            // t_wh[] … WH('/' 記号が2回。副記号 A/V を n_kigo で判別 → key_check_WH は E.2)
+            // ft_wh[] … WH('/' は flag1。副記号 A/V を NextOneGet で判別 → key_check_WH は E.2)
             ["WH"] =
             [
                 new("P", 1, 0, 1, 0),
                 new("W", 1, 0, 1, 0),
                 new("/", 3, 0, 1, 1),
                 new("A", 3, 0, 1, 0),
-                new("/", 3, 0, 1, 1),
+                new("V", 3, 0, 1, 0),
                 new("VAC", 3, 0, 1, 0),
                 new("HZ", 2, 0, 1, 0),
             ],
+            // ft_vm[] … VM(【C原典】fyak_tbl flag=FY_SY_VM だが表は '/'含の通常構造で検証可)
+            ["VM"] =
+            [
+                new("/", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_am[] … AM('/' は len4/flag1)
+            ["AM"] =
+            [
+                new("/", 4, 0, 1, 1),
+                new("A", 4, 0, 1, 0),
+            ],
+            // ft_vt[] … VT
+            ["VT"] =
+            [
+                new("/", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VA", 3, 0, 1, 0),
+            ],
+            // ft_ct[] … CT
+            ["CT"] =
+            [
+                new("/", 4, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("VA", 2, 0, 1, 0),
+            ],
+            // ft_vs[] … VS
+            ["VS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
+            // ft_as[] … AS
+            ["AS"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0)],
+            // ft_tb[] … TB
+            ["TB"] =
+            [
+                new("P", 3, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("SQ", 5, 2, 1, 0),
+            ],
+            // ft_con[] … CON
+            ["CON"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // (TR は fyak_tbl flag=FY_SY_TR。専用パーサ TR_check_main のため本辞書に含めず後続フェーズ)
+
+            // ==== リレー・接地・保護・付属機器系 ====
+            // ft_zct[] … ZCT
+            ["ZCT"] =
+            [
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("P", 3, 0, 1, 0),
+            ],
+            // ft_lgr[] … LGR
+            ["LGR"] =
+            [
+                new("K", 2, 0, 1, 0),
+                new("MA", 4, 0, 4, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+            ],
+            // ft_elr[] … ELR
+            ["ELR"] = [new("MA", 3, 0, 3, 0), new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_hpsb[] … HPSB
+            ["HPSB"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 3, 0, 1, 0),
+                new("AT", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("AM", 3, 0, 1, 0),
+            ],
+            // ft_hsb[] … HSB
+            ["HSB"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 3, 0, 1, 0),
+                new("AT", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("AM", 3, 0, 1, 0),
+            ],
+            // ft_rry[] … RRY
+            ["RRY"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 2, 0, 1, 0),
+                new("VCAC", 2, 0, 1, 0),
+            ],
+            // ft_rtr[] … RTR('/' 先頭)
+            ["RTR"] =
+            [
+                new("/", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VA", 2, 0, 1, 0),
+            ],
+            // ft_mcdt[] … MCDT(電源切替開閉器 / Ele_Equal_Check step3 対象)
+            ["MCDT"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_f[] … F
+            ["F"] =
+            [
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_la[] … LA
+            ["LA"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("W", 1, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+            ],
+            // ft_dcpw[] … DCPW
+            ["DCPW"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("W", 4, 1, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_cr[] … CR(AC/BC/CC は flag1)
+            ["CR"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            // ft_tm[] … TM(【C原典】fyak_tbl flag=FY_SY_TM だが通常構造で検証可。
+            //          SSET/MSET/HSET/S//M//H//S/M/H はタイマ設定値)
+            ["TM"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("SSET", 8, 3, 1, 0),
+                new("MSET", 8, 3, 1, 0),
+                new("HSET", 8, 3, 1, 0),
+                new("S/", 8, 3, 1, 0),
+                new("M/", 8, 3, 1, 0),
+                new("H/", 8, 3, 1, 0),
+                new("S", 8, 3, 1, 0),
+                new("M", 8, 3, 1, 0),
+                new("H", 8, 3, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            // ft_ts[] … TS(AC/BC/CC は flag1)
+            ["TS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            // ft_g1[] … G/G1(【C原典】fyak_tbl: G→ft_g1, G1→ft_g1)
+            ["G"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["G1"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_g2[]/ft_g3[]/ft_g4[] … G2/G3/G4
+            ["G2"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["G3"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["G4"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_i[]/ft_p[]/ft_n[] … GI/GP/GPN(【C原典】fyak_tbl: GI→ft_i, GP→ft_p, GPN→ft_n)
+            ["GI"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["GP"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["GPN"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_gl[]/ft_rl[]/ft_ol[]/ft_bl[]/ft_wl[] … 表示灯 GL/RL/OL/BL/WL(同一構造)
+            ["GL"] =
+            [
+                new("V", 4, 1, 1, 0),
+                new("VAC", 4, 1, 1, 0),
+                new("VDC", 4, 1, 1, 0),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["RL"] =
+            [
+                new("V", 4, 1, 1, 0),
+                new("VAC", 4, 1, 1, 0),
+                new("VDC", 4, 1, 1, 0),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["OL"] =
+            [
+                new("V", 4, 1, 1, 0),
+                new("VAC", 4, 1, 1, 0),
+                new("VDC", 4, 1, 1, 0),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["BL"] =
+            [
+                new("V", 4, 1, 1, 0),
+                new("VAC", 4, 1, 1, 0),
+                new("VDC", 4, 1, 1, 0),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["WL"] =
+            [
+                new("V", 4, 1, 1, 0),
+                new("VAC", 4, 1, 1, 0),
+                new("VDC", 4, 1, 1, 0),
+                new("W", 3, 2, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            // ft_cos[]/ft_pbs[] … COS/PBS(同一構造)
+            ["COS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            ["PBS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("P", 3, 1, 1, 0),
+            ],
+            // ft_ssw[]/ft_tsw[] … SSW/TSW(同一構造)
+            ["SSW"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            ["TSW"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_bz[] … BZ(全記号 flag1)
+            ["BZ"] =
+            [
+                new("VC", 3, 0, 1, 1),
+                new("VCAC", 3, 0, 1, 1),
+                new("VCDC", 3, 0, 1, 1),
+                new("W", 3, 2, 1, 1),
+                new("VA", 3, 2, 1, 1),
+            ],
+            // ft_bel[] … BEL
+            ["BEL"] =
+            [
+                new("VC", 3, 0, 1, 1),
+                new("VCAC", 3, 0, 1, 1),
+                new("VCDC", 3, 0, 1, 1),
+                new("W", 3, 2, 1, 1),
+                new("VA", 3, 2, 1, 1),
+                new("P", 3, 0, 1, 0),
+            ],
+            // ft_cp[] … CP
+            ["CP"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AF", 2, 0, 1, 0),
+                new("AT", 2, 0, 1, 0),
+                new("A", 2, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_rsw[] … RSW
+            ["RSW"] = [new("K", 3, 0, 1, 0), new("VC", 2, 0, 1, 0), new("VCAC", 2, 0, 1, 0)],
+            // ft_ee[] … EE
+            ["EE"] = [new("A", 2, 0, 1, 0), new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_hm[] … HM
+            ["HM"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0), new("HZ", 2, 0, 1, 0)],
+            // ft_2ery[]/ft_3ery[]/ft_4ery[] … 2ERY/3ERY/4ERY(先頭数字予約語, 同一構造)
+            ["2ERY"] =
+            [
+                new("AF", 5, 2, 1, 0),
+                new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+            ],
+            ["3ERY"] =
+            [
+                new("AF", 5, 2, 1, 0),
+                new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+            ],
+            ["4ERY"] =
+            [
+                new("AF", 5, 2, 1, 0),
+                new("AT", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+            ],
+            // ft_cks[] … CKS
+            ["CKS"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("E", 1, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_csdt[] … CSDT(切替カバースイッチ / Ele_Equal_Check step3 対象)
+            ["CSDT"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 3, 0, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_cu[] … CU
+            ["CU"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_tu[] … TU
+            ["TU"] = [new("K", 1, 0, 1, 0), new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_nhmb[] … NHMB
+            ["NHMB"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("AT", 4, 2, 1, 0),
+                new("KW", 3, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("A", 4, 2, 1, 0),
+            ],
+            // ft_apn[] … APN
+            ["APN"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_sl23[]/ft_sl32[]/ft_sl42[]/ft_sl43[] … SL23/SL32/SL42/SL43(同一構造)
+            ["SL23"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["SL32"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["SL42"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            ["SL43"] = [new("VC", 3, 0, 1, 0), new("VCAC", 3, 0, 1, 0)],
+            // ft_lgt[] … LGT
+            ["LGT"] =
+            [
+                new("P", 1, 0, 1, 0),
+                new("A", 4, 0, 1, 0),
+                new("T", 3, 1, 1, 0),
+                new("W", 2, 0, 1, 0),
+            ],
+            // ft_bltr[] … BLTR('/' 先頭)
+            ["BLTR"] =
+            [
+                new("/", 3, 0, 1, 0),
+                new("V", 2, 0, 1, 0),
+                new("VAC", 2, 0, 1, 0),
+                new("VA", 2, 0, 1, 0),
+            ],
+            // ft_pltr[] … PLTR('/' 先頭)
+            ["PLTR"] =
+            [
+                new("/", 3, 0, 1, 0),
+                new("V", 2, 0, 1, 0),
+                new("VAC", 2, 0, 1, 0),
+                new("VA", 2, 0, 1, 0),
+            ],
+            // ft_fl[] … FL
+            ["FL"] = [new("V", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("W", 2, 0, 1, 0)],
+            // ft_lsw[] … LSW
+            ["LSW"] =
+            [
+                new("A", 5, 3, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_dsw[] … DSW
+            ["DSW"] =
+            [
+                new("A", 5, 3, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+            ],
+            // ft_sv[] … SV
+            ["SV"] = [new("V", 3, 0, 1, 0), new("VAC", 3, 0, 1, 0), new("VA", 2, 0, 1, 0)],
+            // ft_mv[] … MV(VAC/VDC/VA/W は flag1)
+            ["MV"] =
+            [
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 1),
+                new("VDC", 3, 0, 1, 1),
+                new("VA", 3, 0, 1, 1),
+                new("W", 3, 0, 1, 1),
+            ],
+            // ft_kpry[] … KPRY(【C原典】AC/BC/CC は flag0)
+            ["KPRY"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 2, 0, 1, 0),
+                new("AC", 1, 0, 1, 0),
+                new("BC", 1, 0, 1, 0),
+                new("CC", 1, 0, 1, 0),
+            ],
+            // ft_thsw[] … THSW('C/' は英字始まりのため通常走査で記号として切り出される)
+            ["THSW"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("C/", 3, 0, 1, 0),
+                new("C", 3, 0, 1, 0),
+                new("CSET", 3, 0, 1, 0),
+            ],
+            // ft_l[] … L
+            ["L"] = [new("P", 1, 0, 1, 0), new("W", 1, 0, 1, 0), new("A", 3, 0, 1, 0)],
+            // ft_idf[] … IDF
+            ["IDF"] = [new("P", 3, 0, 1, 0)],
+            // ft_hdf[] … HDF
+            ["HDF"] = [new("P", 3, 0, 1, 0)],
+            // ft_mdf[] … MDF
+            ["MDF"] = [new("P", 3, 0, 1, 0)],
+            // ft_tvz[]/ft_tvb[]/ft_tvh[]/ft_tvk[] … TVZ/TVB/TVH/TVK(空表: 任意パラメータは FY-699E)
+            ["TVZ"] = [],
+            ["TVB"] = [],
+            ["TVH"] = [],
+            ["TVK"] = [],
+            // ft_wdp[] … WDP
+            ["WDP"] = [new("T", 2, 0, 1, 0)],
+            // ft_mcfr[] … MCFR(AC/BC は flag1)
+            ["MCFR"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+            ],
+            // ft_mgfr[] … MGFR(AC/BC は flag1)
+            ["MGFR"] =
+            [
+                new("E", 1, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("AT", 5, 2, 1, 0),
+            ],
+            // ft_mcsd[] … MCSD
+            ["MCSD"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_mgsd[] … MGSD
+            ["MGSD"] =
+            [
+                new("E", 1, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AT", 5, 2, 1, 0),
+            ],
+            // ft_mgld[] … MGLD
+            ["MGLD"] =
+            [
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_mgcs[] … MGCS
+            ["MGCS"] =
+            [
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_inv[] … INV
+            ["INV"] =
+            [
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_flt1[]/ft_flt2[]/ft_flt3[]/ft_flt4[]/ft_flti[] … FLT1..4/FLTI(同一構造, AC/BC/CC flag1)
+            ["FLT1"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            ["FLT2"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            ["FLT3"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            ["FLT4"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            ["FLTI"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AC", 1, 0, 1, 1),
+                new("BC", 1, 0, 1, 1),
+                new("CC", 1, 0, 1, 1),
+            ],
+            // ft_dcsir[] … DCSIR
+            ["DCSIR"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("W", 4, 1, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 2, 0, 1, 0),
+            ],
+            // ft_dcni[] … DCNI
+            ["DCNI"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("W", 4, 1, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 1, 1, 0),
+                new("MAH", 5, 0, 1, 0),
+            ],
+            // ft_mcfrsd[] … MCFRSD
+            ["MCFRSD"] =
+            [
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+            ],
+            // ft_mgfrsd[] … MGFRSD
+            ["MGFRSD"] =
+            [
+                new("E", 1, 0, 1, 0),
+                new("A", 5, 2, 1, 0),
+                new("KW", 5, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("AT", 5, 2, 1, 0),
+            ],
+            // ft_stm[]/ft_sir[]/ft_c[]/ft_r[]/ft_d[]/ft_nica[]/ft_re[]/ft_vvvf[] …
+            //   STM/SIR/C/R/D/NICA/RE/VVVF(空表: 任意パラメータは FY-699E)
+            ["STM"] = [],
+            ["SIR"] = [],
+            ["C"] = [],
+            ["R"] = [],
+            ["D"] = [],
+            ["NICA"] = [],
+            ["RE"] = [],
+            ["VVVF"] = [],
+            // ft_space[] … SPACE(空表)
+            ["SPACE"] = [],
+            // (PT/BP は fyak_tbl flag=FY_SY_PT/FY_SY_BP、空記号 len25 の特殊展開プレースホルダの
+            //  ため通常検証不可。本辞書に含めず後続フェーズ)
+            // ft_tsu[] … TSU
+            ["TSU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_sswu[] … SSWU(自動点滅増設器)
+            ["SSWU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_pbsu[] … PBSU(押ボタンユニット)
+            ["PBSU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_cosu[] … COSU(セレクタースイッチユニット)
+            ["COSU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_2cosu[] … 2COSU(交互用セレクタースイッチユニット)
+            ["2COSU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_olu[] … OLU(ランプユニット)
+            ["OLU"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // SMTKP/SMTSS/SMTRY … 【C原典】fyak_tbl で ft_tsu を共用(改訂<1>)
+            ["SMTKP"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            ["SMTSS"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            ["SMTRY"] =
+            [
+                new("A", 4, 2, 1, 0),
+                new("V", 3, 0, 1, 0),
+                new("VAC", 3, 0, 1, 0),
+                new("VDC", 3, 0, 1, 0),
+                new("VC", 3, 0, 1, 0),
+                new("VCAC", 3, 0, 1, 0),
+                new("VCDC", 3, 0, 1, 0),
+                new("K", 2, 0, 1, 0),
+            ],
+            // ft_al[] … AL(改訂<3>, 空表)
+            ["AL"] = [],
         };
 
     /// <summary>本フェーズで構造検証を提供できる予約語かどうか(定格キー表を収録済みか)。</summary>
@@ -687,17 +1080,19 @@ public sealed class ElectricalParameterChecker
         {
             // TODO(E.2続き): TR_check_main() の移植。
             // TR は独自の多スロット構造(p1/p2/p3, w1/w2/w3, v1[][], v2[][], v3[][], va,
-            // sw_kugiri/sw_v2v3 状態)+ key_check_TR + t_tr(flag 0/1/2) を持つため、
+            // sw_kugiri/sw_v2v3 状態)+ key_check_TR + ft_tr(flag 0/1/2) を持つため、
             // 本フェーズの単純フィールド辞書モデルには収まらない。別途対応。
-            // 参照: Fyss1d.c TR_check_main@873 / key_check_TR@3329 / FySinTkakt.h t_tr。
+            // 参照: Fyss1d.c TR_check_main@873 / key_check_TR@3329 / fyrt810.h ft_tr。
             return 0;
         }
 
         if (!RatingKeyTables.TryGetValue(reservedWord, out RatingKeySpec[]? table))
         {
-            // 本フェーズ未収録の予約語は構造検証をスキップ(後続フェーズで表を追加)。
-            // TODO(E.1続き): 特殊展開(VM/TM/TR/PT/BP)を FySinTkakt.h から移植
-            //                (予約語展開・TR_check_main 前提)。
+            // 【C原典】fyak_tbl に未登録の予約語は構造検証をスキップする。
+            // 本辞書に含めていないのは特殊展開の PT/BP(空記号 len25 プレースホルダ)と
+            // TR(上の専用パーサ分岐で処理)のみ。VM/TM は通常構造で検証可のため収録済み。
+            // 空表(STM/SIR/C/R/D/NICA/RE/VVVF/TVZ系/SPACE/AL)は収録済みで、
+            // 非空パラメータに対しては Check_1_Group の記号不一致で FY-699E となる。
             return 0;
         }
 

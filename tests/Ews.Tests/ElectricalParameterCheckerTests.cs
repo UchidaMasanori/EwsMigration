@@ -142,15 +142,15 @@ public sealed class ElectricalParameterCheckerTests
     // ── 追加バッチ(残りの型)の構造検証 ─────────────────────────────
 
     [Theory]
-    [InlineData("TB", "225A")]        // t_tb: A(3,0,1,0)
-    [InlineData("TB", "5.50SQ")]      // t_tb: SQ(5,2,1,0) 小数2桁
-    [InlineData("GL", "5P")]          // t_gl: P(3,1,1,0)
-    [InlineData("VVVF", "5.5KW")]     // t_vvvf: KW(4,2,1,0)
-    [InlineData("MV", "200VAC")]      // t_mv: VAC(3,0,1,1)
-    [InlineData("HSB", "225AF")]      // t_hsb: AF(3,0,1,0)
-    [InlineData("2ERY", "100AF")]     // t_2ery: AF(5,2,1,0) 先頭数字予約語
-    [InlineData("C", "470UF")]        // t_c: UF(4,0,1,0)
-    [InlineData("R", "1000O")]        // t_r: O(4,0,1,0)
+    [InlineData("TB", "225A")]        // ft_tb: A(3,0,1,0)
+    [InlineData("TB", "5.50SQ")]      // ft_tb: SQ(5,2,1,0) 小数2桁
+    [InlineData("GL", "5P")]          // ft_gl: P(3,1,1,0)
+    [InlineData("INV", "5.50KW")]     // ft_inv: KW(5,2,1,0)
+    [InlineData("MV", "200VAC")]      // ft_mv: VAC(3,0,1,1)
+    [InlineData("HSB", "225AF")]      // ft_hsb: AF(3,0,1,0)
+    [InlineData("2ERY", "100AF")]     // ft_2ery: AF(5,2,1,0) 先頭数字予約語
+    [InlineData("TSU", "10.50A")]     // ft_tsu: A(4,2,1,0)
+    [InlineData("LGT", "225A")]       // ft_lgt: A(4,0,1,0)
     public void 追加した定格キー表の正常系は正常終了する(string yoyaku, string parm)
     {
         (short rc, string err) = Check(yoyaku, parm);
@@ -161,8 +161,18 @@ public sealed class ElectricalParameterCheckerTests
     [Fact]
     public void 追加表の未定義記号はFY699E()
     {
-        // t_vvvf は KW/VAC のみ。AT は未定義 → Check_1_Group FY-699E。
-        (short rc, string err) = Check("VVVF", "5.5AT");
+        // ft_inv は KW/V/VAC/VC/VCAC/VCDC のみ。AT は未定義 → Check_1_Group FY-699E。
+        (short rc, string err) = Check("INV", "5.5AT");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-699E", err);
+    }
+
+    [Fact]
+    public void 空表の予約語は任意パラメータでFY699E()
+    {
+        // 【C原典】ft_vvvf は空表({"",0,0,0,0} のみ)。予約語自体は fyak_tbl に存在するが
+        // 検証記号がないため、非空パラメータは Check_1_Group の記号不一致で FY-699E。
+        (short rc, string err) = Check("VVVF", "5.5KW");
         Assert.Equal(-1, rc);
         Assert.Equal("FY-699E", err);
     }
@@ -170,8 +180,8 @@ public sealed class ElectricalParameterCheckerTests
     [Fact]
     public void 追加表の小数桁定義なし記号ピリオドありはFY883E()
     {
-        // t_stm S(3,0,2,0) は d_len=0。ピリオド付与 → Check_1_Group FY-883E。
-        (short rc, string err) = Check("STM", "12.3S");
+        // ft_tb A(3,0,1,0) は d_len=0。ピリオド付与 → Check_1_Group FY-883E。
+        (short rc, string err) = Check("TB", "22.5A");
         Assert.Equal(-1, rc);
         Assert.Equal("FY-883E", err);
     }
@@ -179,14 +189,14 @@ public sealed class ElectricalParameterCheckerTests
     // ── CT/VT付き('/')表の構造検証 ──────────────────────
 
     [Theory]
-    [InlineData("AM", "50/5A")]        // t_am: "/"(3,0,1,1) + A(3,0,1,0)
-    [InlineData("VT", "110/110VAC")]   // t_vt: "/"(3,0,1,0) + VAC(3,0,1,0)
-    [InlineData("CT", "1000/5A")]      // t_ct: "/"(4,0,1,0) + A(3,0,1,0)
-    [InlineData("RTR", "75/22VA")]     // t_rtr: "/"(3,0,1,0) + VA(2,0,1,0)
-    [InlineData("BLTR", "75/22VA")]    // t_bltr: "/"(3,0,1,0) + VA(2,0,1,0)
-    [InlineData("PLTR", "75/5.5VAC")]  // t_pltr: "/"(3,0,1,0) + VAC(3,1,1,0)
-    [InlineData("THSW", "3C/2C")]      // t_thsw: "C/"(3,0,1,0) + C(3,0,1,0)
-    [InlineData("WH", "1P100/5A50HZ")] // t_wh: P + "/"(3,0,1,1) + A + HZ
+    [InlineData("AM", "50/5A")]        // ft_am: "/"(4,0,1,1) + A(4,0,1,0)
+    [InlineData("VT", "110/110VAC")]   // ft_vt: "/"(3,0,1,0) + VAC(3,0,1,0)
+    [InlineData("CT", "1000/5A")]      // ft_ct: "/"(4,0,1,0) + A(3,0,1,0)
+    [InlineData("RTR", "75/22VA")]     // ft_rtr: "/"(3,0,1,0) + VA(2,0,1,0)
+    [InlineData("BLTR", "75/22VA")]    // ft_bltr: "/"(3,0,1,0) + VA(2,0,1,0)
+    [InlineData("PLTR", "75/55VAC")]   // ft_pltr: "/"(3,0,1,0) + VAC(2,0,1,0)
+    [InlineData("THSW", "3C/2C")]      // ft_thsw: "C/"(3,0,1,0) + C(3,0,1,0)
+    [InlineData("WH", "1P100/5A50HZ")] // ft_wh: P + "/"(3,0,1,1) + A + HZ
     public void CT_VT付き表の正常系は正常終了する(string yoyaku, string parm)
     {
         (short rc, string err) = Check(yoyaku, parm);
