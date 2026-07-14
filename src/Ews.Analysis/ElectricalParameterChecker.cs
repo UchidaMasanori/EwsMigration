@@ -2173,6 +2173,73 @@ public sealed class ElectricalParameterChecker
                 new(["/"], "sv", IntIn(100, 200), "FY-833E", "FY-834E"),
                 new(["VA"], "va", IntRange(1, 36), "FY-835E", "FY-836E"),
             ],
+            // 【C原典】key_check_F(Fyss1d.c:4004) … ヒューズ。V/VDC は同一 v フィールド。
+            ["F"] =
+            [
+                new(["A"], "a", IntRange(1, 999), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'D'),
+            ],
+            // 【C原典】key_check_LA(Fyss1d.c:4064) … 避雷器。
+            ["LA"] =
+            [
+                new(["P"], "p", IntIn(1, 3), "FY-890E", "FY-891E"),
+                new(["W"], "w", IntRange(2, 4), "FY-829E", "FY-830E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+            ],
+            // 【C原典】key_check_DCPW(Fyss1d.c:4116) … 直流電源。VDC は独立 vdc フィールド。
+            ["DCPW"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 100.00), "FY-815E", "FY-816E"),
+                new(["W"], "w", FloatRange(0.10, 600.00), "FY-829E", "FY-830E"),
+                new(["V", "VAC"], "v", IntRange(1, 240), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "vdc", IntRange(1, 30), "FY-801E", "FY-802E", "fvdc", 'D'),
+            ],
+            // 【C原典】key_check_CR(Fyss1d.c:4185) … 制御リレー。VC/VCDC は同一 vc、AC/BC/CC は補助接点数。
+            ["CR"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["AC"], "ac", IntRange(1, 9), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 9), "FY-819E", "FY-820E"),
+                new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
+            ],
+            // 【C原典】key_check_TM(Fyss1d.c:4308) … タイマ。SSET/MSET/HSET→set(nset)、S//M//H/→ss(nss)、S/M/H→s(ns)。
+            ["TM"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["SSET"], "set", FloatRange(0.001, 99999.000), "FY-845E", "FY-846E", "nset", '1'),
+                new(["MSET"], "set", FloatRange(0.001, 99999.000), "FY-845E", "FY-846E", "nset", '2'),
+                new(["HSET"], "set", FloatRange(0.001, 99999.000), "FY-845E", "FY-846E", "nset", '3'),
+                new(["S/"], "ss", FloatRange(0.001, 99999.000), "FY-847E", "FY-848E", "nss", '1'),
+                new(["M/"], "ss", FloatRange(0.001, 99999.000), "FY-847E", "FY-848E", "nss", '2'),
+                new(["H/"], "ss", FloatRange(0.001, 99999.000), "FY-847E", "FY-848E", "nss", '3'),
+                new(["S"], "s", FloatRange(0.001, 99999.000), "FY-849E", "FY-850E", "ns", '1'),
+                new(["M"], "s", FloatRange(0.001, 99999.000), "FY-849E", "FY-850E", "ns", '2'),
+                new(["H"], "s", FloatRange(0.001, 99999.000), "FY-849E", "FY-850E", "ns", '3'),
+                new(["AC"], "ac", IntRange(1, 9), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 9), "FY-819E", "FY-820E"),
+                new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
+            ],
+            // 【C原典】key_check_TS(Fyss1d.c:4497) … タイムスイッチ。VC/VCDC は同一 vc、AC/BC/CC は補助接点数。
+            ["TS"] =
+            [
+                new(["A"], "a", FloatRange(0.01, 30.00), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["VC", "VCAC"], "vc", IntRange(1, 260), "FY-813E", "FY-814E", "fvc", 'A'),
+                new(["VCDC"], "vc", IntRange(1, 125), "FY-813E", "FY-814E", "fvc", 'D'),
+                new(["AC"], "ac", IntRange(1, 9), "FY-817E", "FY-818E"),
+                new(["BC"], "bc", IntRange(1, 9), "FY-819E", "FY-820E"),
+                new(["CC"], "cc", IntRange(1, 9), "FY-821E", "FY-822E"),
+            ],
         };
     // ── 数値変換(C の atoi/atof セマンティクス) ──────────────────────────────
 
