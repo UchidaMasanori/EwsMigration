@@ -1709,7 +1709,8 @@ public sealed class ElectricalParameterChecker
     /// C は型別の巨大な if/else 連鎖(key_check_MCB 等)だが、いずれも
     /// 「記号一致 → 重複チェック(field[0]!='\0' → FY-89xE) → 範囲チェック(→ FY-xxxE)
     ///   → fv/fvc 設定 → memcpy 格納」という同一構造のため、本移植ではデータ駆動
-    /// (<see cref="KeyCheckRules"/>)へ集約する。E.2 収録型: MCB/MC/MG/THR/MCDT/CSDT/SC。
+    /// (<see cref="KeyCheckRules"/>)へ集約する。収録型: MCB/MC/MG/THR/MCDT/CSDT/SC/
+    /// VM/AM/VT/CT/VS/AS/TB/CON。TR は専用パーサ <see cref="TrCheckMain"/>。
     /// 未収録の予約語は構造検証のみ(値格納なし)で正常扱いとする。
     /// </summary>
     /// <param name="reservedWord">予約語(【C原典】s_yoyaku)。型別 key_check の選択に用いる。</param>
@@ -1728,8 +1729,8 @@ public sealed class ElectricalParameterChecker
 
         if (!KeyCheckRules.TryGetValue(reservedWord, out KeyCheckRule[]? rules))
         {
-            // 本フェーズ未収録の型(MMCB/ELMB/SB/R*/NT 等)は構造検証のみ。
-            // TODO(E.2続き): ELB/R*(ma[3][3] inum 添字配列)・NT(奇数丸め)・TR を移植。
+            // 本フェーズ未収録の型(MMCB/ELMB/SB/R*/NT/WH 等)は構造検証のみ。
+            // TODO(続き): ELB/R*(ma[3][3] inum 添字配列)・NT(奇数丸め)・WH(n_kigo 消費)を移植。
             return 0;
         }
 
@@ -1971,6 +1972,64 @@ public sealed class ElectricalParameterChecker
                 new(["VAC", "V"], "v", IntRange(1, 500), "FY-801E", "FY-802E", "fv", 'A'),
                 new(["KVAR"], "kvar", FloatRange(0.01, 150.00), "FY-825E", "FY-826E"),
                 new(["UF"], "uf", FloatRange(1.0, 3000.0), "FY-827E", "FY-828E"),
+            ],
+            // 【C原典】key_check_VM(Fyss1d.c:2920) … 電圧計。"/" は二次電圧 sv。
+            ["VM"] =
+            [
+                new(["VAC", "V"], "v", IntRange(1, 999), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 150), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["/"], "sv", IntRange(1, 999), "FY-833E", "FY-834E"),
+            ],
+            // 【C原典】key_check_AM(Fyss1d.c:2973) … 電流計。"/" は二次電流 sa。
+            ["AM"] =
+            [
+                new(["A"], "a", IntRange(1, 999), "FY-815E", "FY-816E"),
+                new(["/"], "sa", IntRange(1, 999), "FY-831E", "FY-832E"),
+            ],
+            // 【C原典】key_check_VT(Fyss1d.c:3011) … 計器用変圧器。
+            ["VT"] =
+            [
+                new(["V", "VAC"], "v", IntRange(1, 110), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["/"], "sv", IntRange(1, 440), "FY-833E", "FY-834E"),
+                new(["VA"], "va", IntRange(1, 500), "FY-835E", "FY-836E"),
+            ],
+            // 【C原典】key_check_CT(Fyss1d.c:3062) … 変流器。
+            ["CT"] =
+            [
+                new(["A"], "a", IntRange(1, 999), "FY-815E", "FY-816E"),
+                new(["/"], "sa", IntRange(1, 1200), "FY-831E", "FY-832E"),
+                new(["VA"], "va", IntRange(1, 40), "FY-835E", "FY-836E"),
+            ],
+            // 【C原典】key_check_VS(Fyss1d.c:3111) … 電圧切替スイッチ。
+            ["VS"] =
+            [
+                new(["P"], "p", IntIn(1, 3), "FY-890E", "FY-891E"),
+                new(["W"], "w", IntIn(3, 4), "FY-829E", "FY-830E"),
+            ],
+            // 【C原典】key_check_AS(Fyss1d.c:3148) … 電流切替スイッチ(VS と同一構造)。
+            ["AS"] =
+            [
+                new(["P"], "p", IntIn(1, 3), "FY-890E", "FY-891E"),
+                new(["W"], "w", IntIn(3, 4), "FY-829E", "FY-830E"),
+            ],
+            // 【C原典】key_check_TB(Fyss1d.c:3185) … 端子台。
+            // 改訂<6><10>: P の下限 i_min は実行時グローバル(G_GYOSYU=="MP"&&G_TYPE_ET==1 または
+            // G_TB_800A==1 で 1、それ以外 2)。本移植では業種文脈が無いため既定 i_min=2 を採用。
+            ["TB"] =
+            [
+                new(["P"], "p", IntRange(2, 100), "FY-890E", "FY-891E"),
+                new(["A"], "a", IntRange(1, 800), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 600), "FY-801E", "FY-802E", "fv", 'D'),
+                new(["SQ"], "sq", FloatRange(0.01, 400.00), "FY-837E", "FY-838E"),
+            ],
+            // 【C原典】key_check_CON(Fyss1d.c:3265) … コンセント。
+            ["CON"] =
+            [
+                new(["P"], "p", IntIn(2, 3), "FY-890E", "FY-891E"),
+                new(["A"], "a", IntRange(1, 99), "FY-815E", "FY-816E"),
+                new(["V", "VAC"], "v", IntRange(1, 250), "FY-801E", "FY-802E", "fv", 'A'),
+                new(["VDC"], "v", IntRange(1, 125), "FY-801E", "FY-802E", "fv", 'D'),
             ],
         };
 

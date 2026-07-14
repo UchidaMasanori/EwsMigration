@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 212 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 223 テスト成功 / 1 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -155,7 +155,7 @@ EwsMigration/
   グループ別 souden の全面設定、`Find_Keitou`。消費側の後段ステップも未移植のため、
   データで検証できるようになってから着手する（推測移植は忠実性を損なうため保留）。
 - **主回路生成の step14/15, 19**: `Kairo_Group_Set`(無効化) 等（TODO コメントで明示済み）。step17 は数量分解（`Find_Iteration/Nobangou/Group` + `Main_File_Area_Make`）を移植済み。FYRT800 レコード整形（`mainfile_set`）は最難関の作図系依存のため保留。
-- **電気パラメータエンジンの残り型**（約90種の `key_check_XXX`）。TR 専用パーサ(`TrCheckMain`/`KeyCheckTr`/`ft_tr`)は移植済み。
+- **電気パラメータエンジンの残り型**（key_check の値検証）。移植済: MCB/MC/MG/THR/MCDT/CSDT/SC/VM/AM/VT/CT/VS/AS/TB/CON + TR 専用パーサ(`TrCheckMain`)。未移植: ELB/R*系(ma[3][3] inum配列)・NT(奇数丸め)・WH(n_kigo消費)ほか。
 - **データ層**: `.cns` マスタ取込・SQL Server スキーマの本格整備（`sql/001_schema.sql` は初期のみ）。
 - **作図系（DWI）**: 最難関。DLL 化 + P/Invoke か C# 再実装かは未決。
 

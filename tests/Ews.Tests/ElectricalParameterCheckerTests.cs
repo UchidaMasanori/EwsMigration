@@ -421,4 +421,133 @@ public sealed class ElectricalParameterCheckerTests
         Assert.Equal(-1, rc);
         Assert.Equal("FY-889E", err);
     }
+
+    // ÑüÑü åväÌÅEí[éqë‰ån key_check(VM/AM/VT/CT/VS/AS/TB/CON) ÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑü
+
+    [Fact]
+    public void VMÇÃVACÇ∆ìÒéüìdà≥Ç™äeÉtÉBÅ[ÉãÉhÇ÷äiî[Ç≥ÇÍÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_VM: VAC/V Å® vm.v(fv='A')ÅA"/" Å® vm.svÅB
+        (short rc, RatingValues values, string err) = CheckValues("VM", "300/150V");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("150", values.Get("v"));
+        Assert.Equal("A", values.Get("fv"));
+        Assert.Equal("300", values.Get("sv"));
+    }
+
+    [Fact]
+    public void VMÇÃVDCÇÕíºó¨ãÊï™fvÇ™DÇ…Ç»ÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_VM: VDC Å® vm.fv='D'ÅAîÕàÕ 1..150ÅB
+        (short rc, RatingValues values, string err) = CheckValues("VM", "100VDC");
+        Assert.Equal(0, rc);
+        Assert.Equal("100", values.Get("v"));
+        Assert.Equal("D", values.Get("fv"));
+    }
+
+    [Fact]
+    public void VMÇÃVDCîÕàÕäOÇÕFY802E()
+    {
+        // ÅyCå¥ìTÅzkey_check_VM: VDC i_val>150 Å® FY-802EÅB
+        (short rc, _, string err) = CheckValues("VM", "200VDC");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-802E", err);
+    }
+
+    [Fact]
+    public void AMÇÃàÍéüìdó¨Ç∆ìÒéüìdó¨Ç™äiî[Ç≥ÇÍÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_AM: A Å® am.aÅA"/" Å® am.saÅB
+        (short rc, RatingValues values, string err) = CheckValues("AM", "100/5A");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("5", values.Get("a"));
+        Assert.Equal("100", values.Get("sa"));
+    }
+
+    [Fact]
+    public void VTÇÃVAÇ™äiî[Ç≥ÇÍVÇÕ110í¥Ç≈FY802E()
+    {
+        // ÅyCå¥ìTÅzkey_check_VT: "/" Å® vt.sv(1..440)ÅAV/VAC Å® vt.v(1..110)ÅAVA 1..500ÅB
+        (short rc, RatingValues values, string err) = CheckValues("VT", "440/110V50VA");
+        Assert.Equal(0, rc);
+        Assert.Equal("110", values.Get("v"));
+        Assert.Equal("440", values.Get("sv"));
+        Assert.Equal("50", values.Get("va"));
+
+        (short rc2, _, string err2) = CheckValues("VT", "200V");
+        Assert.Equal(-1, rc2);
+        Assert.Equal("FY-802E", err2);
+    }
+
+    [Fact]
+    public void CTÇÃVAîÕàÕäOÇÕFY836E()
+    {
+        // ÅyCå¥ìTÅzkey_check_CT: VA i_val>40 Å® FY-836EÅB
+        (short rc, _, string err) = CheckValues("CT", "100/5A50VA");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-836E", err);
+    }
+
+    [Fact]
+    public void VSÇÃPÇÕ1Ç©3ÇÃÇ›Ç≈WÇÕ3Ç©4ÇÃÇ›()
+    {
+        // ÅyCå¥ìTÅzkey_check_VS: PÅ∏{1,3}(FY-891E)ÅAWÅ∏{3,4}(FY-830E)ÅB
+        (short rc, RatingValues values, string err) = CheckValues("VS", "3P4W");
+        Assert.Equal(0, rc);
+        Assert.Equal("3", values.Get("p"));
+        Assert.Equal("4", values.Get("w"));
+
+        (short rc2, _, string err2) = CheckValues("VS", "2P");
+        Assert.Equal(-1, rc2);
+        Assert.Equal("FY-891E", err2);
+    }
+
+    [Fact]
+    public void ASÇÃWîÕàÕäOÇÕFY830E()
+    {
+        // ÅyCå¥ìTÅzkey_check_AS: WÅ∏{3,4} à»äO Å® FY-830EÅB
+        (short rc, _, string err) = CheckValues("AS", "1P5W");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-830E", err);
+    }
+
+    [Fact]
+    public void TBÇÃSQè¨êîílÇ∆VDCãÊï™Ç™äiî[Ç≥ÇÍÇÈ()
+    {
+        // ÅyCå¥ìTÅzkey_check_TB: SQ f_val 0.01..400ÅAVDC Å® tb.fv='D'ÅB
+        (short rc, RatingValues values, string err) = CheckValues("TB", "3P100V5.50SQ");
+        Assert.Equal(0, rc);
+        Assert.Equal(string.Empty, err);
+        Assert.Equal("3", values.Get("p"));
+        Assert.Equal("100", values.Get("v"));
+        Assert.Equal("A", values.Get("fv"));
+        Assert.Equal("5.50", values.Get("sq"));
+    }
+
+    [Fact]
+    public void TBÇÃPâ∫å¿ÇÕä˘íË2Ç≈Ç†ÇËFY891E()
+    {
+        // ÅyCå¥ìTÅzkey_check_TB: â¸í˘<6> ä˘íË i_min=2ÅB1P ÇÕîÕàÕäO Å® FY-891EÅB
+        (short rc, _, string err) = CheckValues("TB", "1P");
+        Assert.Equal(-1, rc);
+        Assert.Equal("FY-891E", err);
+    }
+
+    [Fact]
+    public void CONÇÃPÇÕ2Ç©3ÇÃÇ›Ç≈VDCÇÕ125í¥Ç≈FY802E()
+    {
+        // ÅyCå¥ìTÅzkey_check_CON: PÅ∏{2,3}ÅAVDC 1..125ÅB
+        (short rc, RatingValues values, string err) = CheckValues("CON", "2P15A100V");
+        Assert.Equal(0, rc);
+        Assert.Equal("2", values.Get("p"));
+        Assert.Equal("15", values.Get("a"));
+        Assert.Equal("100", values.Get("v"));
+        Assert.Equal("A", values.Get("fv"));
+
+        (short rc2, _, string err2) = CheckValues("CON", "2P200VDC");
+        Assert.Equal(-1, rc2);
+        Assert.Equal("FY-802E", err2);
+    }
 }
