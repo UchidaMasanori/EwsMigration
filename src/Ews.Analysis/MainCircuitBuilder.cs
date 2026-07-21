@@ -1012,9 +1012,10 @@ public sealed class MainCircuitBuilder
     ///   3. Find_Group     … 単純グループ                       → Main_File_Make_s
     /// 判定後、C原典は直ちに主回路設計エリア(FYRT800)へレコード生成(mainfile_set)する。
     /// 本移行では分解結果(<see cref="MainCircuitSegment"/>)を収集したうえで、単純グループ
-    /// (Find_Group → Main_File_Make_s)については <see cref="MainFileMakeSimple"/> で FYRT800
+    /// (Find_Group → Main_File_Make_s)と繰り返しグループ(Find_Iteration → Main_File_Make_d)に
+    /// ついては <see cref="MainFileMakeSimple"/>/<see cref="MainFileMakeIteration"/> で FYRT800
     /// レコード(<see cref="MainCircuitResult"/>)を生成し <see cref="CircuitParseResult.MainCircuits"/>
-    /// へ格納する。繰り返し/回路番号文(Make_d/Make_n)およびサフィックス生成・電気/付属パラメータは
+    /// へ格納する。回路番号文(Make_n)およびサフィックス生成・電気/付属パラメータは
     /// 機器選定(Fyss13-15)の未移植データに依存するため段階移植とする。
     /// エラー時(FY-693E/FYMEE80)戻り値 2 はレコード生成側で扱う。
     /// </summary>
@@ -1060,6 +1061,11 @@ public sealed class MainCircuitBuilder
                         StartNumber = itStartNo,
                         Iteration = iteration,
                     });
+
+                    // 【C原典】S_Keitou/S_Gyosyu を引き、Main_File_Make_d で
+                    //   繰り返し分の主回路設計エリア(FYRT800)を生成する。
+                    MainFileMakeIteration(parse, equipment, i, itKensu, itStartNo, iteration, ref mainCount);
+
                     i += itKensu - 1;
                 }
                 else if (FindCircuitNumberStatement(equipment, i, count,
@@ -1148,6 +1154,63 @@ public sealed class MainCircuitBuilder
             top = false;   // 【C原典】TOP = FALSE。
             kougo = ' ';   // 【C原典】Kougo = ' '。
             kj++;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 繰り返し(グループ数量)ありグループの主回路ファイルメイク。【C原典】Main_File_Make_d(Fyss1f.c:957)。
+    /// 繰り返し開始追番(<paramref name="startNo"/>=D_No)より前の機器を先頭から出力した後、D_No 以降の
+    /// 機器群(equipment[start+kj..start+kensu-1])を <paramref name="iteration"/> 回だけ繰り返し出力する。
+    /// 繰り返し番号 j を <see cref="MainFilePreSet"/> の iteration 引数へ伝搬し、各レコードの生成
+    /// サフィックス(yssfx)を区別する。先頭機器判定(TOP)は文字列連番(B_No==1)で行う。
+    /// 【段階移植】負荷電圧(DLV)伝播・交互運転(Kougo, 末尾機器 DLW[0]=='K')は DLV/DLW 未モデル化の
+    /// ため未実装(Kougo は常に ' ')。
+    /// </summary>
+    /// <returns>TRUE=先頭機器で終了。【C原典】result。</returns>
+    private static bool MainFileMakeIteration(
+        CircuitParseResult parse,
+        List<EquipmentTableEntry> equipment, int start, short kensu, short startNo, short iteration,
+        ref int mainCount)
+    {
+        // 【C原典】TOP = (S_Kiki[0].B_No == 1)。
+        bool top = equipment[start].StringSequence == 1;
+        // 【C原典】Kougo = ' '。DLV[2][4] 初期化。負荷電圧(DLV)の伝播は DLV 未モデル化のため未実装。
+        char kougo = ' ';
+
+        bool result = true;
+        int kj = 0;
+        // 【C原典】while( (S_Kiki+kj)->D_No < D_No && kj < kensu ) 繰り返し開始前の機器を出力。
+        while (kj < kensu && equipment[start + kj].EquipmentNumber < startNo)
+        {
+            EquipmentTableEntry wKiki = equipment[start + kj];
+            SystemTableEntry? sKeitou = FindSystem(parse, wKiki.SystemNumber);
+            LineTypeTableEntry? sGyosyu = FindLineType(parse, wKiki.GroupNumber);
+            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, ref mainCount);
+            top = false;   // 【C原典】TOP = FALSE。
+            kj++;
+        }
+
+        // 【C原典】繰り返し始まる。Kougo = (S_Kiki[kensu-1].DLW[0]=='K')?'K':' '。DLW 未モデル化のため ' '。
+        kougo = ' ';
+
+        // 【C原典】if( W_Kiki->D_No == D_No ) 繰り返し区間を Iteration 回出力する。
+        if (kj < kensu && equipment[start + kj].EquipmentNumber == startNo)
+        {
+            for (short j = 0; j < iteration; j++)
+            {
+                bool topI = top;      // 【C原典】TOPI = TOP。
+                char kougoI = kougo;  // 【C原典】KougoI = Kougo。
+                for (int k = 0; k < kensu - kj; k++)
+                {
+                    EquipmentTableEntry rKiki = equipment[start + kj + k];
+                    SystemTableEntry? sKeitou = FindSystem(parse, rKiki.SystemNumber);
+                    LineTypeTableEntry? sGyosyu = FindLineType(parse, rKiki.GroupNumber);
+                    result = MainFilePreSet(parse, kougoI, topI, 0, j, sKeitou, sGyosyu, rKiki, ref mainCount);
+                    topI = false;   // 【C原典】TOPI = FALSE。
+                    kougoI = ' ';   // 【C原典】KougoI = ' '。
+                }
+            }
         }
         return result;
     }

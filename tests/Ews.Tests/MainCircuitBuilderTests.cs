@@ -1087,4 +1087,40 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal('A', result.MainCircuits[0].Data.DesignationSuffix);
         Assert.Equal('B', result.MainCircuits[1].Data.DesignationSuffix);
     }
+
+    [Fact]
+    public void MainFileMakeD_繰り返し回数と機器数の積だけレコードを生成する()
+    {
+        // 【C原典】Main_File_Make_d: 繰り返し区間(D_No 以降の機器)を Iteration 回出力。
+        //   先頭機器 GKosu=3、区間内 2 機器 → 3×2=6 レコード。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            MainKiki(groupNumber: 2, equipmentNumber: 1, groupQuantity: 3),
+            MainKiki(groupNumber: 2, equipmentNumber: 2));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(6, result.MainCircuits.Count);
+        Assert.Equal("001", result.MainCircuits[0].SequenceNumber);
+        Assert.Equal("006", result.MainCircuits[5].SequenceNumber);
+    }
+
+    [Fact]
+    public void MainFileMakeD_繰り返し番号ごとに生成サフィックスが変わる()
+    {
+        // 【C原典】mainfile_set: yssfx = Iteration*max(Kosu,1)+Suryo + 'A'。
+        //   単一機器を GKosu=3 で 3 回繰り返し → 'A'/'B'/'C'。ysno!=0 が付与条件。
+        var kiki = MainKiki(groupNumber: 2, equipmentNumber: 1, groupQuantity: 3);
+        kiki.ReservedWordNumber = "1"; // ysno!=0
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(new[] { p, m }, kiki);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(3, result.MainCircuits.Count);
+        Assert.Equal('A', result.MainCircuits[0].Data.DesignationSuffix);
+        Assert.Equal('B', result.MainCircuits[1].Data.DesignationSuffix);
+        Assert.Equal('C', result.MainCircuits[2].Data.DesignationSuffix);
+    }
 }
