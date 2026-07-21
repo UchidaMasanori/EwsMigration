@@ -1124,6 +1124,56 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal('C', result.MainCircuits[2].Data.DesignationSuffix);
     }
 
+    // ==== 回路要素区分(kiryoso: Find_Kairo_Kubun) / 入力順固定項目チェック(Fyss1m_Input_Check) ====
+
+    [Fact]
+    public void MainFileSet_主回路機器の回路要素区分を1にセットする()
+    {
+        // 【C原典】mainfile_set: kiryoso = Find_Kairo_Kubun(S_Kiki,'M')。
+        //   K_Kubun=='M' の主機器(SEP 以外)は回路要素区分 '1'。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal('1', rec.Data.CircuitElement);
+    }
+
+    [Fact]
+    public void InputCheck_AMの直後がCTなら入力順エラーFY645Eを出す()
+    {
+        // 【C原典】Fyss1m_Input_Check: 計器回路でない(kiryoso='1')AM の直後が計器回路でない CT の
+        //   とき FY-645E(AM,CT の順は不正 = CT を先に入力すべき)。
+        //   AM/CT は単独ではメーターパターンに一致せず K_Kubun='M'(kiryoso='1')となる。
+        //   主回路レコード順は MCCB, AM, CT。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            InstKiki("MCCB", groupNumber: 2, equipmentNumber: 1),
+            InstKiki("AM", groupNumber: 2, equipmentNumber: 2),
+            InstKiki("CT", groupNumber: 2, equipmentNumber: 3));
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-645E");
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void InputCheck_CTの直後がAMなら入力順エラーを出さない()
+    {
+        // 【C原典】CT,AM の順(CT が先)は正しく、FY-645E は発生しない。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            InstKiki("MCCB", groupNumber: 2, equipmentNumber: 1),
+            InstKiki("CT", groupNumber: 2, equipmentNumber: 2),
+            InstKiki("AM", groupNumber: 2, equipmentNumber: 3));
+
+        Assert.DoesNotContain(result.Errors, e => e.ErrorCode == "FY-645E");
+    }
+
     // ==== step6: Yoyakugo_Add_Main(計器回路 CT の主回路レコード展開) ====
 
     /// <summary>系統番号付きで計器/主機器テーブル1件を生成する。【C原典】KIKITABLE。</summary>

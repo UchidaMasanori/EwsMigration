@@ -180,7 +180,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Main_File_Make_s,MainCircuitBuilder.MainFileMakeSimple,toku/sekkei/src/Fyss1f.c,単純グループ(kj<kensu かつ D_No<=maxNo)を走査しmainfile_pre_setを呼ぶ
 関数,Main_File_Make_d,MainCircuitBuilder.MainFileMakeIteration,toku/sekkei/src/Fyss1f.c,繰り返し開始追番(D_No)前の機器を出力後、D_No以降の機器群をIteration回繰り返しmainfile_pre_set(iteration=j)を呼ぶ。DLV伝播/交互運転Kougoは未モデル化で未実装
 関数,mainfile_pre_set,MainCircuitBuilder.MainFilePreSet,toku/sekkei/src/Fyss1f.c,Kosu分展開(F/VT/CTは1固定)、DNOをCSV分割してgstringをmainfile_setへ渡す
-関数,mainfile_set,MainCircuitBuilder.MainAreaSet,toku/sekkei/src/Fyss1f.c,FYRT800(syukairo)1レコード整形。決定的フィールド(datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/skno/narakbn/doukkno/jagekbn)を移植。kairsfx/gyono/datatype/ep/fpは上流(Fyss13-15機器選定・型式展開)未移植のためTODO
+関数,mainfile_set,MainCircuitBuilder.MainAreaSet,toku/sekkei/src/Fyss1f.c,FYRT800(syukairo)1レコード整形。決定的フィールド(datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn)を移植。kairsfx/gyono/datatype/ep/fpは上流(Fyss13-15機器選定・型式展開)未移植のためTODO
+関数,Find_Kairo_Kubun,MainCircuitBuilder.FindCircuitElement,toku/sekkei/src/Fyss1f.c,回路要素区分(kiryoso)算出。K_Kubun/予約語/TOP_Flgから'1':主/'2':CT/'3':計器/'4':VT/'5':ZCT,SB,MCB,LGR/' ':SEPを返す。非先頭計器は先頭(TOP_Flg=='1')まで後方走査
 関数,Yoyakugo_Add_Main,MainCircuitBuilder.AddDerivedEquipment,toku/sekkei/src/Fyss12.c,step6機器追加。全D_Noを×10後、系統走査でCT/VT/WH/ZCT計器回路を主回路レコードへ展開。SEP追加(系統ブレーク/souden差分/改訂<12>PropChkSEPBox/PropChkHbnHB300)は段階移植で未実装
 関数,Yoyakugo_Add_Main(type_CT分岐),MainCircuitBuilder.ConsolidateCurrentTransformerCircuit,toku/sekkei/src/Fyss12.c,CT計器回路展開。同一G_NoのK_Kubun=='K'群を走査しWH検出でKikitable_Keiki_Make(D_No=CT.D_No-1)、末尾でKikitable_Main_Make(D_No=末尾+1)
 関数,Yoyakugo_Add_Main(type_VT分岐),MainCircuitBuilder.ConsolidateVoltageTransformerCircuit,toku/sekkei/src/Fyss12.c,VT計器回路展開。CT検出でexist_CT記憶、WH検出でKikitable_Keiki_Make(D_No=VT.D_No+1,TOP=' ')。停止後exist_CTならCT主回路(D_No=末尾+1)追加、CT無しexist_WHなら元WHをK_Kubun='M'化。VT自身は主回路化せず
@@ -188,3 +189,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kikitable_Main_Make,MainCircuitBuilder.KikitableMainMake,toku/sekkei/src/Fyss12.c,計器機器を主回路機器として機器テーブル末尾へ複製追加(K_Kubun='M'/yoyakkbn='1'/TOP_Flg='1'/Rank=0/GroupNo=0、G_No/D_Noは引数上書き)。型式展開フィールドは未モデル化で複製対象外
 関数,Kikitable_Keiki_Make,MainCircuitBuilder.KikitableKeikiMake,toku/sekkei/src/Fyss12.c,計器回路先頭機器を機器テーブル末尾へ複製追加(K_Kubun='K'/yoyakkbn='1'/Rank=0/GroupNo=0、D_No/TOP_Flgは引数上書き)。型式展開フィールドは未モデル化で複製対象外
 関数,Kikitable_SEP_Make,(未実装),toku/sekkei/src/Fyss12.c,系統ブレーク時のセパレータ機器追加。souden差分と改訂<12>PropChkSEPBox/PropChkHbnHB300(物件FYDF801プロパティ)依存のため段階移植で未実装
+関数,Fyss1m_Input_Check,MainCircuitBuilder.InputCheckFixedOrder,toku/sekkei/src/Fyss1m.c,入力順固定項目チェック。主回路FYRT800を走査し計器回路でない(kiryoso=='1')AMごとにInputCheckCtAmを呼ぶ
+関数,Fyss1m_Input_Check_CT_AM,MainCircuitBuilder.InputCheckCtAm,toku/sekkei/src/Fyss1m.c,CT/AM入力順チェック。AMの直後が計器回路でないCTならFY-645E(AM,CTの順は不正=CTを先に入力すべき)。改訂:1996.03.07
+関数,Kairo_Group_Set,(意図的スキップ),toku/sekkei/src/Fyss12.c,step14グループセット。C原典で941123コメントアウト(無効化)のため移植しない
+関数,Kiki_Equal_Bangou_Set,(意図的スキップ),toku/sekkei/src/Fyss12.c,step15同一機器認識番号セット。C原典でコメントアウト(無効化)のため移植しない
+関数,PropSetInvbpKbn,(未実装),toku/sekkei/src/Fyss12.c,改訂<16>/<18>INVBP区分設定。回路記述中INVBPと同一行桁の機器へ区分('7')/kairsfx設定。kairsfx/tokkbnとINVBP追加機器(MC1/2/3,INV,THR)が上流Fyss13-15未移植依存のため保留

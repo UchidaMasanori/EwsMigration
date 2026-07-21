@@ -148,17 +148,28 @@ public sealed class MainCircuitBuilder
         // 13. トランス(2電源)のランク再設定。【C原典】TR_Rank_Set()。
         SetTransformerRanks(parse);
 
-        // 14. グループセット。【C原典】Kairo_Group_Set()(C原典でも無効化)。
-        // 15/16. 同一機器認識番号セット。【C原典】Kiki_Equal_Bangou_Set()(C原典でも無効化)。
+        // 14. グループセット。【C原典】Kairo_Group_Set()。C原典でコメントアウト(941123 無効化)
+        //     されているため本移植でも実装しない(意図的スキップ)。
+        // 15. 同一機器認識番号セット。【C原典】Kiki_Equal_Bangou_Set()。C原典でコメントアウト
+        //     (無効化)されているため本移植でも実装しない(意図的スキップ)。
 
         // 16. 電気パラメータ同一チェック。【C原典】Ele_Equal_Check()(有効な後段呼び出し)。
         ret = CheckElectricalParameterEquality(parse);
         if (ret != 0) return ret;
 
         // 17. 主回路ファイルエリア作成/数量分解。【C原典】Fyss12_Make_Main_Sub()。
-        //     入力順チェック。【C原典】Fyss1m_Input_Check()。TODO(CT/AM 入力順チェック)。
         ret = BuildMainCircuitFileArea(parse);
         if (ret != 0) return ret;
+
+        // 17後. 入力順固定項目チェック(CT/AM の入力順)。【C原典】Fyss1m_Input_Check(Fyss1m.c:60)。
+        //   計器回路でない AM の直後が計器回路でない CT のとき FY-645E(AM,CT の順は不正)。
+        ret = InputCheckFixedOrder(parse);
+        if (ret != 0) return ret;
+
+        // 17後. INVBP 区分設定。【C原典】PropSetInvbpKbn(Fyss12.c:5352, 改訂<16>/<18>)。
+        //   回路記述中の "INVBP" と同一行桁の機器へ区分('7')/回路番号サフィックスを設定するが、
+        //   生成回路サフィックス(kairsfx)・特区分(tokkbn)および INVBP 追加機器(MC1/2/3,INV,THR)は
+        //   いずれも上流(機器選定 Fyss13-15/型式展開)未移植に依存するため段階移植で保留。
 
         return 0;
     }
@@ -1532,7 +1543,7 @@ public sealed class MainCircuitBuilder
             EquipmentTableEntry wKiki = equipment[start + kj];
             SystemTableEntry? sKeitou = FindSystem(parse, wKiki.SystemNumber);
             LineTypeTableEntry? sGyosyu = FindLineType(parse, wKiki.GroupNumber);
-            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, ref mainCount);
+            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, start + kj, ref mainCount);
             top = false;   // 【C原典】TOP = FALSE。
             kougo = ' ';   // 【C原典】Kougo = ' '。
             kj++;
@@ -1568,7 +1579,7 @@ public sealed class MainCircuitBuilder
             EquipmentTableEntry wKiki = equipment[start + kj];
             SystemTableEntry? sKeitou = FindSystem(parse, wKiki.SystemNumber);
             LineTypeTableEntry? sGyosyu = FindLineType(parse, wKiki.GroupNumber);
-            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, ref mainCount);
+            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, start + kj, ref mainCount);
             top = false;   // 【C原典】TOP = FALSE。
             kj++;
         }
@@ -1588,7 +1599,7 @@ public sealed class MainCircuitBuilder
                     EquipmentTableEntry rKiki = equipment[start + kj + k];
                     SystemTableEntry? sKeitou = FindSystem(parse, rKiki.SystemNumber);
                     LineTypeTableEntry? sGyosyu = FindLineType(parse, rKiki.GroupNumber);
-                    result = MainFilePreSet(parse, kougoI, topI, 0, j, sKeitou, sGyosyu, rKiki, ref mainCount);
+                    result = MainFilePreSet(parse, kougoI, topI, 0, j, sKeitou, sGyosyu, rKiki, start + kj + k, ref mainCount);
                     topI = false;   // 【C原典】TOPI = FALSE。
                     kougoI = ' ';   // 【C原典】KougoI = ' '。
                 }
@@ -1606,7 +1617,7 @@ public sealed class MainCircuitBuilder
     private static bool MainFilePreSet(
         CircuitParseResult parse,
         char kougo, bool top, short kbangou, short iteration,
-        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry wKiki,
+        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry wKiki, int kikiIndex,
         ref int mainCount)
     {
         short kosu = wKiki.Quantity;
@@ -1625,7 +1636,7 @@ public sealed class MainCircuitBuilder
         {
             string gstring = j < tokens.Length ? tokens[j] : string.Empty;
             result = MainAreaSet(parse, kougo, top, kbangou, iteration, j, gstring,
-                sKeitou, sGyosyu, wKiki, ref mainCount);
+                sKeitou, sGyosyu, wKiki, kikiIndex, ref mainCount);
         }
         return result;
     }
@@ -1637,8 +1648,8 @@ public sealed class MainCircuitBuilder
     /// 行種テーブル(<paramref name="sGyosyu"/>)から FYRT800(struct syukairo)の各フィールドを設定する。
     /// 本移行では、現時点で移植済みの上流データから決定的に定まるフィールドのみを設定する:
     ///   データ追番/記述行桁/系統番号/系統種別/系統座標(P系統)/予約語(自動生成区分・予約語・
-    ///   指定番号・生成サフィックス)/行種コード/行種グループ番号/指定回路番号/並び替え区分/
-    ///   同一機器認識番号/交互運転区分。
+    ///   指定番号・生成サフィックス)/行種コード/回路要素区分(kiryoso)/行種グループ番号/指定回路番号/
+    ///   並び替え区分/同一機器認識番号/交互運転区分。
     /// 【段階移植・未実装(機器選定 Fyss13-15 の未移植データ/ヘルパ依存)】
     ///   ・生成回路サフィックス(kairsfx)… Max_Bunno_Find/Max_Kbangou_Find(S_Kiki 全走査)
     ///   ・行種番号(gyono)… Find_Bangou(行種マスタ照合)
@@ -1649,7 +1660,7 @@ public sealed class MainCircuitBuilder
     private static bool MainAreaSet(
         CircuitParseResult parse,
         char kougo, bool top, short kbangou, short iteration, short suryo, string gstring,
-        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry sKiki,
+        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry sKiki, int kikiIndex,
         ref int mainCount)
     {
         // 【C原典】(*Pmainc)++ 後の値を datano(FYRT800.datano)へ。Main_Area_Clear で dt を初期化。
@@ -1727,6 +1738,12 @@ public sealed class MainCircuitBuilder
             ? Truncate(sGyosyu.LineType, 3)
             : Truncate(sKiki.ReservedWord, 3);
 
+        // 【C原典】回路要素区分(kiryoso = Find_Kairo_Kubun(S_Kiki, 'K'/'M'))。Fyss1f.c:2168-2173。
+        //   行種コード(gyocd)が "PM "(memcmp 3byte)なら計器基準('K')、それ以外は主基準('M')。
+        string gyocd3 = (dt.LineTypeCode + "   ")[..3];
+        char lineDivision = gyocd3 == "PM " ? 'K' : 'M';
+        dt.CircuitElement = FindCircuitElement(parse.MainEquipment, kikiIndex, lineDivision);
+
         // 【段階移植】行種番号(gyono)は Find_Bangou(行種マスタ照合)依存のため未実装。
 
         // 【C原典】行種グループ番号。
@@ -1761,6 +1778,124 @@ public sealed class MainCircuitBuilder
 
         parse.MainCircuits.Add(rec);
         return true; // 【C原典】return(TRUE)。
+    }
+
+    /// <summary>
+    /// 回路要素区分(kiryoso)を求める。【C原典】Find_Kairo_Kubun(Fyss1f.c:3499)。
+    ///
+    /// 機器(<paramref name="equipment"/>[<paramref name="index"/>])の回路区分(K_Kubun)・予約語・
+    /// 先頭機器フラグ(TOP_Flg)から回路要素区分を返す。
+    ///   ・'1':主回路(M。ただし SEP は ' ')/S かつ SC/計器先頭 F(主基準)
+    ///   ・'2':CT 系, '3':計器(既定), '4':VT 系, '5':ZCT/SB/MCB/LGR 系, ' ':SEP/S 非SC
+    /// K_Kubun=='K' の非先頭機器では、先頭機器(TOP_Flg=='1')まで後方へ遡り、途中の
+    /// CT/VT/ZCT/LGR/MCB/SB を判定に用いる(直上の計器種別を継承する)。
+    /// </summary>
+    /// <param name="equipment">機器テーブル(ソート済み P_Kiki 相当)。</param>
+    /// <param name="index">対象機器の絶対インデックス。</param>
+    /// <param name="lineDivision">行種基準 'M':主回路/'K':計器(PM 行種)。【C原典】gykubun。</param>
+    /// <returns>回路要素区分。【C原典】戻り CHAR。</returns>
+    private static char FindCircuitElement(IReadOnlyList<EquipmentTableEntry> equipment, int index, char lineDivision)
+    {
+        EquipmentTableEntry s = equipment[index];
+
+        if (s.CircuitDivision == 'M')
+        {
+            // 【C原典】K_Kubun=='M': SEP は ' '、それ以外は '1'。
+            return s.ReservedWord == "SEP" ? ' ' : '1';
+        }
+
+        if (s.CircuitDivision == 'S')
+        {
+            // 【C原典】K_Kubun=='S': SC のみ '1'。それ以外は C原典で return が無く未定義動作となる
+            //   ため、防御的に ' ' を返す(SC 以外の S 区分は AM/CT 入力順チェックの対象外)。
+            return s.ReservedWord == "SC" ? '1' : ' ';
+        }
+
+        // 【C原典】K_Kubun=='K'(計器区分)。
+        if (s.TopFlag == '1')
+        {
+            return s.ReservedWord switch
+            {
+                "F" => lineDivision == 'M' ? '1' : '3',
+                "CT" => '2',
+                "VT" => '4',
+                "ZCT" => '5',
+                "SB" or "MCB" => '5',
+                _ => '3',
+            };
+        }
+
+        // 【C原典】非先頭機器: ZCT/MCB/SB はその場で '5'。
+        if (s.ReservedWord is "ZCT" or "MCB" or "SB") return '5';
+
+        // 【C原典】while(W_Kiki->TOP_Flg != '1'){ W_Kiki--; 直上機器の予約語で判定 }。
+        //   先頭機器(TOP_Flg=='1')に到達するまで後方へ遡る。step9-13.5 のランク付けにより
+        //   グループ先頭には必ず TOP_Flg=='1' が存在するため、境界(index<0)には至らない
+        //   (防御的に境界ガードを付す)。
+        int w = index;
+        while (w > 0 && equipment[w].TopFlag != '1')
+        {
+            w--;
+            switch (equipment[w].ReservedWord)
+            {
+                case "CT": return '2';
+                case "VT": return '4';
+                case "ZCT": return '5';
+                case "LGR": return '5';
+                case "MCB": case "SB": return '5';
+            }
+        }
+        return '3';
+    }
+
+    /// <summary>
+    /// 入力順固定項目チェック(CT/AM の入力順)。【C原典】Fyss1m_Input_Check(Fyss1m.c:60)。
+    ///
+    /// 主回路レコード(FYRT800)を走査し、計器回路でない(kiryoso=='1')AM ごとに
+    /// <see cref="InputCheckCtAm"/> を呼ぶ。CT,AM,CT の順が正しく、AM,CT の順は不正とする
+    /// (計器回路でない AM の直後に計器回路でない CT があると誤入力)。改訂: 1996.03.07。
+    /// </summary>
+    /// <returns>0=正常, 1=エラー検出。【C原典】ret_ret。</returns>
+    private static short InputCheckFixedOrder(CircuitParseResult parse)
+    {
+        IReadOnlyList<MainCircuitResult> mains = parse.MainCircuits;
+        int mainc = mains.Count;
+        short retRet = 0;
+        for (int i = 0; i < mainc; i++)
+        {
+            MainCircuitData dt = mains[i].Data;
+            // 【C原典】yoyaku=="AM      " かつ kiryoso=='1'(計器回路でない AM)。
+            if (dt.ReservedWord == "AM" && dt.CircuitElement == '1')
+            {
+                if (InputCheckCtAm(parse, mains, i, mainc)) retRet = 1;
+            }
+        }
+        return retRet;
+    }
+
+    /// <summary>
+    /// CT/AM の入力順チェック。【C原典】Fyss1m_Input_Check_CT_AM(Fyss1m.c:120)。
+    ///
+    /// AM(<paramref name="index"/>)の直後レコードが計器回路でない(kiryoso=='1')CT のとき、
+    /// AM の記述行桁でエラー FY-645E を出力する(AM,CT の順は不正 = CT を先に入力すべき)。
+    /// </summary>
+    /// <returns>true=エラー検出。【C原典】return(1)。</returns>
+    private static bool InputCheckCtAm(
+        CircuitParseResult parse, IReadOnlyList<MainCircuitResult> mains, int index, int mainc)
+    {
+        // 【C原典】末尾レコード(main_idx+1 == mainc)は対象外。
+        if (index + 1 == mainc) return false;
+
+        MainCircuitData next = mains[index + 1].Data;
+        if (next.ReservedWord == "CT" && next.CircuitElement == '1')
+        {
+            MainCircuitData cur = mains[index].Data;
+            int gyo = AtoiYsno(cur.DescriptionRow);       // 【C原典】atoi(Pmaina[main_idx].dt.gyo)。
+            int keta = AtoiYsno(cur.DescriptionColumn);   // 【C原典】atoi(Pmaina[main_idx].dt.keta)。
+            parse.Errors.Add(new CircuitParseError("FY-645E", gyo, keta, "FYMEE80"));
+            return true;
+        }
+        return false;
     }
 
     /// <summary>

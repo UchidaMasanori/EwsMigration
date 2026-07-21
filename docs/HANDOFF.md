@@ -146,13 +146,15 @@ EwsMigration/
   - step8 `Gyosyu_Rank_Set` 行種ランク/出現数（`Kiki_Suryou_Set/Calc`・`Main_Exist_Check`）
   - step9-13.5 機器ランク系: `Kiki_Rank_Set`/`Kiki_Rank_Update`(TOP_Flg)/`Gyosyu_Rank_Update`(`Find_Max_Rank`)/`Pattern_Rank_Update`/`WH_Rank_Set`(改訂14)/`TR_Rank_Set`
   - step16 電気パラメータ一致チェック（`Ele_Equal_Check`）
-  - step17 主回路ファイルエリア数量分解: `Fyss12_Make_Main_Sub`/`Main_File_Area_Make`（`Find_Iteration`/`Find_Nobangou`/`Find_Group` → `MainCircuitSegment`）。FYRT800 レコード整形（`mainfile_set`）は保留
+   - step14/15 グループセット（`Kairo_Group_Set`）/同一機器認識番号セット（`Kiki_Equal_Bangou_Set`）: C原典でコメントアウト（無効化）済のため意図的にスキップ
+   - step17 主回路ファイルエリア数量分解: `Fyss12_Make_Main_Sub`/`Main_File_Area_Make`（`Find_Iteration`/`Find_Nobangou`/`Find_Group` → `MainCircuitSegment`）。FYRT800 レコード整形（`mainfile_set`）は決定的スライス＋回路要素区分（`kiryoso`=`Find_Kairo_Kubun`）を移植
+   - step17後 入力順固定項目チェック（`Fyss1m_Input_Check`/`Fyss1m_Input_Check_CT_AM`）: 計器回路でない AM の直後が計器回路でない CT のとき FY-645E
 
 ### 未移植・TODO（次にやること）
 
 - **step6 の本体（残り）**: CT/VT/WH/ZCT 計器回路の主回路展開は移植済み（`ConsolidateCurrentTransformerCircuit`/`ConsolidateVoltageTransformerCircuit`/`ConsolidateSingleInstrumentCircuit`：同一 G_No の計器区分（K_Kubun=K）群を走査し、計器回路（`Kikitable_Keiki_Make`）／主回路（`Kikitable_Main_Make`）を末尾追加 → step7 で整列。VT は exist_CT/exist_WH の二経路を忠実移植）。**未移植（保留）**：
   - **SEP 追加**（`Kikitable_SEP_Make`, 系統ブレーク時）: `PropChkSEPBox`/`PropChkHbnHB300`（改訂<12> の bukken FYDF801 プロパティ照会）とグループ別 souden 差分判定に依存。データで検証できるようになってから着手（推測移植は忠実性を損なうため保留）。
-- **主回路生成の step14/15, 19**: `Kairo_Group_Set`(無効化) 等（TODO コメントで 明示済み）。step17 は数量分解（`Find_Iteration/Nobangou/Group` + `Main_File_Area_Make`）を移植済み。FYRT800 レコード整形（`mainfile_set`/`Main_File_Make_s`/`mainfile_pre_set`）は **決定的スライスを移植済み**：`syukairo` 型付きドメインモデル（`MainCircuitData`）＋ `MainAreaSet` の決定的フィールド（datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/skno/narakbn/doukkno/jagekbn/P 系統座標）を Simple/Iteration セグメント経路で(Make_d 結線済) `CircuitParseResult.MainCircuits` に生成。**未移植（TODO）**：kairsfx 生成（`Max_Bunno_Find`/`Max_Kbangou_Find`）、gyono（`Find_Bangou`）、datatype（DTYPE）、ep/fp 電気パラメータ（`eparm_set`）、`Make_n` 結線 — いずれも上流 Fyss13-15（機器選定・型式展開）未移植のため保留。
+- **主回路生成の step14/15**: `Kairo_Group_Set`/`Kiki_Equal_Bangou_Set` はいずれも C原典でコメントアウト（無効化）済のため意図的にスキップ（コメントで明示）。step17後の `Fyss1m_Input_Check`（CT/AM 入力順）は移植済み（回路要素区分 `kiryoso`=`Find_Kairo_Kubun` を `MainAreaSet` で設定して判定）。`PropSetInvbpKbn`（改訂<16>/<18> INVBP 区分）は kairsfx/tokkbn と INVBP 追加機器が上流 Fyss13-15 未移植依存のため保留。step17 FYRT800 レコード整形は **決定的スライスを移植済み**：`MainAreaSet` の決定的フィールド（datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn/P 系統座標）を Simple/Iteration セグメント経路で `CircuitParseResult.MainCircuits` に生成。**未移植（TODO）**：kairsfx 生成（`Max_Bunno_Find`/`Max_Kbangou_Find`）、gyono（`Find_Bangou`）、datatype（DTYPE）、ep/fp 電気パラメータ（`eparm_set`）、`Make_n` 結線 — いずれも上流 Fyss13-15（機器選定・型式展開）未移植のため保留。
 - **電気パラメータエンジン**（key_check の値検証）: **全 key_check 型を移植完了**。データ駆動 `KeyCheckRules`（MCB/MC/MG/THR/… 変流器/リレー/スイッチ/ブザー/フィーダ/インバータ/ユニット化スイッチ等の全型）＋ TR 専用パーサ（`TrCheckMain`）＋ NT(奇数丸め)/WH(n_kigo 副記号)専用ハンドラ。予約語別名は共有ルール配列(GxRules/XlRules/XeryRules/SlxRules/FltxRules/UnitSwitchRules)。STM/SIR/C/R/D/NICA/RE/VVVF/TVX は C 原典 return 0 のため構造検証のみ。
 - **データ層**: `.cns` マスタ取込・SQL Server スキーマの本格整備（`sql/001_schema.sql` は初期のみ）。
 - **作図系（DWI）**: 最難関。DLL 化 + P/Invoke か C# 再実装かは未決。
