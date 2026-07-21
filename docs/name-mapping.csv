@@ -194,3 +194,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kairo_Group_Set,(意図的スキップ),toku/sekkei/src/Fyss12.c,step14グループセット。C原典で941123コメントアウト(無効化)のため移植しない
 関数,Kiki_Equal_Bangou_Set,(意図的スキップ),toku/sekkei/src/Fyss12.c,step15同一機器認識番号セット。C原典でコメントアウト(無効化)のため移植しない
 関数,PropSetInvbpKbn,(未実装),toku/sekkei/src/Fyss12.c,改訂<16>/<18>INVBP区分設定。回路記述中INVBPと同一行桁の機器へ区分('7')/kairsfx設定。kairsfx/tokkbnとINVBP追加機器(MC1/2/3,INV,THR)が上流Fyss13-15未移植依存のため保留
+関数,Volt_Conv,VoltageInheritance.ConvertVoltage,toku/sekkei/src/Fyss14.c,電圧変換テーブル(varr[][2][3])照合。変換前3要素電圧が完全一致した最初の行の変換後3要素を出力配列へコピー。不一致なら出力配列不変。電圧値の継承の決定的スライス
+関数,Max_Volt,VoltageInheritance.MaxVoltage,toku/sekkei/src/Fyss14.c,3要素電圧の最大値を先頭要素に設定し残り2要素を0にする
+関数,Right_Volt,VoltageInheritance.RightAlignVoltage,toku/sekkei/src/Fyss14.c,非ゼロ電圧値を3要素配列の右側へ寄せる(先頭のみ非ゼロ/先頭2要素非ゼロ/その他の条件分岐と代入順をC原典どおり再現)
+関数,Left_Volt,VoltageInheritance.LeftAlignVoltage,toku/sekkei/src/Fyss14.c,非ゼロ電圧値を3要素配列の左側へ寄せる(ゼロ除去)。3つの逐次if(各更新後に再判定)を再現
