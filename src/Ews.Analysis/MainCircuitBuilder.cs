@@ -182,18 +182,229 @@ public sealed class MainCircuitBuilder
     /// </summary>
     private static void AddDerivedEquipment(CircuitParseResult parse)
     {
+        List<EquipmentTableEntry> equipment = parse.MainEquipment;
+
         // 【C原典】S_Kiki=*PP_Kiki; Max_Kikic=*i_Kikic; i=0;
         //         while (i < Max_Kikic) { (S_Kiki+i)->D_No *= 10; i++; }
-        foreach (EquipmentTableEntry kiki in parse.MainEquipment)
+        // 全機器の機器No(D_No)を10倍し、計器回路レコード(CT主回路/WH計器回路)の
+        // 挿入採番(D_No-1 / D_No+1)に必要な間隔を確保する。以降のループで追加した
+        // 合成レコードは末尾へ追加され、後段のソート(step7)で D_No 昇順に整列される。
+        int maxKikic = equipment.Count;
+        for (int n = 0; n < maxKikic; n++)
         {
-            kiki.EquipmentNumber *= 10;
+            equipment[n].EquipmentNumber *= 10;
         }
 
-        // TODO(段階移植): SEP/CT/WH/ZCT の追加。
-        //   ・系統ブレーク時の SEP 追加(Kikitable_SEP_Make, souden 差分/系統種別 Kind=='1' 判定,
-        //     改訂<12> PropChkSEPBox/PropChkHbnHB300 による sep_flg/sep_del ゲート)
-        //   ・計器回路の CT/VT/WH/ZCT 追加(Kikitable_Main_Make/Kikitable_Keiki_Make,
-        //     K_Kubun=='K' グループ走査 + Find_Keiki_Type 分類)
+        // 【C原典】Yoyakugo_Add_Main の主ループ(Fyss12.c:3760-4070)。
+        // 系統(K_No)ごとに機器テーブルを走査し、計器回路(CT/VT/WH/ZCT)を主回路
+        // レコードへ展開する。外側ループは元件数(maxKikic)のみを走査するため、
+        // 追加した合成レコードは再処理されない。
+        //
+        // 【段階移植・未実装】
+        //   ・系統ブレーク時の SEP 追加(Kikitable_SEP_Make): souden(回路相数・電圧3桁目)
+        //     差分判定 + 改訂<12> PropChkSEPBox/PropChkHbnHB300(物件 FYDF801 のセパレータ
+        //     作図BOX/幅300用品番プロパティ)依存のため未実装(系統状態の更新のみ行う)。
+        //   ・CT 以外の計器グループ(VT/WH/ZCT 単独始まり)の主回路レコード展開:
+        //     本増分では走査のみ(生成なし)とし、後続増分で移植する。
+        short kNo = 0;
+        int i = 0;
+        while (i < maxKikic)
+        {
+            EquipmentTableEntry cur = equipment[i];
+            EquipmentType findType = FindEquipmentType(cur.ReservedWord);
+            SystemTableEntry? sKeitou = FindSystem(parse, cur.SystemNumber);
+
+            // 【C原典】if (K_No != (S_Kiki+i)->K_No) : 系統ブレーク。
+            if (kNo != cur.SystemNumber)
+            {
+                // TODO(SEP): souden 差分 + PropChk で Kikitable_SEP_Make(前系統末尾機器から生成)。
+                kNo = sKeitou?.SystemNumber ?? cur.SystemNumber; // 【C原典】K_No = S_Keitou->K_No。
+                i++;
+                continue;
+            }
+
+            // 【C原典】K_Kubun=='M' || 'S' : 主機器/SC分岐は素通し。
+            if (cur.CircuitDivision == 'M' || cur.CircuitDivision == 'S')
+            {
+                i++;
+                continue;
+            }
+
+            // 【C原典】K_Kubun=='K' : 計器/付属機器グループ。
+            if (findType == EquipmentType.Ct)
+            {
+                i = ConsolidateCurrentTransformerCircuit(parse, equipment, i, maxKikic);
+            }
+            else
+            {
+                // 【C原典】その他の計器グループ(else)は走査のみ。
+                // 【段階移植】VT/WH/ZCT 単独始まりの主回路展開は未実装(生成せず走査のみ)。
+                i++;
+                while (i < maxKikic && equipment[i].CircuitDivision == 'K')
+                {
+                    EquipmentType scanType = FindEquipmentType(equipment[i].ReservedWord);
+                    if (scanType is EquipmentType.Ct or EquipmentType.Wh
+                        or EquipmentType.Zct or EquipmentType.Vt)
+                    {
+                        break;
+                    }
+                    i++;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// CT(変流器)計器回路を主回路レコードへ展開する。【C原典】Yoyakugo_Add_Main の
+    /// findtype==type_CT 分岐(Fyss12.c:3868-3925)。
+    ///
+    /// 開始機器(<paramref name="start"/>)を CT_Kiki とし、同一行種グループ(G_No)の
+    /// 計器区分(K_Kubun=='K')機器を前方走査する。走査中に WH(電力量計)を検出したら、
+    /// 計器回路先頭機器として <see cref="KikitableKeikiMake"/> で機器No=CT_Kiki.D_No-1、
+    /// 先頭フラグ='1' の計器回路レコードを追加する(グループ内で最初の WH のみ)。
+    /// 走査は次の CT/VT/ZCT または G_No 変化・非計器区分で停止する。
+    /// 停止後、グループ末尾機器の機器No+1 を機器Noとして <see cref="KikitableMainMake"/> で
+    /// CT の主回路レコードを追加する。
+    ///
+    /// 戻り値は走査を停止した位置(=グループ直後の機器インデックス)。
+    /// 【C原典】現物件では追加レコードは機器テーブル末尾へ realloc 追加され、後段 qsort で
+    /// D_No 順に整列される。本移植では <c>parse.MainEquipment</c> 末尾へ Add する。
+    /// </summary>
+    private static int ConsolidateCurrentTransformerCircuit(
+        CircuitParseResult parse, List<EquipmentTableEntry> equipment, int start, int maxKikic)
+    {
+        EquipmentTableEntry ctKiki = equipment[start]; // 【C原典】CT_Kiki = S_Kiki+i;
+        bool existWh = false;
+
+        // 【C原典】while ((S_Kiki+i)->K_Kubun=='K') { i++; ... }
+        // 境界外(i>=maxKikic)は現物件では0クリア済み番兵領域を参照して停止する。
+        // 本移植では境界ガードで停止し、観測結果は同一。
+        int j = start;
+        while (true)
+        {
+            j++;
+            if (j >= maxKikic)
+            {
+                break;
+            }
+
+            // 【C原典】950622: if (CT_Kiki->G_No != (S_Kiki+i)->G_No) break;
+            if (ctKiki.GroupNumber != equipment[j].GroupNumber)
+            {
+                break;
+            }
+
+            if (equipment[j].CircuitDivision != 'K')
+            {
+                break;
+            }
+
+            EquipmentType scanType = FindEquipmentType(equipment[j].ReservedWord);
+            if (scanType == EquipmentType.Wh)
+            {
+                // 【C原典】if (exist_WH==1) break; (グループ内最初の WH のみ)
+                if (existWh)
+                {
+                    break;
+                }
+
+                EquipmentTableEntry whKiki = equipment[j];
+                whKiki.EquipmentIdentityNumber = 0; // 【C原典】WH_Kiki->E_No = 0;
+                whKiki.AutoGenerationKind = ' ';    // 【C原典】WH_Kiki->yoyakkbn = ' ';
+                existWh = true;
+                short whDNo = (short)(ctKiki.EquipmentNumber - 1); // 【C原典】D_No = CT_Kiki->D_No - 1;
+                KikitableKeikiMake(parse, whKiki, whDNo, '1');
+            }
+            else if (scanType is EquipmentType.Ct or EquipmentType.Zct or EquipmentType.Vt)
+            {
+                break;
+            }
+        }
+
+        // 【C原典】i--; グループ末尾機器へ戻す。
+        int last = j - 1;
+        ctKiki.EquipmentIdentityNumber = 0; // 【C原典】CT_Kiki->E_No = 0;
+        ctKiki.AutoGenerationKind = ' ';    // 【C原典】CT_Kiki->yoyakkbn = ' ';
+        short mainGNo = equipment[last].GroupNumber;             // 【C原典】G_No = (S_Kiki+i)->G_No;
+        short mainDNo = (short)(equipment[last].EquipmentNumber + 1); // 【C原典】D_No = (S_Kiki+i)->D_No + 1;
+        KikitableMainMake(parse, ctKiki, mainDNo, mainGNo);
+
+        // 【C原典】i++; (グループ直後へ) ? 番兵越え時は maxKikic を返し外側ループを終了。
+        return last + 1;
+    }
+
+    /// <summary>
+    /// 計器回路機器(CT/WH/ZCT 等)を主回路機器として機器テーブル末尾に複製追加する。
+    /// 【C原典】Kikitable_Main_Make(Fyss12.c:4218)。回路区分='M'/自動生成区分='1'/
+    /// 先頭フラグ='1'/ランク=0/コメントグループNo=0 とし、機器No(D_No)・行種グループNo(G_No)を
+    /// 引数で上書きする。その他の(移植済み)フィールドは複製元(<paramref name="src"/>)からコピーする。
+    /// 【段階移植】型式展開フィールド(DTYPE/DMK/DIT/DLW/DLV/DLN/DUP/GCM 等)は未モデル化のため複製対象外。
+    /// </summary>
+    private static void KikitableMainMake(
+        CircuitParseResult parse, EquipmentTableEntry src, short dNo, short gNo)
+    {
+        parse.MainEquipment.Add(new EquipmentTableEntry
+        {
+            SystemNumber = src.SystemNumber,                     // K_No
+            GroupNumber = gNo,                                   // G_No(引数)
+            SpecNumber = src.SpecNumber,                         // S_No
+            StringSequence = src.StringSequence,                 // B_No
+            CircuitNumberSequence = src.CircuitNumberSequence,   // N_No
+            EquipmentNumber = dNo,                               // D_No(引数)
+            Rank = 0,                                            // Rank
+            EquipmentIdentityNumber = src.EquipmentIdentityNumber, // E_No
+            TopFlag = '1',                                       // TOP_Flg
+            CircuitDivision = 'M',                               // K_Kubun
+            AutoGenerationKind = '1',                            // yoyakkbn
+            Ban = src.Ban,                                       // ban
+            DescriptionRow = src.DescriptionRow,                 // K_Gyo
+            DescriptionColumn = src.DescriptionColumn,           // K_Ket
+            ControlGroupNumber = 0,                              // GroupNo
+            ReservedWord = src.ReservedWord,                     // yoyaku
+            ReservedWordNumber = src.ReservedWordNumber,         // ysno
+            Quantity = src.Quantity,                             // Kosu
+            GroupQuantity = src.GroupQuantity,                   // GKosu
+            CircuitNumberText = src.CircuitNumberText,           // DNO
+            GroupCircuitNumberText = src.GroupCircuitNumberText, // GNO
+            RatingValues = src.RatingValues,                     // key_tbl(電気パラメータ)
+        });
+    }
+
+    /// <summary>
+    /// 計器回路先頭機器(WH 等)を機器テーブル末尾に複製追加する。
+    /// 【C原典】Kikitable_Keiki_Make(Fyss12.c:4340)。回路区分='K'/自動生成区分='1'/
+    /// ランク=0/コメントグループNo=0 とし、機器No(D_No)・先頭フラグ(TOP_Flg)を引数で上書きする。
+    /// その他の(移植済み)フィールドは複製元(<paramref name="src"/>)からコピーする。
+    /// 【段階移植】型式展開フィールド(DTYPE/DMK/DIT/DLW/DLV/DLN/DUP/GCM 等)は未モデル化のため複製対象外。
+    /// </summary>
+    private static void KikitableKeikiMake(
+        CircuitParseResult parse, EquipmentTableEntry src, short dNo, char topFlag)
+    {
+        parse.MainEquipment.Add(new EquipmentTableEntry
+        {
+            SystemNumber = src.SystemNumber,                     // K_No
+            GroupNumber = src.GroupNumber,                       // G_No
+            SpecNumber = src.SpecNumber,                         // S_No
+            StringSequence = src.StringSequence,                 // B_No
+            CircuitNumberSequence = src.CircuitNumberSequence,   // N_No
+            EquipmentNumber = dNo,                               // D_No(引数)
+            Rank = 0,                                            // Rank
+            EquipmentIdentityNumber = src.EquipmentIdentityNumber, // E_No
+            TopFlag = topFlag,                                   // TOP_Flg(引数)
+            CircuitDivision = 'K',                               // K_Kubun
+            AutoGenerationKind = '1',                            // yoyakkbn
+            Ban = src.Ban,                                       // ban
+            DescriptionRow = src.DescriptionRow,                 // K_Gyo
+            DescriptionColumn = src.DescriptionColumn,           // K_Ket
+            ControlGroupNumber = 0,                              // GroupNo
+            ReservedWord = src.ReservedWord,                     // yoyaku
+            ReservedWordNumber = src.ReservedWordNumber,         // ysno
+            Quantity = src.Quantity,                             // Kosu
+            GroupQuantity = src.GroupQuantity,                   // GKosu
+            CircuitNumberText = src.CircuitNumberText,           // DNO
+            GroupCircuitNumberText = src.GroupCircuitNumberText, // GNO
+            RatingValues = src.RatingValues,                     // key_tbl(電気パラメータ)
+        });
     }
 
     /// <summary>

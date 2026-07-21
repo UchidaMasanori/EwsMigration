@@ -1123,4 +1123,67 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal('B', result.MainCircuits[1].Data.DesignationSuffix);
         Assert.Equal('C', result.MainCircuits[2].Data.DesignationSuffix);
     }
+
+    // ==== step6: Yoyakugo_Add_Main(ŒvŠí‰ñ˜H CT ‚Ìå‰ñ˜HƒŒƒR[ƒh“WŠJ) ====
+
+    /// <summary>Œn“”Ô†•t‚«‚ÅŒvŠí/å‹@Šíƒe[ƒuƒ‹1Œ‚ğ¶¬‚·‚éByCŒ´“TzKIKITABLEB</summary>
+    private static EquipmentTableEntry InstKiki(
+        string reservedWord, short groupNumber, short equipmentNumber, short systemNumber = 1)
+        => new()
+        {
+            ReservedWord = reservedWord,        // yCŒ´“Tzyoyaku
+            ReservedWordNumber = "0",           // yCŒ´“Tzysno(0 ‚Í“¯ˆêƒ`ƒFƒbƒN‘ÎÛŠO)
+            SystemNumber = systemNumber,        // yCŒ´“TzK_No
+            GroupNumber = groupNumber,          // yCŒ´“TzG_No
+            EquipmentNumber = equipmentNumber,  // yCŒ´“TzD_No(step6 ‚Å~10)
+            LineNumber = 2,                     // yCŒ´“TzK_Gyo
+        };
+
+    [Fact]
+    public void AddDerivedEquipment_CT_WHŒvŠí‰ñ˜H‚ÍCTå‰ñ˜H‚ÆWHŒvŠí‰ñ˜H‚ğ’Ç‰Á‚·‚é()
+    {
+        // yCŒ´“TzYoyakugo_Add_Main findtype==type_CT: “¯ˆêƒOƒ‹[ƒv‚Ì CT+WH(K_Kubun='K')‚ğ
+        //   ‘–¸‚µAKikitable_Keiki_Make ‚Å WH ŒvŠí‰ñ˜H(D_No=CT.D_No-1, TOP_Flg='1')A
+        //   Kikitable_Main_Make ‚Å CT å‰ñ˜H(D_No=––”ö‹@ŠíD_No+1, K_Kubun='M', yoyakkbn='1')‚ğ’Ç‰Á‚·‚éB
+        //   Œn“æ“ª‹@Ší‚ÍŒn“ƒuƒŒ[ƒN‚ÅÁ”ï‚³‚ê‚é‚½‚ßAæ“ª‚Éå‹@Ší(MCCB)‚ğ’u‚­B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            InstKiki("MCCB", groupNumber: 2, equipmentNumber: 1),
+            InstKiki("CT", groupNumber: 2, equipmentNumber: 2),
+            InstKiki("WH", groupNumber: 2, equipmentNumber: 3));
+
+        // Œ³3Œ + CTå‰ñ˜H + WHŒvŠí‰ñ˜H = 5ŒB
+        Assert.Equal(5, result.MainEquipment.Count);
+
+        // CT å‰ñ˜HƒŒƒR[ƒh(©“®¶¬Eå‹@Ší‹æ•ª)B
+        var ctMain = Assert.Single(result.MainEquipment,
+            k => k.ReservedWord == "CT" && k.CircuitDivision == 'M');
+        Assert.Equal('1', ctMain.AutoGenerationKind);
+        Assert.Equal((short)0, ctMain.EquipmentIdentityNumber);
+        // ––”ö‹@Ší WH(D_No=30)+1 = 31B
+        Assert.Equal((short)31, ctMain.EquipmentNumber);
+
+        // WH ŒvŠí‰ñ˜HƒŒƒR[ƒh(©“®¶¬EŒvŠí‹æ•ª)BD_No = CT(D_No=20)-1 = 19B
+        var whKeiki = Assert.Single(result.MainEquipment,
+            k => k.ReservedWord == "WH" && k.AutoGenerationKind == '1');
+        Assert.Equal('K', whKeiki.CircuitDivision);
+        Assert.Equal((short)19, whKeiki.EquipmentNumber);
+    }
+
+    [Fact]
+    public void AddDerivedEquipment_ŒvŠí‰ñ˜H‚È‚µ‚Å‚Í‹@Ší‚ğ’Ç‰Á‚µ‚È‚¢()
+    {
+        // yCŒ´“TzK_Kubun!='K'(å‹@Ší‚Ì‚İ)‚ÌŒn“‚Å‚ÍŒvŠí‰ñ˜H“WŠJ‚Í”­¶‚µ‚È‚¢B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(
+            new[] { p, m },
+            InstKiki("MCCB", groupNumber: 2, equipmentNumber: 1),
+            InstKiki("MCCB", groupNumber: 2, equipmentNumber: 2));
+
+        Assert.Equal(2, result.MainEquipment.Count);
+        Assert.DoesNotContain(result.MainEquipment, k => k.AutoGenerationKind == '1');
+    }
 }
