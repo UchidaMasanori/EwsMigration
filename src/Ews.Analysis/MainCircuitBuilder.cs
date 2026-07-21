@@ -230,15 +230,28 @@ public sealed class MainCircuitBuilder
                 continue;
             }
 
-            // 【C原典】K_Kubun=='K' : 計器/付属機器グループ。
+            // 【C原典】K_Kubun=='K' : 計器/付属機器グループ。CT/VT/WH/ZCT を主回路レコード化。
             if (findType == EquipmentType.Ct)
             {
                 i = ConsolidateCurrentTransformerCircuit(parse, equipment, i, maxKikic);
             }
+            else if (findType == EquipmentType.Vt)
+            {
+                i = ConsolidateVoltageTransformerCircuit(parse, equipment, i, maxKikic);
+            }
+            else if (findType == EquipmentType.Wh)
+            {
+                // 【C原典】type_WH 分岐: 停止種別 CT/WH/ZCT/VT(950609)。
+                i = ConsolidateSingleInstrumentCircuit(parse, equipment, i, maxKikic, breakOnZct: true);
+            }
+            else if (findType == EquipmentType.Zct)
+            {
+                // 【C原典】type_ZCT 分岐(950310): 停止種別 CT/WH/VT(ZCT では停止しない)。
+                i = ConsolidateSingleInstrumentCircuit(parse, equipment, i, maxKikic, breakOnZct: false);
+            }
             else
             {
-                // 【C原典】その他の計器グループ(else)は走査のみ。
-                // 【段階移植】VT/WH/ZCT 単独始まりの主回路展開は未実装(生成せず走査のみ)。
+                // 【C原典】その他の計器グループ(else)は走査のみ(主回路レコード生成なし)。
                 i++;
                 while (i < maxKikic && equipment[i].CircuitDivision == 'K')
                 {
@@ -334,10 +347,168 @@ public sealed class MainCircuitBuilder
     }
 
     /// <summary>
-    /// 計器回路機器(CT/WH/ZCT 等)を主回路機器として機器テーブル末尾に複製追加する。
-    /// 【C原典】Kikitable_Main_Make(Fyss12.c:4218)。回路区分='M'/自動生成区分='1'/
-    /// 先頭フラグ='1'/ランク=0/コメントグループNo=0 とし、機器No(D_No)・行種グループNo(G_No)を
-    /// 引数で上書きする。その他の(移植済み)フィールドは複製元(<paramref name="src"/>)からコピーする。
+    /// VT(計器用変圧器)計器回路を主回路レコードへ展開する。【C原典】Yoyakugo_Add_Main の
+    /// findtype==type_VT 分岐(Fyss12.c:3926-3996)。
+    ///
+    /// 開始機器(<paramref name="start"/>)を VT_Kiki とし、同一行種グループ(G_No)の
+    /// 計器区分(K_Kubun=='K')機器を前方走査する。走査中の CT はグループ最初の1件のみ
+    /// CT_Kiki として記憶し(exist_CT)、WH はグループ最初の1件のみ計器回路先頭機器として
+    /// <see cref="KikitableKeikiMake"/> で機器No=VT_Kiki.D_No+1、先頭フラグ=' ' で追加する
+    /// (exist_WH)。走査は次の VT または G_No 変化・非計器区分で停止する。
+    ///
+    /// 停止後の処理は C 原典に忠実に分岐する:
+    ///   ・CT を検出していれば(exist_CT): CT の主回路レコード(機器No=末尾+1)を
+    ///     <see cref="KikitableMainMake"/> で追加し、グループ直後(last+1)を返す。
+    ///   ・CT が無く WH を検出していれば(exist_WH): 元の WH 機器の回路区分を 'M' に変更
+    ///     (新規レコードは追加しない)し、末尾位置(last)を返す。C 原典は i-- のみで i++ せず、
+    ///     外側ループが 'M' 化した WH を主機器素通しとして再走査する。
+    ///   ・いずれも無ければ末尾位置(last)を返す(VT 自身は主回路化しない)。
+    /// </summary>
+    private static int ConsolidateVoltageTransformerCircuit(
+        CircuitParseResult parse, List<EquipmentTableEntry> equipment, int start, int maxKikic)
+    {
+        EquipmentTableEntry vtKiki = equipment[start]; // 【C原典】VT_Kiki = S_Kiki+i;
+        bool existCt = false;
+        bool existWh = false;
+        EquipmentTableEntry? ctKiki = null;
+        EquipmentTableEntry? whKiki = null;
+
+        int j = start;
+        while (true)
+        {
+            j++;
+            if (j >= maxKikic)
+            {
+                break;
+            }
+
+            // 【C原典】950622: if (VT_Kiki->G_No != (S_Kiki+i)->G_No) break;
+            if (vtKiki.GroupNumber != equipment[j].GroupNumber)
+            {
+                break;
+            }
+
+            if (equipment[j].CircuitDivision != 'K')
+            {
+                break;
+            }
+
+            EquipmentType scanType = FindEquipmentType(equipment[j].ReservedWord);
+            if (scanType == EquipmentType.Ct)
+            {
+                // 【C原典】if (exist_CT==1) break; CT_Kiki=S_Kiki+i; exist_CT=1;
+                if (existCt)
+                {
+                    break;
+                }
+
+                ctKiki = equipment[j];
+                existCt = true;
+            }
+            else if (scanType == EquipmentType.Wh)
+            {
+                // 【C原典】if (exist_WH==1) break; (グループ内最初の WH のみ)
+                if (existWh)
+                {
+                    break;
+                }
+
+                whKiki = equipment[j];
+                existWh = true;
+                whKiki.EquipmentIdentityNumber = 0; // 【C原典】WH_Kiki->E_No = 0;
+                whKiki.AutoGenerationKind = ' ';    // 【C原典】WH_Kiki->yoyakkbn = ' ';
+                short whDNo = (short)(vtKiki.EquipmentNumber + 1); // 【C原典】D_No = VT_Kiki->D_No + 1;
+                KikitableKeikiMake(parse, whKiki, whDNo, ' ');
+            }
+            else if (scanType == EquipmentType.Vt)
+            {
+                break;
+            }
+        }
+
+        // 【C原典】i--; グループ末尾機器へ戻す。
+        int last = j - 1;
+        if (existCt)
+        {
+            // 【C原典】CT を主回路レコード化。
+            ctKiki!.EquipmentIdentityNumber = 0; // 【C原典】CT_Kiki->E_No = 0;
+            ctKiki.AutoGenerationKind = ' ';     // 【C原典】CT_Kiki->yoyakkbn = ' ';
+            short mainGNo = equipment[last].GroupNumber;
+            short mainDNo = (short)(equipment[last].EquipmentNumber + 1);
+            KikitableMainMake(parse, ctKiki, mainDNo, mainGNo);
+
+            // 【C原典】i++; (グループ直後へ)
+            return last + 1;
+        }
+
+        if (existWh)
+        {
+            // 【C原典】exist_WH のみ: 元 WH を主回路(K_Kubun='M')へ変更。新規レコードは追加しない。
+            whKiki!.EquipmentIdentityNumber = 0; // 【C原典】WH_Kiki->E_No = 0;
+            whKiki.CircuitDivision = 'M';        // 【C原典】WH_Kiki->K_Kubun = 'M';
+        }
+
+        // 【C原典】exist_CT 無し: i++ せず末尾位置のまま(外側ループが末尾機器を再走査)。
+        return last;
+    }
+
+    /// <summary>
+    /// 単一計器機器(WH/ZCT)を主回路レコードへ展開する。【C原典】Yoyakugo_Add_Main の
+    /// findtype==type_WH 分岐(Fyss12.c:3997-4026)/ findtype==type_ZCT 分岐(4027-4058)。
+    ///
+    /// 開始機器(<paramref name="start"/>)を起点とし、同一行種グループ(G_No)の
+    /// 計器区分(K_Kubun=='K')機器を前方走査する。走査は次の停止種別または G_No 変化・
+    /// 非計器区分で停止する。停止種別は WH では CT/WH/ZCT/VT(950609)、ZCT では CT/WH/VT
+    /// (ZCT 自身では停止しない, 950310)であり、<paramref name="breakOnZct"/> で切り替える。
+    /// 停止後、グループ末尾機器の機器No+1 を機器Noとして <see cref="KikitableMainMake"/> で
+    /// 起点機器の主回路レコードを追加し、グループ直後(last+1)を返す。
+    /// </summary>
+    private static int ConsolidateSingleInstrumentCircuit(
+        CircuitParseResult parse, List<EquipmentTableEntry> equipment, int start, int maxKikic,
+        bool breakOnZct)
+    {
+        EquipmentTableEntry srcKiki = equipment[start]; // 【C原典】WH_Kiki / ZCT_Kiki = S_Kiki+i;
+
+        int j = start;
+        while (true)
+        {
+            j++;
+            if (j >= maxKikic)
+            {
+                break;
+            }
+
+            // 【C原典】950309/950310: if (Kiki->G_No != (S_Kiki+i)->G_No) break;
+            if (srcKiki.GroupNumber != equipment[j].GroupNumber)
+            {
+                break;
+            }
+
+            if (equipment[j].CircuitDivision != 'K')
+            {
+                break;
+            }
+
+            EquipmentType scanType = FindEquipmentType(equipment[j].ReservedWord);
+            if (scanType is EquipmentType.Ct or EquipmentType.Wh or EquipmentType.Vt
+                || (breakOnZct && scanType == EquipmentType.Zct))
+            {
+                break;
+            }
+        }
+
+        // 【C原典】i--; グループ末尾機器へ戻す。
+        int last = j - 1;
+        srcKiki.EquipmentIdentityNumber = 0; // 【C原典】Kiki->E_No = 0;
+        srcKiki.AutoGenerationKind = ' ';    // 【C原典】Kiki->yoyakkbn = ' ';
+        short mainGNo = equipment[last].GroupNumber;
+        short mainDNo = (short)(equipment[last].EquipmentNumber + 1);
+        KikitableMainMake(parse, srcKiki, mainDNo, mainGNo);
+
+        // 【C原典】i++; (グループ直後へ)
+        return last + 1;
+    }
+
     /// 【段階移植】型式展開フィールド(DTYPE/DMK/DIT/DLW/DLV/DLN/DUP/GCM 等)は未モデル化のため複製対象外。
     /// </summary>
     private static void KikitableMainMake(
