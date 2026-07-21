@@ -1018,4 +1018,73 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal((short)20, seg.MaxNumber);
         Assert.Equal((short)3, seg.Iteration);
     }
+
+    // ==== step17: mainfile_set(å‰ñ˜Hƒtƒ@ƒCƒ‹ƒGƒŠƒA = FYRT800 ƒŒƒR[ƒh®Œ`) ====
+
+    /// <summary>Œn“ƒe[ƒuƒ‹•t‚«‚Åå‰ñ˜H¶¬‚ğÀs‚·‚éByCŒ´“TzFind_Keitou —p‚Ì KEITOU ‚ğ—pˆÓ‚·‚éB</summary>
+    private static CircuitParseResult RunMainFile(
+        SystemTableEntry[] systems, LineTypeTableEntry[] lineTypes, params EquipmentTableEntry[] equipment)
+    {
+        var parse = new CircuitParseResult();
+        parse.Systems.AddRange(systems);
+        parse.LineTypes.AddRange(lineTypes);
+        parse.MainEquipment.AddRange(equipment);
+        new MainCircuitBuilder().MakeMain(parse);
+        return parse;
+    }
+
+    [Fact]
+    public void MainFileSet_’PƒƒOƒ‹[ƒv‚Åå‰ñ˜HƒŒƒR[ƒh‚ğ1Œ¶¬‚·‚é()
+    {
+        // yCŒ´“TzMain_File_Make_s ¨ mainfile_pre_set ¨ mainfile_setBKosu Šù’è 0¨1 ‚Å 1 ƒŒƒR[ƒhB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal("001", rec.SequenceNumber);          // yCŒ´“Tzdatano = "%03d" *Pmainc
+        Assert.Equal("001", rec.Data.SystemNumber);       // yCŒ´“Tzkno = "%03d" K_No(=1)
+        Assert.Equal("MCCB", rec.Data.ReservedWord);      // yCŒ´“Tzyoyaku
+        Assert.Equal("00", rec.Data.IdentityNumber);      // yCŒ´“Tzdoukkno = "%02d" E_No(=0)
+        Assert.Equal("000", rec.Data.DescriptionColumn);  // yCŒ´“Tzketa(K_Ket –¢İ’è)
+        Assert.Equal("000", rec.Data.DescriptionRow);     // yCŒ´“Tzgyo(K_Gyo –¢İ’è)
+        Assert.Equal("000", rec.Data.LineTypeGroupNumber);// yCŒ´“Tzgyoglno = "000"
+    }
+
+    [Fact]
+    public void MainFileSet_Œn“ƒe[ƒuƒ‹‚©‚çŒn“í•Ê‚ğƒZƒbƒg‚·‚é()
+    {
+        // yCŒ´“Tzmainfile_set: S_Keitou->Kind != '\0' ‚Ì‚Æ‚« ksyubetu = KindB
+        var sys = new SystemTableEntry { SystemNumber = 1, SystemKind = '1' };
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunMainFile(new[] { sys }, new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal('1', rec.Data.SystemKind);
+    }
+
+    [Fact]
+    public void MainFileSet_”—Ê•ª‚ÌƒŒƒR[ƒh‚ğ¶¬‚µ¶¬ƒTƒtƒBƒbƒNƒX‚ğ•t—^‚·‚é()
+    {
+        // yCŒ´“Tzmainfile_pre_set: Kosu •ª‚¾‚¯ mainfile_setB
+        //   ysno!=0 ‚©‚Â (Max_Iteration||Max_Suryo)!=0 ‚Ì‚Æ‚« yssfx=(safix+'A')B
+        //   safix = Iteration(0)*max(Kosu,1)+Suryo(=0,1) ¨ 'A','B'B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var kiki = MainKiki(groupNumber: 2, equipmentNumber: 1);
+        kiki.ReservedWordNumber = "1"; // ysno!=0
+        kiki.Quantity = 2;             // Kosu=2 ¨ 2 ƒŒƒR[ƒh
+        var result = RunYoyakugo(new[] { p, m }, kiki);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(2, result.MainCircuits.Count);
+        Assert.Equal("001", result.MainCircuits[0].SequenceNumber);
+        Assert.Equal("002", result.MainCircuits[1].SequenceNumber);
+        Assert.Equal("1", result.MainCircuits[0].Data.DesignationNumber);
+        Assert.Equal('A', result.MainCircuits[0].Data.DesignationSuffix);
+        Assert.Equal('B', result.MainCircuits[1].Data.DesignationSuffix);
+    }
 }

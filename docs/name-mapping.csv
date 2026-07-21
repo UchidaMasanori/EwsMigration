@@ -173,3 +173,10 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,next_1_get,ElectricalParameterChecker.NextOneGet,toku/sekkei/src/Fyss1d.c,CT/VT付き'/'直後の副記号n_kigoを取得(消費先key_check_WHはE.2)
 テーブル,ft_rmcb(予約語RMCB),ElectricalParameterChecker.RatingKeyTables["RMCB"],toku/include/sekkei/fyrt810.h,fyak_tblの予約語はRMCB(旧誤記RECBから是正)
 テーブル,fyak_tblマッピング(G→ft_g1/GI→ft_i/GP→ft_p/GPN→ft_n),ElectricalParameterChecker.RatingKeyTables,toku/include/sekkei/fyrt810.h,fyak_tblの予約語→ft_表マッピングのクセ(G/GI/GP/GPNは別名表を共有)。SMTKP/SMTSS/SMTRYはft_tsuを再利用
+構造体,syukairo,MainCircuitData,toku/sekkei/src/Fyss1f.c,主回路FYRT800レコードの型付きモデル(gyo/keta/kno/ksyubetu/yoyaku/gyocd/skno/narakbn/doukkno/kairono等)
+テーブル,FYRT800レコード,MainCircuitResult,toku/sekkei/src/Fyss1f.c,主回路ファイル1レコード(datano+syukairo+sk_work)。CircuitParseResult.MainCircuitsに蓄積
+関数,Main_Area_Clear,MainCircuitData.Create,toku/sekkei/src/Fyss1f.c,syukairo初期化(memset'0'後に数値000/文字空白へ上書きする既定値)
+関数,Find_Keitou,MainCircuitBuilder.FindSystem,toku/sekkei/src/Fyss1f.c,K_No==0でnull、それ以外はKEITOU(Systems)を線形探索
+関数,Main_File_Make_s,MainCircuitBuilder.MainFileMakeSimple,toku/sekkei/src/Fyss1f.c,単純グループ(kj<kensu かつ D_No<=maxNo)を走査しmainfile_pre_setを呼ぶ
+関数,mainfile_pre_set,MainCircuitBuilder.MainFilePreSet,toku/sekkei/src/Fyss1f.c,Kosu分展開(F/VT/CTは1固定)、DNOをCSV分割してgstringをmainfile_setへ渡す
+関数,mainfile_set,MainCircuitBuilder.MainAreaSet,toku/sekkei/src/Fyss1f.c,FYRT800(syukairo)1レコード整形。決定的フィールド(datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/skno/narakbn/doukkno/jagekbn)を移植。kairsfx/gyono/datatype/ep/fpは上流(Fyss13-15機器選定・型式展開)未移植のためTODO

@@ -1010,10 +1010,12 @@ public sealed class MainCircuitBuilder
     ///   1. Find_Iteration … グループ数量(GKosu)による繰り返し → Main_File_Make_d
     ///   2. Find_Nobangou  … 回路番号文(DNO/GNO)による展開     → Main_File_Make_n
     ///   3. Find_Group     … 単純グループ                       → Main_File_Make_s
-    /// 判定後、C原典は直ちに主回路設計エリア(FYRT800)へレコード生成(mainfile_set)するが、
-    /// FYRT800 の大型出力構造とフィールド整形は段階移植とし、本移行では分解結果
-    /// (<see cref="MainCircuitSegment"/>)のみを収集する。系統/行種検索(Find_Keitou/Find_Gyosyu)は
-    /// レコード生成側で使用するため、分解のみの本段階では省略する。
+    /// 判定後、C原典は直ちに主回路設計エリア(FYRT800)へレコード生成(mainfile_set)する。
+    /// 本移行では分解結果(<see cref="MainCircuitSegment"/>)を収集したうえで、単純グループ
+    /// (Find_Group → Main_File_Make_s)については <see cref="MainFileMakeSimple"/> で FYRT800
+    /// レコード(<see cref="MainCircuitResult"/>)を生成し <see cref="CircuitParseResult.MainCircuits"/>
+    /// へ格納する。繰り返し/回路番号文(Make_d/Make_n)およびサフィックス生成・電気/付属パラメータは
+    /// 機器選定(Fyss13-15)の未移植データに依存するため段階移植とする。
     /// エラー時(FY-693E/FYMEE80)戻り値 2 はレコード生成側で扱う。
     /// </summary>
     /// <returns>0=正常。【C原典】Main_File_Area_Make の戻り値。</returns>
@@ -1023,11 +1025,15 @@ public sealed class MainCircuitBuilder
         int count = equipment.Count;
 
         parse.MainCircuitSegments.Clear();
+        parse.MainCircuits.Clear();
 
         // 【C原典】G_No = B_No = K_No = 0; i = 0; group を 0 クリア。
         short gNo = 0;
         short bNo = 0;
         int i = 0;
+
+        // 【C原典】主回路ファイルカウント *Pmainc(mainfile_set が生成毎に ++)。
+        int mainCount = 0;
 
         while (i < count)
         {
@@ -1093,6 +1099,11 @@ public sealed class MainCircuitBuilder
                         MinNumber = gpMinNo,
                         MaxNumber = gpMaxNo,
                     });
+
+                    // 【C原典】S_Keitou/S_Gyosyu を Find_Keitou/Find_Gyosyu で引き、
+                    //   Main_File_Make_s で主回路設計エリア(FYRT800)を生成する。
+                    MainFileMakeSimple(parse, equipment, i, gpKensu, gpMaxNo, ref mainCount);
+
                     i += gpKensu - 1;
                 }
             }
@@ -1105,6 +1116,233 @@ public sealed class MainCircuitBuilder
 
         return 0;
     }
+
+    /// <summary>
+    /// 単純グループ(繰り返しなし)の主回路ファイルメイク。【C原典】Main_File_Make_s(Fyss1f.c:840)。
+    /// 機器グループ(equipment[start..start+kensu-1])を先頭から走査し、機器No(D_No)が
+    /// Max_No 以下の機器ごとに <see cref="MainFilePreSet"/> を呼ぶ。系統/行種は
+    /// Find_Keitou/Find_Gyosyu で引く。先頭機器判定(TOP)は文字列連番(B_No==1)で行う。
+    /// 【段階移植】交互運転(Kougo, 末尾機器の DLW[0]=='K')・負荷電圧(DLV)反映・
+    /// 改訂&lt;6&gt;の共通回路番号(DNO)反映は DLW/DLV 未モデル化のため未実装。
+    /// </summary>
+    /// <returns>TRUE=先頭機器で終了。【C原典】result。</returns>
+    private static bool MainFileMakeSimple(
+        CircuitParseResult parse,
+        List<EquipmentTableEntry> equipment, int start, short kensu, short maxNo,
+        ref int mainCount)
+    {
+        // 【C原典】Kougo = (S_Kiki[kensu-1].DLW[0]=='K')?'K':' '。DLW 未モデル化のため ' '。
+        char kougo = ' ';
+        // 【C原典】TOP = (S_Kiki[0].B_No == 1)。
+        bool top = equipment[start].StringSequence == 1;
+
+        bool result = true;
+        int kj = 0;
+        // 【C原典】while( (S_Kiki+kj)->D_No <= Max_No && kj < kensu )。
+        while (kj < kensu && equipment[start + kj].EquipmentNumber <= maxNo)
+        {
+            EquipmentTableEntry wKiki = equipment[start + kj];
+            SystemTableEntry? sKeitou = FindSystem(parse, wKiki.SystemNumber);
+            LineTypeTableEntry? sGyosyu = FindLineType(parse, wKiki.GroupNumber);
+            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, wKiki, ref mainCount);
+            top = false;   // 【C原典】TOP = FALSE。
+            kougo = ' ';   // 【C原典】Kougo = ' '。
+            kj++;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 主回路ファイルエリアメーク(数量分解)。【C原典】mainfile_pre_set(Fyss1f.c:1366)。
+    /// 機器数量(Kosu)分だけ <see cref="MainAreaSet"/> を呼ぶ。指定番号(DNO)はカンマ区切りで
+    /// 数量ごとに 1 トークンずつ割り当てる(繰り返しなし = Iteration 0 の経路のみ移植)。
+    /// 予約語 F/VT/CT は数量 1 とする(C原典は memcmp 完全一致)。
+    /// </summary>
+    private static bool MainFilePreSet(
+        CircuitParseResult parse,
+        char kougo, bool top, short kbangou, short iteration,
+        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry wKiki,
+        ref int mainCount)
+    {
+        short kosu = wKiki.Quantity;
+        if (kosu == 0) kosu = 1;                 // 【C原典】if(Kosu==0) Kosu=1。
+        // 【C原典】F/VT/CT は Kosu=1(memcmp("F"/"VT"/"CT", yoyaku, strlen) は完全一致で真)。
+        if (wKiki.ReservedWord is "F" or "VT" or "CT") kosu = 1;
+
+        // 【C原典】Iteration==0 かつ Kosu>0 のとき Gstring=strtok(DNO,",")。
+        //   Iteration 経路(Kosu==0)は Make_d 未移植のため対象外。
+        string[] tokens = (iteration == 0 && wKiki.Quantity > 0)
+            ? SplitCsv(wKiki.CircuitNumberText)
+            : [];
+
+        bool result = true;
+        for (short j = 0; j < kosu; j++)
+        {
+            string gstring = j < tokens.Length ? tokens[j] : string.Empty;
+            result = MainAreaSet(parse, kougo, top, kbangou, iteration, j, gstring,
+                sKeitou, sGyosyu, wKiki, ref mainCount);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 主回路ファイルエリアの 1 レコード整形。【C原典】mainfile_set(Fyss1f.c:1464)。
+    ///
+    /// 機器テーブル(<paramref name="sKiki"/>)・系統テーブル(<paramref name="sKeitou"/>)・
+    /// 行種テーブル(<paramref name="sGyosyu"/>)から FYRT800(struct syukairo)の各フィールドを設定する。
+    /// 本移行では、現時点で移植済みの上流データから決定的に定まるフィールドのみを設定する:
+    ///   データ追番/記述行桁/系統番号/系統種別/系統座標(P系統)/予約語(自動生成区分・予約語・
+    ///   指定番号・生成サフィックス)/行種コード/行種グループ番号/指定回路番号/並び替え区分/
+    ///   同一機器認識番号/交互運転区分。
+    /// 【段階移植・未実装(機器選定 Fyss13-15 の未移植データ/ヘルパ依存)】
+    ///   ・生成回路サフィックス(kairsfx)… Max_Bunno_Find/Max_Kbangou_Find(S_Kiki 全走査)
+    ///   ・行種番号(gyono)… Find_Bangou(行種マスタ照合)
+    ///   ・タイプ(datatype)… KIKITABLE.DTYPE
+    ///   ・電気パラメータ(ep[3])/付属パラメータ(fp)… eparm_set / DLW・DLV・DLN・key_tbl・ban
+    /// </summary>
+    /// <returns>TRUE(C原典は常に return(TRUE))。</returns>
+    private static bool MainAreaSet(
+        CircuitParseResult parse,
+        char kougo, bool top, short kbangou, short iteration, short suryo, string gstring,
+        SystemTableEntry? sKeitou, LineTypeTableEntry? sGyosyu, EquipmentTableEntry sKiki,
+        ref int mainCount)
+    {
+        // 【C原典】(*Pmainc)++ 後の値を datano(FYRT800.datano)へ。Main_Area_Clear で dt を初期化。
+        mainCount++;
+        var rec = new MainCircuitResult
+        {
+            SequenceNumber = mainCount.ToString("D3"),
+            Data = MainCircuitData.Create(),
+        };
+        MainCircuitData dt = rec.Data;
+
+        short maxSuryo = sKiki.Quantity;        // 【C原典】Max_Suryo = S_Kiki->Kosu。
+        short maxIteration = sKiki.GroupQuantity; // 【C原典】Max_Iteration = S_Kiki->GKosu。
+
+        // 【C原典】記述桁/記述行: keta=atoi(K_Ket); gyo=(keta>0?(keta-1)/KAIROARLEN:0); keta%=KAIROARLEN。
+        int keta = AtoiYsno(sKiki.DescriptionColumn);
+        int gyo = keta > 0 ? (keta - 1) / CircuitDescriptionLine.CircuitTextLength : 0;
+        keta %= CircuitDescriptionLine.CircuitTextLength;
+        dt.DescriptionColumn = keta.ToString("D3");
+        dt.DescriptionRow = (gyo + AtoiYsno(sKiki.DescriptionRow)).ToString("D3");
+
+        // 【C原典】系統番号。
+        dt.SystemNumber = ((int)sKiki.SystemNumber).ToString("D3");
+
+        // 【C原典】系統種別(S_Keitou->Kind != '\0' のとき)。
+        if (sKeitou is not null && sKeitou.SystemKind != '\0')
+        {
+            dt.SystemKind = sKeitou.SystemKind;
+        }
+
+        // 【C原典】系統座標(P系統: Kind=='1' && G_No!=0)。
+        if (sKeitou is not null && sKeitou.SystemKind == '1' && sKiki.GroupNumber != 0 && sGyosyu is not null)
+        {
+            dt.IncomingNumber = ((int)sGyosyu.Sequence).ToString("D3");   // 入線番号 G_ren
+            dt.UpperParallelNumber = "000";                               // 上流並列追番
+            dt.HierarchyNumber = (sGyosyu.Rank + sKiki.Rank).ToString("D3"); // 階層番号 Rank+Rank
+            dt.ParallelNumber = "000";                                    // 並列追番
+            dt.SeriesNumber = "000";                                      // 直列追番
+
+            char kairobun = sGyosyu.CircuitClass; // 【C原典】kairobun = S_Gyosyu->G_kind。
+            if (kairobun == 'P' || kairobun == '\0')
+            {
+                dt.CircuitClass = ' ';
+                dt.CircuitNumber = "000";
+            }
+            else
+            {
+                dt.CircuitClass = kairobun;
+                dt.CircuitNumber = "000";
+                // 【段階移植】生成回路サフィックス(kairsfx)は Max_Bunno_Find/Max_Kbangou_Find
+                //   (S_Kiki 全走査)依存のため未実装。C原典 Fyss1f.c:1657-1786。
+            }
+        }
+
+        // 【C原典】自動生成区分。
+        dt.AutoGenerationKind = sKiki.AutoGenerationKind != ' ' ? sKiki.AutoGenerationKind : ' ';
+
+        // 【C原典】予約語("%.8s")。
+        dt.ReservedWord = Truncate(sKiki.ReservedWord, 8);
+
+        // 【C原典】予約語番号(ysno!="00")・生成サフィックス。
+        if (AtoiYsno(sKiki.ReservedWordNumber) != 0)
+        {
+            dt.DesignationNumber = Truncate(sKiki.ReservedWordNumber, 2);
+            if (maxIteration != 0 || maxSuryo != 0)
+            {
+                // 【C原典】safix = Iteration * max(Kosu,1) + Suryo; yssfx = safix + 'A'。
+                int safix = iteration * Math.Max((int)sKiki.Quantity, 1) + suryo;
+                dt.DesignationSuffix = (char)(safix + 'A');
+            }
+        }
+
+        // 【C原典】行種コード(G_No!=0 のとき S_Gyosyu->gyosyu、それ以外は予約語)。
+        dt.LineTypeCode = sKiki.GroupNumber != 0 && sGyosyu is not null
+            ? Truncate(sGyosyu.LineType, 3)
+            : Truncate(sKiki.ReservedWord, 3);
+
+        // 【段階移植】行種番号(gyono)は Find_Bangou(行種マスタ照合)依存のため未実装。
+
+        // 【C原典】行種グループ番号。
+        dt.LineTypeGroupNumber = "000";
+
+        // 【C原典】指定番号("%.5s" Gstring)。
+        dt.CircuitDesignationNumber = Truncate(gstring, 5);
+        // 【C原典】改訂<11> 同一行(gyo/keta 一致)で Gstring 空なら直前レコードの指定番号を継承。
+        if (gstring.Length == 0 && parse.MainCircuits.Count > 0)
+        {
+            MainCircuitData prev = parse.MainCircuits[^1].Data;
+            if (prev.DescriptionRow == dt.DescriptionRow &&
+                prev.DescriptionColumn == dt.DescriptionColumn &&
+                prev.CircuitDesignationNumber.Length > 0)
+            {
+                dt.CircuitDesignationNumber = prev.CircuitDesignationNumber;
+            }
+        }
+
+        // 【C原典】生成サフィックス。
+        dt.CircuitDesignationSuffix = ' ';
+
+        // 【C原典】並び替え機器区分(TOP_Flg=='1'?'2':'1'、行種グループ先頭 TOP なら +2)。
+        dt.SortKind = sKiki.TopFlag == '1' ? '2' : '1';
+        if (top) dt.SortKind = (char)(dt.SortKind + 2);
+
+        // 【C原典】同一機器認識番号("%02d" E_No)。
+        dt.IdentityNumber = ((int)sKiki.EquipmentIdentityNumber).ToString("D2");
+
+        // 【C原典】交互運転区分(jagekbn = Kougo)。
+        dt.StackKind = kougo;
+
+        parse.MainCircuits.Add(rec);
+        return true; // 【C原典】return(TRUE)。
+    }
+
+    /// <summary>
+    /// 系統テーブルを系統番号(K_No)で検索する。【C原典】Find_Keitou(K_No, ...)(Fyss1f.c:497)。
+    /// K_No==0 は NULL(該当なし)。
+    /// </summary>
+    private static SystemTableEntry? FindSystem(CircuitParseResult parse, short systemNumber)
+    {
+        if (systemNumber == 0) return null; // 【C原典】if(K_No==0) return(NULL)。
+        foreach (SystemTableEntry k in parse.Systems)
+        {
+            if (k.SystemNumber == systemNumber) return k;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// カンマ区切り文字列を空要素を除いて分割する。【C原典】strtok(str, ",")(空トークンをスキップ)。
+    /// </summary>
+    private static string[] SplitCsv(string value)
+        => string.IsNullOrEmpty(value)
+            ? []
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>先頭 <paramref name="length"/> 文字を返す。【C原典】sprintf("%.Ns", ...) 相当。</summary>
+    private static string Truncate(string value, int length)
+        => value.Length <= length ? value : value[..length];
 
     /// <summary>
     /// 繰り返し(グループ数量)データ検索。【C原典】Find_Iteration(Fyss1f.c:560)。

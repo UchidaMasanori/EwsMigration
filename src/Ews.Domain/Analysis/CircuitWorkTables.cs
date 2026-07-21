@@ -188,6 +188,21 @@ public sealed class EquipmentTableEntry
     /// <summary>記述桁。【C原典】colm。</summary>
     public short Column { get; set; }
 
+    /// <summary>
+    /// 記述行。【C原典】K_Gyo[3+1]。
+    /// 回路記述上の行位置。主回路ファイルエリア生成(Fyss1f mainfile_set)が
+    /// 記述行(gyo)算出に使用する。数値文字列("003"等)。未設定時は空。
+    /// </summary>
+    public string DescriptionRow { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 記述桁。【C原典】K_Ket[3+1]。
+    /// 回路記述上の桁位置。主回路ファイルエリア生成(Fyss1f mainfile_set)が
+    /// 記述桁(keta)・記述行(gyo)算出に使用する(keta%KAIROARLEN, (keta-1)/KAIROARLEN)。
+    /// 数値文字列。未設定時は空。
+    /// </summary>
+    public string DescriptionColumn { get; set; } = string.Empty;
+
     /// <summary>行種。【C原典】gyosyu。</summary>
     public string LineType { get; set; } = string.Empty;
 
@@ -393,6 +408,15 @@ public sealed class CircuitParseResult
     /// FYRT800 レコードのフィールド整形(mainfile_set)は段階移植のため未実装。
     /// </summary>
     public List<MainCircuitSegment> MainCircuitSegments { get; } = new();
+
+    /// <summary>
+    /// 生成された主回路設計エリア(FYRT800)レコード群。
+    /// 【C原典】Fyss1f Main_File_Area_Make → Main_File_Make_s/d/n → mainfile_pre_set →
+    /// mainfile_set が生成する struct FYRT800 の配列(*maina, 件数 *Pmainc)。
+    /// 本移行では単純グループ(Find_Group → Main_File_Make_s)の決定的フィールドのみを設定する。
+    /// 繰り返し/回路番号文(Make_d/Make_n)およびサフィックス生成・電気/付属パラメータは段階移植。
+    /// </summary>
+    public List<MainCircuitResult> MainCircuits { get; } = new();
 
     /// <summary>エラー。【C原典】erra(FYRT805)/Perrc。</summary>
     public List<CircuitParseError> Errors { get; } = new();
