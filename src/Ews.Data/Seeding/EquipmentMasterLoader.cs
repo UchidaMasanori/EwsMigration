@@ -127,4 +127,108 @@ public sealed class EquipmentMasterLoader
 
         return table;
     }
+
+    // ---- 品番索引 (FYDF816) --------------------------------------------------
+
+    /// <summary>
+    /// 型付けするフィールドをすべて読むために必要な最小バイト長。
+    /// 【C原典】struct FYDF816 のレコード長 = 184。これに満たない断片は読み飛ばす。
+    /// </summary>
+    private const int MinIndexRecordBytes = 184;
+
+    /// <summary>
+    /// FYDF816.data を解析して <see cref="EquipmentPartNumberIndex"/> 一覧を返す。
+    /// 各レコードは 184 バイト固定長・LF(0x0A)区切り。
+    /// </summary>
+    public static IReadOnlyList<EquipmentPartNumberIndex> ParsePartNumberIndex(string dataPath)
+    {
+        byte[] all = File.ReadAllBytes(dataPath);
+        var list = new List<EquipmentPartNumberIndex>();
+
+        int start = 0;
+        for (int i = 0; i <= all.Length; i++)
+        {
+            if (i != all.Length && all[i] != (byte)'\n')
+            {
+                continue;
+            }
+
+            int end = i;
+            if (end > start && all[end - 1] == (byte)'\r')
+            {
+                end--;
+            }
+
+            int length = end - start;
+            if (length >= MinIndexRecordBytes)
+            {
+                list.Add(EquipmentPartNumberIndex.FromFixedRecord(all.AsSpan(start, length)));
+            }
+
+            start = i + 1;
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// FYDF816.data を SQL Server の EquipmentPartNumberIndex テーブルへ投入する(全置換)。
+    /// 件数が多い(約 11,000 件)ため <see cref="SqlBulkCopy"/> で一括投入する。
+    /// </summary>
+    /// <returns>投入件数。</returns>
+    public int SeedPartNumberIndex(string dataPath)
+    {
+        IReadOnlyList<EquipmentPartNumberIndex> rows = ParsePartNumberIndex(dataPath);
+        DataTable table = BuildIndexDataTable(rows);
+
+        using SqlConnection connection = _factory.CreateOpen();
+        using SqlTransaction transaction = connection.BeginTransaction();
+
+        using (var delete = new SqlCommand("DELETE FROM EquipmentPartNumberIndex", connection, transaction))
+        {
+            delete.ExecuteNonQuery();
+        }
+
+        using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.Default, transaction)
+        {
+            DestinationTableName = "EquipmentPartNumberIndex",
+        })
+        {
+            foreach (DataColumn column in table.Columns)
+            {
+                bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+            }
+
+            bulk.WriteToServer(table);
+        }
+
+        transaction.Commit();
+        return rows.Count;
+    }
+
+    private static DataTable BuildIndexDataTable(IReadOnlyList<EquipmentPartNumberIndex> rows)
+    {
+        var table = new DataTable();
+        table.Columns.Add("PartNumber", typeof(string));
+        table.Columns.Add("DataNo", typeof(string));
+        table.Columns.Add("ReservedWord", typeof(string));
+        table.Columns.Add("MakerCode", typeof(string));
+        table.Columns.Add("ParameterType", typeof(string));
+        table.Columns.Add("RatingKey", typeof(string));
+        table.Columns.Add("PartName", typeof(string));
+
+        foreach (EquipmentPartNumberIndex row in rows)
+        {
+            table.Rows.Add(
+                row.PartNumber,
+                row.DataNo,
+                row.ReservedWord,
+                row.MakerCode,
+                row.ParameterType,
+                row.RatingKey,
+                row.PartName.Length == 0 ? DBNull.Value : row.PartName);
+        }
+
+        return table;
+    }
 }

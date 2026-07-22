@@ -62,11 +62,17 @@ CREATE TABLE dbo.EquipmentPartNumberIndex
     ParameterType  NVARCHAR(49) NOT NULL,   -- 【C原典】pkey.ptype[7][7]
     RatingKey      NVARCHAR(80) NOT NULL,   -- 【C原典】pkey.teikkey[80]
     PartName       NVARCHAR(25) NULL,        -- 【C原典】hinmei[25]
-    CONSTRAINT PK_EquipmentPartNumberIndex PRIMARY KEY (PartNumber, DataNo),
-    CONSTRAINT FK_EquipmentPartNumberIndex_Master
-        FOREIGN KEY (ReservedWord, MakerCode, ParameterType, RatingKey)
-        REFERENCES dbo.EquipmentMaster (ReservedWord, MakerCode, ParameterType, RatingKey)
+    CONSTRAINT PK_EquipmentPartNumberIndex PRIMARY KEY (PartNumber, DataNo)
 );
+GO
+
+-- 機器マスター(FYDM805)へ結合するためのインデックス。
+-- 【注意】旧 ISAM は FYDF816 と FYDM805 の間に参照整合性を強制しない。実際に
+-- FYDF816(品番索引)は FYDM805(機器マスター)に存在しない pkey も参照し得る
+-- (エクスポート断面差・別ファイル由来)。このため FOREIGN KEY は張らず、
+-- 結合性能のための非クラスタインデックスのみを設ける。
+CREATE INDEX IX_EquipmentPartNumberIndex_Pkey
+    ON dbo.EquipmentPartNumberIndex (ReservedWord, MakerCode, ParameterType, RatingKey);
 GO
 
 /* ---------------------------------------------------------------------------

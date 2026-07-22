@@ -97,4 +97,49 @@ public sealed class EquipmentMasterLoaderTests
             File.Delete(path);
         }
     }
+
+    /// <summary>指定フィールドを埋めた 184 バイト固定長 FYDF816 レコードを生成する。</summary>
+    private static byte[] BuildIndexRecord(
+        string hinban, string datano, string yoyaku, string mkcd,
+        string ptype, string teikkey, string hinmei)
+    {
+        var record = new byte[EquipmentPartNumberIndex.RecordLength];
+        record.AsSpan().Fill((byte)' ');
+        FixedFieldCodec.WriteText(record, 0, 15, hinban);
+        FixedFieldCodec.WriteText(record, 15, 4, datano);
+        FixedFieldCodec.WriteText(record, 19, 8, yoyaku);
+        FixedFieldCodec.WriteText(record, 27, 3, mkcd);
+        FixedFieldCodec.WriteText(record, 30, 49, ptype);
+        FixedFieldCodec.WriteText(record, 79, 80, teikkey);
+        FixedFieldCodec.WriteText(record, 159, 25, hinmei);
+        return record;
+    }
+
+    [Fact]
+    public void ParsePartNumberIndex_184バイト索引レコードを抽出する()
+    {
+        byte[] r0 = BuildIndexRecord("10189-011", "0001", "NT", "K", "", "00430000265000", "NT 30B-4");
+        byte[] r1 = BuildIndexRecord("24062-040", "0001", "2COSU", "M", "KM", "TESTKEY", "BE-C06");
+        string path = WriteTempData(r0, r1);
+
+        try
+        {
+            IReadOnlyList<EquipmentPartNumberIndex> rows = EquipmentMasterLoader.ParsePartNumberIndex(path);
+
+            Assert.Equal(2, rows.Count);
+            Assert.Equal("10189-011", rows[0].PartNumber);
+            Assert.Equal("0001", rows[0].DataNo);
+            Assert.Equal("NT", rows[0].ReservedWord);
+            Assert.Equal("K", rows[0].MakerCode);
+            Assert.Equal("00430000265000", rows[0].RatingKey);
+            Assert.Equal("NT 30B-4", rows[0].PartName);
+            Assert.Equal("24062-040", rows[1].PartNumber);
+            Assert.Equal("2COSU", rows[1].ReservedWord);
+            Assert.Equal("KM", rows[1].ParameterType);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }
