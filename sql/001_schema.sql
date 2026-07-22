@@ -146,3 +146,41 @@ CREATE TABLE dbo.DataFileRegistry
     CONSTRAINT PK_DataFileRegistry PRIMARY KEY (FileId)
 );
 GO
+
+/* ---------------------------------------------------------------------------
+   部署別仕様書種別マスター
+   【C原典】siyosyo.*.cns (確認用/siyosyo.gai17.cns, Shift-JIS テキストマスタ)
+            struct SIYO_INFO(bumon=部署) → SYUBETU_INFO s_info[](仕様書種別) の階層。
+            Zs20SiyoInfoRead(toku/interf/zs50/src/Fymzs40Cns.c) が読み込む。
+            図面サイズ(no/scale/zmnsyu/kenzu = SiyosyoSizeCheck 依存)は取り込まない。
+   KindSeq は s_info[] の並び順(0起点)を保持し、C 原典の配列順を再現する。
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.SpecificationFile', 'U') IS NOT NULL
+    DROP TABLE dbo.SpecificationFile;
+GO
+IF OBJECT_ID('dbo.SpecificationKind', 'U') IS NOT NULL
+    DROP TABLE dbo.SpecificationKind;
+GO
+CREATE TABLE dbo.SpecificationKind
+(
+    DepartmentCode  NVARCHAR(8)   NOT NULL,   -- 【C原典】SIYO_INFO.bumon        部署:
+    KindSeq         INT           NOT NULL,   -- s_info[] のインデックス(0起点)
+    KindName        NVARCHAR(128) NOT NULL,   -- 【C原典】SYUBETU_INFO.kaninm    仕様書:
+    Description     NVARCHAR(256) NULL,        -- 【C原典】SYUBETU_INFO.explain   仕様書説明:
+    Path            NVARCHAR(256) NULL,        -- 【C原典】SYUBETU_INFO.path      仕様書パス:
+    CONSTRAINT PK_SpecificationKind PRIMARY KEY (DepartmentCode, KindSeq)
+);
+GO
+
+CREATE TABLE dbo.SpecificationFile
+(
+    DepartmentCode  NVARCHAR(8)   NOT NULL,   -- 【C原典】SIYO_INFO.bumon
+    KindSeq         INT           NOT NULL,   -- 種別の並び順(SpecificationKind へ対応)
+    FileSeq         INT           NOT NULL,   -- 【C原典】file_name[] のインデックス(0起点)
+    FileName        NVARCHAR(256) NOT NULL,   -- 【C原典】SYUBETU_INFO.file_name[]  仕様書ファイル:
+    CONSTRAINT PK_SpecificationFile PRIMARY KEY (DepartmentCode, KindSeq, FileSeq),
+    CONSTRAINT FK_SpecificationFile_Kind
+        FOREIGN KEY (DepartmentCode, KindSeq)
+        REFERENCES dbo.SpecificationKind (DepartmentCode, KindSeq)
+);
+GO

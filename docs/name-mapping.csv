@@ -202,3 +202,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,SIYO_INFO,SpecificationInfo,toku/interf/zs50/src/Fymzs40Cns.c,部署別仕様書情報(bumon=部署コード,s_info[]=仕様書種別一覧)
 構造体,SYUBETU_INFO,SpecificationKind,toku/interf/zs50/src/Fymzs40Cns.c,仕様書種別(kaninm=名,explain=説明,path=パス,file_name[]=ファイル名一覧)。no/scale/zmnsyu/kenzu(図面サイズ)は未取込
 関数,StrSPCut,CnsMasterLoader.StrSPCut,toku/interf/zs50/src/Fymzs40Cns.c,前後の半角空白・タブ・改行を除去
+関数,-,CnsMasterLoader.SeedSpecificationMaster,sql/001_schema.sql,新設。siyosyo.cnsをSpecificationKind/SpecificationFileへ全置換投入。KindSeq/FileSeqでC配列順を保持
+テーブル,SYUBETU_INFO,SpecificationKind,sql/001_schema.sql,仕様書種別テーブル(主キー=DepartmentCode+KindSeq)。KindName/Description/Path
+テーブル,SYUBETU_INFO.file_name[],SpecificationFile,sql/001_schema.sql,仕様書ファイルテーブル(主キー=DepartmentCode+KindSeq+FileSeq)。SpecificationKindへFK

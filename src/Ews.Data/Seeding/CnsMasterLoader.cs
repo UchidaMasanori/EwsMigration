@@ -247,6 +247,71 @@ public sealed class CnsMasterLoader
     }
 
     /// <summary>
+    /// siyosyo.cns をパースして SpecificationKind / SpecificationFile テーブルへ投入する(全置換)。
+    /// 種別の並び順(KindSeq)・ファイルの並び順(FileSeq)は C 原典の配列順を保持する。
+    /// </summary>
+    /// <returns>投入した仕様書種別(SpecificationKind)の件数。</returns>
+    public int SeedSpecificationMaster(string cnsPath)
+    {
+        IReadOnlyList<SpecificationInfo> departments = ParseSpecificationMaster(cnsPath);
+
+        var kindRows = new List<object>();
+        var fileRows = new List<object>();
+        foreach (SpecificationInfo department in departments)
+        {
+            for (int k = 0; k < department.Kinds.Count; k++)
+            {
+                SpecificationKind kind = department.Kinds[k];
+                kindRows.Add(new
+                {
+                    department.DepartmentCode,
+                    KindSeq = k,
+                    KindName = kind.Name,
+                    kind.Description,
+                    kind.Path,
+                });
+
+                for (int f = 0; f < kind.Files.Count; f++)
+                {
+                    fileRows.Add(new
+                    {
+                        department.DepartmentCode,
+                        KindSeq = k,
+                        FileSeq = f,
+                        FileName = kind.Files[f],
+                    });
+                }
+            }
+        }
+
+        using var connection = _factory.CreateOpen();
+        using var transaction = connection.BeginTransaction();
+
+        // 子(SpecificationFile)を先に削除してから親(SpecificationKind)を削除する。
+        connection.Execute("DELETE FROM SpecificationFile", transaction: transaction);
+        connection.Execute("DELETE FROM SpecificationKind", transaction: transaction);
+
+        connection.Execute(
+            """
+            INSERT INTO SpecificationKind (DepartmentCode, KindSeq, KindName, Description, Path)
+            VALUES (@DepartmentCode, @KindSeq, @KindName, @Description, @Path)
+            """,
+            kindRows,
+            transaction: transaction);
+
+        connection.Execute(
+            """
+            INSERT INTO SpecificationFile (DepartmentCode, KindSeq, FileSeq, FileName)
+            VALUES (@DepartmentCode, @KindSeq, @FileSeq, @FileName)
+            """,
+            fileRows,
+            transaction: transaction);
+
+        transaction.Commit();
+        return kindRows.Count;
+    }
+
+    /// <summary>
     /// 【C原典】StrSPCut。前後の半角空白・タブ・改行を除去する。
     /// </summary>
     private static string StrSPCut(string value) => value.Trim(' ', '\t', '\r', '\n');
