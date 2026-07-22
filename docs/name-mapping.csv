@@ -210,3 +210,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,FYDF816,EquipmentPartNumberIndex,toku/include/common/fydf816.h,機器マスター品番索引(184byte)。key=hinban15+datano4,pkey140(yoyaku/mkcd/ptype/teikkey),hinmei25。FromFixedRecordで抽出
 関数,-,EquipmentMasterLoader.ParsePartNumberIndex,hostdt/FYDF816.data,FYDF816固定長エクスポート(184byte/rec・LF区切り)を解析しEquipmentPartNumberIndex一覧化
 関数,-,EquipmentMasterLoader.SeedPartNumberIndex,sql/001_schema.sql,FYDF816.dataをEquipmentPartNumberIndexテーブルへSqlBulkCopyで全置換投入(実データ11424件・キー(品番+追番)一意検証済)
+構造体,eparmg,ElectricalParameters,toku/include/common/fycommon.h,1機器分の電気パラメータ(整形済み固定長)。eparm_setの出力構造。全フィールドをMain_Area_Clear相当の幅ぶん0埋めで初期化
+関数,eparm_set,EquipmentParameterFormatter.EparmSet,toku/sekkei/src/Fyss1f.c,検証済み定格値(RatingValues)を予約語別に固定長数値へ整形しElectricalParameters生成(key_checkの逆写像)。Wave1で遮断器系MCB/ELB/MMCB/ELMB/SB収録
+関数,set_9,EquipmentParameterFormatter.Set9,toku/sekkei/src/Fyss1f.c,from先頭from_length文字をatof×multipleしC書式(例%09.3f)でto_length桁固定長へ整形(strncpy相当・末尾NUL埋めなし)
+関数,chk_9,EquipmentParameterFormatter.Chk9,toku/sekkei/src/Fyss1f.c,from先頭from_length文字のatof
+関数,Stof,EquipmentParameterFormatter.Stof,toku/sekkei/src/Fysk09.c,str先頭size文字のatof(chk_9と同義)
