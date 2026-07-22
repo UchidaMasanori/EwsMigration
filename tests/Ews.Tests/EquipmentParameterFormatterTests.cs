@@ -7,7 +7,7 @@ namespace Ews.Tests;
 /// <summary>
 /// 電気パラメータ整形(型式展開、<see cref="EquipmentParameterFormatter"/>)の検証。
 /// 【C原典】toku/sekkei/src/Fyss1f.c eparm_set / set_9 / Stof。
-/// 本フェーズ(Wave 1~2)は遮断器系 MCB/ELB/MMCB/ELMB/SB と漏電遮断器系 RMCB/RELB/RMMCB/RELMB を対象とする。
+/// 本フェーズ(Wave 1~5)は遮断器系・漏電遮断器系・引込(PS/P/UP)・電磁接触器系(MC/THR/MG/SC)・端子台計器系(NT/WH/VM/AM/VT/CT/VS/AS)を対象とする。
 /// 入力の <see cref="RatingValues"/> は key_check の格納結果を直接構築して与える。
 /// </summary>
 public sealed class EquipmentParameterFormatterTests
@@ -266,6 +266,205 @@ public sealed class EquipmentParameterFormatterTests
         Assert.Equal("0200", ep.Ma[2]);
         Assert.Equal('A', ep.VcKbn);
         Assert.Equal("100", ep.Vc);
+    }
+
+    // ── PS/P/UP(引込: 相数/線式/多スロット電圧) ────────────────────
+
+    [Fact]
+    public void PSは相数線式と3スロット電圧を整形する()
+    {
+        ElectricalParameters ep = Format("PS",
+            ("p", "3"), ("w", "4"), ("fv", "A"),
+            ("v[0]", "210"), ("v[1]", "105"), ("v[2]", "100"));
+
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("4", ep.Wr2[0]);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000210.0", ep.V2[0]);
+        Assert.Equal("000105.0", ep.V2[1]);
+        Assert.Equal("000100.0", ep.V2[2]);
+    }
+
+    [Fact]
+    public void Pは電線サイズと芯数本数を整形する()
+    {
+        ElectricalParameters ep = Format("P",
+            ("p", "3"), ("w", "4"), ("fv", "A"), ("v[0]", "210"),
+            ("sq", "38"), ("esq", "14"), ("c", "3"), ("k", "2"));
+
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("038.00", ep.Sq);      // set_9(sq,3,epasq,6,"%06.2f")
+        Assert.Equal("014.00", ep.Esq);
+        Assert.Equal('3', ep.C);             // ep->epac = c
+        Assert.Equal('2', ep.Ksu);           // ep->epaksu = k
+    }
+
+    [Fact]
+    public void Pは芯数本数未設定のとき0にする()
+    {
+        // 【C原典】ep->epac = u->p.c ? u->p.c : '0';
+        ElectricalParameters ep = Format("P", ("p", "3"));
+        Assert.Equal('0', ep.C);
+        Assert.Equal('0', ep.Ksu);
+    }
+
+    [Fact]
+    public void UPは定格電圧2のみ整形する()
+    {
+        ElectricalParameters ep = Format("UP", ("fv", "A"), ("v", "100"));
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000100.0", ep.V2[0]);
+    }
+
+    // ── MC/MG(電磁接触器: 接点数 AC/BC + 制御電圧) ───────────────────
+
+    [Fact]
+    public void MCは電流_容量_接点数_制御電圧を整形する()
+    {
+        ElectricalParameters ep = Format("MC",
+            ("p", "3"), ("a", "20"), ("kw", "5.5"), ("v", "200"), ("fv", "A"),
+            ("vc", "100"), ("fvc", "A"), ("ac", "2"), ("bc", "1"));
+
+        Assert.Equal("003", ep.P);
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal("0005500.00", ep.W1);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+        Assert.Equal("02", ep.Ac);           // "%02.0f"
+        Assert.Equal("01", ep.Bc);
+    }
+
+    [Fact]
+    public void MGはエレメントとトリップ電流も整形する()
+    {
+        ElectricalParameters ep = Format("MG",
+            ("p", "3"), ("e", "2"), ("a", "20"), ("at", "30"), ("kw", "3.7"),
+            ("v", "200"), ("fv", "A"), ("vc", "100"), ("fvc", "D"), ("ac", "2"), ("bc", "2"));
+
+        Assert.Equal("2", ep.E);
+        Assert.Equal("00030.000", ep.At);
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal("0003700.00", ep.W1);
+        Assert.Equal('D', ep.VcKbn);
+        Assert.Equal("02", ep.Ac);
+    }
+
+    // ── THR(サーマル) ───────────────────────────────────────────────
+
+    [Fact]
+    public void THRはエレメント_トリップ_容量_電圧を整形する()
+    {
+        ElectricalParameters ep = Format("THR",
+            ("e", "3"), ("at", "15"), ("kw", "2.2"), ("v", "200"), ("fv", "A"));
+
+        Assert.Equal("3", ep.E);
+        Assert.Equal("00015.000", ep.At);
+        Assert.Equal("0002200.00", ep.W1);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000200.0", ep.V2[0]);
+    }
+
+    // ── SC(進相コンデンサ: KVAR/UF/HZ) ──────────────────────────────
+
+    [Fact]
+    public void SCは容量_静電容量_周波数を整形する()
+    {
+        ElectricalParameters ep = Format("SC",
+            ("p", "3"), ("kvar", "50"), ("uf", "100"), ("v", "200"), ("fv", "A"), ("Hz", "60"));
+
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("050.00", ep.Kvar);     // "%06.2f"
+        Assert.Equal("000100.0", ep.Uf);     // "%08.1f"
+        Assert.Equal("60", ep.Hz);           // "%02.0f"
+    }
+
+    // ── NT(中性線端子台: 極数3桁/電流2桁) ───────────────────────────
+
+    [Fact]
+    public void NTは極数と電流を整形する()
+    {
+        ElectricalParameters ep = Format("NT",
+            ("p", "100"), ("a", "60"), ("v", "200"), ("fv", "A"));
+
+        Assert.Equal("100", ep.P);           // p は from_length=3
+        Assert.Equal("00060.000", ep.A2);    // a は from_length=2
+    }
+
+    // ── WH(電力量計: 相/線式/1次2次電流電圧/HZ) ─────────────────────
+
+    [Fact]
+    public void WHは1次2次の電流電圧と周波数を整形する()
+    {
+        ElectricalParameters ep = Format("WH",
+            ("p", "3"), ("w", "4"), ("sa", "5"), ("a", "30"),
+            ("sv", "110"), ("v", "210"), ("fv", "A"), ("Hz", "60"));
+
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("4", ep.Wr2[0]);
+        Assert.Equal("00005.000", ep.A1);    // sa→epaa1
+        Assert.Equal("00030.000", ep.A2);    // a→epaa2
+        Assert.Equal("000110.0", ep.V1[0]);  // sv→epav1[0]
+        Assert.Equal("000210.0", ep.V2[0]);  // v→epav2[0]
+        Assert.Equal("60", ep.Hz);
+    }
+
+    // ── VM/VT(電圧計/計器用変圧器) ──────────────────────────────────
+
+    [Fact]
+    public void VMは1次2次電圧を整形する()
+    {
+        ElectricalParameters ep = Format("VM", ("sv", "110"), ("v", "210"), ("fv", "A"));
+        Assert.Equal("000110.0", ep.V1[0]);
+        Assert.Equal("000210.0", ep.V2[0]);
+        Assert.Equal("0000000000", ep.Va);   // VM は VA を触れない(memset '0' のまま・小数点なし)
+    }
+
+    [Fact]
+    public void VTは定格容量VAも整形する()
+    {
+        ElectricalParameters ep = Format("VT",
+            ("sv", "110"), ("v", "210"), ("fv", "A"), ("va", "50"));
+        Assert.Equal("000110.0", ep.V1[0]);
+        Assert.Equal("0000050.00", ep.Va);   // va,3桁→epava "%010.2f"
+    }
+
+    // ── AM(電流計) ──────────────────────────────────────────────────
+
+    [Fact]
+    public void AMは1次2次電流のみ整形する()
+    {
+        ElectricalParameters ep = Format("AM", ("sa", "50"), ("a", "5"));
+        Assert.Equal("00050.000", ep.A1);
+        Assert.Equal("00005.000", ep.A2);
+    }
+
+    // ── CT(計器用変流器: SA4桁/A3桁/VA2桁) ──────────────────────────
+
+    [Fact]
+    public void CTは1次2次電流と容量を整形する()
+    {
+        ElectricalParameters ep = Format("CT", ("sa", "1000"), ("a", "5"), ("va", "15"));
+        Assert.Equal("01000.000", ep.A1);    // sa,4桁
+        Assert.Equal("00005.000", ep.A2);    // a,3桁
+        Assert.Equal("0000015.00", ep.Va);   // va,2桁
+    }
+
+    // ── VS/AS(電圧計・電流計切替スイッチ: 相数/線式のみ) ─────────────
+
+    [Fact]
+    public void VSは相数と線式のみ整形する()
+    {
+        ElectricalParameters ep = Format("VS", ("p", "3"), ("w", "4"));
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("4", ep.Wr2[0]);
+    }
+
+    [Fact]
+    public void ASは相数と線式のみ整形する()
+    {
+        ElectricalParameters ep = Format("AS", ("p", "3"), ("w", "4"));
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("4", ep.Wr2[0]);
     }
 
     // ── 未収録予約語は '0' 埋めのまま ────────────────────────────────

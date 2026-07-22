@@ -22,8 +22,9 @@ using Ews.Domain.Analysis;
 /// 未設定フィールドは C では union の 0 埋めにより atof=0 となるため、本移植でも
 /// <see cref="RatingValues.Get"/> が null のフィールドは "" 扱い(atof=0)とする。
 ///
-/// 本フェーズ(Wave 1~2)は遮断器系 MCB/ELB/MMCB/ELMB/SB と漏電遮断器系 RMCB/RELB/RMMCB/RELMB を収録する。
-/// PS/P/UP(引込・行種P)や MC/THR/MG/計器系(VM/AM/VT/CT)、TR(多スロット)等は後続 Wave で追加する。
+/// 本フェーズ(Wave 1~5)は遮断器系 MCB/ELB/MMCB/ELMB/SB、漏電遮断器系 RMCB/RELB/RMMCB/RELMB、
+/// 引込 PS/P/UP、電磁接触器系 MC/THR/MG/SC、端子台・計器系 NT/WH/VM/AM/VT/CT/VS/AS を収録する。
+/// TB/CON/TR(多スロット)や ZCT/LGR/… 等は後続 Wave で追加する。
 /// </summary>
 public sealed class EquipmentParameterFormatter
 {
@@ -69,6 +70,53 @@ public sealed class EquipmentParameterFormatter
                 break;
             case "RELMB":
                 SetBreaker(values, ep, afLength: 2, atLength: 5, atStofSpecial: false, hasMa: true, hasKw: true, eZeroToNine: false, hasVc: true);
+                break;
+            case "PS":
+                SetIncoming(values, ep, withCableSize: false);
+                break;
+            case "P":
+                SetIncoming(values, ep, withCableSize: true);
+                break;
+            case "UP":
+                // 【C原典】eparm_set UP(Fyss1f.c:2253): 定格電圧2 のみ。
+                ep.V2Kbn = FvKbn(values.Get("fv"));
+                ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+                break;
+            case "MC":
+                SetContactor(values, ep, hasE: false, hasAt: false);
+                break;
+            case "MG":
+                SetContactor(values, ep, hasE: true, hasAt: true);
+                break;
+            case "THR":
+                SetThr(values, ep);
+                break;
+            case "SC":
+                SetSc(values, ep);
+                break;
+            case "NT":
+                SetNt(values, ep);
+                break;
+            case "WH":
+                SetWh(values, ep);
+                break;
+            case "VM":
+                SetVoltMeter(values, ep, hasVa: false);
+                break;
+            case "VT":
+                SetVoltMeter(values, ep, hasVa: true);
+                break;
+            case "AM":
+                SetAmpMeter(values, ep);
+                break;
+            case "CT":
+                SetCt(values, ep);
+                break;
+            case "VS":
+            case "AS":
+                // 【C原典】eparm_set VS/AS(Fyss1f.c:2552/2556): 相数２/線式２ のみ。
+                ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+                ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
                 break;
             default:
                 // 未収録予約語: ep は '0' 埋めのまま(C の Main_Area_Clear 相当)。
@@ -167,6 +215,183 @@ public sealed class EquipmentParameterFormatter
             ep.VcKbn = string.IsNullOrEmpty(fvc) ? ' ' : (fvc[0] == 'A' ? 'A' : 'D');
             ep.Vc = Set9(values.Get("vc"), 3, 3, "%03.0f", 1.0);
         }
+    }
+
+    /// <summary>
+    /// 定格電圧の ＡＣ／ＤＣ区分。【C原典】<c>u-&gt;xxx.fv ? ((fv=='A')?'A':'D') : ' '</c>。
+    /// fv 未設定は ' '、先頭 'A' は 'A'、それ以外は 'D'。
+    /// </summary>
+    private static char FvKbn(string? fv)
+        => string.IsNullOrEmpty(fv) ? ' ' : (fv[0] == 'A' ? 'A' : 'D');
+
+    /// <summary>
+    /// 引込(PS/P)。【C原典】eparm_set PS(Fyss1f.c:2219)/P(Fyss1f.c:2233)。
+    /// 相数１/線式１(epaph2[0]/epawr2[0] を "%1.0f")、定格電圧2 を3スロット(epav2[0..2])へ。
+    /// P のみ電線サイズ(epasq/epaesq "%06.2f")と芯数(epac)/回線数(epaksu)を追加。
+    /// </summary>
+    private static void SetIncoming(RatingValues values, ElectricalParameters ep, bool withCableSize)
+    {
+        // set_9(&u->xxx.p, 1, &ep->epaph2[0], 1, "%1.0f", 1.0)
+        ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+        // set_9(&u->xxx.w, 1, &ep->epawr2[0], 1, "%1.0f", 1.0)
+        ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
+        // ep->epav2kbn = u->xxx.fv[0] ? … : ' '
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        // set_9(u->xxx.v[i], 3, ep->epav2[i], 8, "%08.1f", 1.0)  (3スロット)
+        for (int i = 0; i < 3; i++)
+        {
+            ep.V2[i] = Set9(values.Get($"v[{i}]"), 3, 8, "%08.1f", 1.0);
+        }
+
+        if (withCableSize)
+        {
+            // set_9(u->p.sq, 3, ep->epasq, 6, "%06.2f", 1.0)
+            ep.Sq = Set9(values.Get("sq"), 3, 6, "%06.2f", 1.0);
+            // set_9(u->p.esq, 3, ep->epaesq, 6, "%06.2f", 1.0)
+            ep.Esq = Set9(values.Get("esq"), 3, 6, "%06.2f", 1.0);
+            // ep->epac = u->p.c ? u->p.c : '0';  (芯数、char 直接コピー)
+            string? c = values.Get("c");
+            ep.C = !string.IsNullOrEmpty(c) ? c[0] : '0';
+            // ep->epaksu = u->p.k ? u->p.k : '0';  (本数、char 直接コピー)
+            string? k = values.Get("k");
+            ep.Ksu = !string.IsNullOrEmpty(k) ? k[0] : '0';
+        }
+    }
+
+    /// <summary>
+    /// 電磁接触器系(MC/MG)。【C原典】eparm_set MC(Fyss1f.c:2459)/MG(Fyss1f.c:2483)。
+    /// 極数/定格電流2(epaa2)/負荷容量(kW×1000→epaw1)/定格電圧2/制御電圧2/ａｂ接点数(epaac/epabc "%02.0f")。
+    /// MG のみエレメント数(epae)とトリップ電流(at,6桁→epaat)を追加。
+    /// </summary>
+    private static void SetContactor(RatingValues values, ElectricalParameters ep, bool hasE, bool hasAt)
+    {
+        // set_9(&u->xxx.p, 1, ep->epap, 3, "%03.0f", 1.0)
+        ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+
+        if (hasE)
+        {
+            // ep->epae = u->mg.e ? u->mg.e : '0';
+            string? e = values.Get("e");
+            ep.E = !string.IsNullOrEmpty(e) ? e[..1] : "0";
+        }
+
+        // set_9(u->xxx.a, 3, ep->epaa2, 9, "%09.3f", 1.0)
+        ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+
+        if (hasAt)
+        {
+            // set_9(u->mg.at, 6, ep->epaat, 9, "%09.3f", 1.0)
+            ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+        }
+
+        // set_9(u->xxx.kw, 6, ep->epaw1, 10, "%010.2f", 1000.0)
+        ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+        // 定格電圧2
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+        // 制御電圧2
+        ep.VcKbn = FvKbn(values.Get("fvc"));
+        ep.Vc = Set9(values.Get("vc"), 3, 3, "%03.0f", 1.0);
+        // set_9(&u->xxx.ac, 1, ep->epaac, 2, "%02.0f", 1.0)
+        ep.Ac = Set9(values.Get("ac"), 1, 2, "%02.0f", 1.0);
+        // set_9(&u->xxx.bc, 1, ep->epabc, 2, "%02.0f", 1.0)
+        ep.Bc = Set9(values.Get("bc"), 1, 2, "%02.0f", 1.0);
+    }
+
+    /// <summary>
+    /// サーマルリレー(THR)。【C原典】eparm_set THR(Fyss1f.c:2474)。
+    /// エレメント数/トリップ電流(at,6桁)/負荷容量(kW×1000)/定格電圧2。
+    /// </summary>
+    private static void SetThr(RatingValues values, ElectricalParameters ep)
+    {
+        // ep->epae = u->thr.e ? u->thr.e : '0';
+        string? e = values.Get("e");
+        ep.E = !string.IsNullOrEmpty(e) ? e[..1] : "0";
+        ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+        ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+    }
+
+    /// <summary>
+    /// 進相コンデンサ(SC)。【C原典】eparm_set SC(Fyss1f.c:2499)。
+    /// 相数１(epaph2[0])/定格容量(kvar,6桁→epakvar "%06.2f")/静電容量(uf,6桁→epauf "%08.1f")/
+    /// 定格電圧2/周波数(Hz,2桁→epahz "%02.0f")。
+    /// </summary>
+    private static void SetSc(RatingValues values, ElectricalParameters ep)
+    {
+        ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+        ep.Kvar = Set9(values.Get("kvar"), 6, 6, "%06.2f", 1.0);
+        ep.Uf = Set9(values.Get("uf"), 6, 8, "%08.1f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+        ep.Hz = Set9(values.Get("Hz"), 2, 2, "%02.0f", 1.0);
+    }
+
+    /// <summary>
+    /// 中性線用端子台(NT)。【C原典】eparm_set NT(Fyss1f.c:2509)。
+    /// 極数(p,3桁)/定格電流2(a,2桁→epaa2)/定格電圧2。
+    /// </summary>
+    private static void SetNt(RatingValues values, ElectricalParameters ep)
+    {
+        // set_9(u->nt.p, 3, ep->epap, 3, "%03.0f", 1.0)  (p は3桁配列)
+        ep.P = Set9(values.Get("p"), 3, 3, "%03.0f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 2, 9, "%09.3f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+    }
+
+    /// <summary>
+    /// 電力量計(WH)。【C原典】eparm_set WH(Fyss1f.c:2516)。
+    /// 相数/線式(epaph2[0]/epawr2[0])/定格電流1(sa→epaa1)/定格電流2(a→epaa2)/
+    /// 定格電圧1(sv→epav1[0])/定格電圧2/周波数(Hz)。
+    /// </summary>
+    private static void SetWh(RatingValues values, ElectricalParameters ep)
+    {
+        ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+        ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
+        ep.A1 = Set9(values.Get("sa"), 3, 9, "%09.3f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+        ep.V1[0] = Set9(values.Get("sv"), 3, 8, "%08.1f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+        ep.Hz = Set9(values.Get("Hz"), 2, 2, "%02.0f", 1.0);
+    }
+
+    /// <summary>
+    /// 電圧計/計器用変圧器(VM/VT)。【C原典】eparm_set VM(Fyss1f.c:2528)/VT(Fyss1f.c:2538)。
+    /// 定格電圧1(sv→epav1[0])/定格電圧2。VT のみ定格容量(va,3桁→epava "%010.2f")を追加。
+    /// </summary>
+    private static void SetVoltMeter(RatingValues values, ElectricalParameters ep, bool hasVa)
+    {
+        ep.V1[0] = Set9(values.Get("sv"), 3, 8, "%08.1f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+        if (hasVa)
+        {
+            ep.Va = Set9(values.Get("va"), 3, 10, "%010.2f", 1.0);
+        }
+    }
+
+    /// <summary>
+    /// 電流計(AM)。【C原典】eparm_set AM(Fyss1f.c:2534)。
+    /// 定格電流1(sa→epaa1)/定格電流2(a→epaa2)のみ。
+    /// </summary>
+    private static void SetAmpMeter(RatingValues values, ElectricalParameters ep)
+    {
+        ep.A1 = Set9(values.Get("sa"), 3, 9, "%09.3f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+    }
+
+    /// <summary>
+    /// 計器用変流器(CT)。【C原典】eparm_set CT(Fyss1f.c:2546)。
+    /// 定格電流1(sa,4桁→epaa1)/定格電流2(a,3桁→epaa2)/定格容量(va,2桁→epava "%010.2f")。
+    /// </summary>
+    private static void SetCt(RatingValues values, ElectricalParameters ep)
+    {
+        ep.A1 = Set9(values.Get("sa"), 4, 9, "%09.3f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+        ep.Va = Set9(values.Get("va"), 2, 10, "%010.2f", 1.0);
     }
 
     /// <summary>
