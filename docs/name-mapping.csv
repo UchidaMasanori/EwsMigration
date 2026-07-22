@@ -211,7 +211,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,-,EquipmentMasterLoader.ParsePartNumberIndex,hostdt/FYDF816.data,FYDF816固定長エクスポート(184byte/rec・LF区切り)を解析しEquipmentPartNumberIndex一覧化
 関数,-,EquipmentMasterLoader.SeedPartNumberIndex,sql/001_schema.sql,FYDF816.dataをEquipmentPartNumberIndexテーブルへSqlBulkCopyで全置換投入(実データ11424件・キー(品番+追番)一意検証済)
 構造体,eparmg,ElectricalParameters,toku/include/common/fycommon.h,1機器分の電気パラメータ(整形済み固定長)。eparm_setの出力構造。全フィールドをMain_Area_Clear相当の幅ぶん0埋めで初期化
-関数,eparm_set,EquipmentParameterFormatter.EparmSet,toku/sekkei/src/Fyss1f.c,検証済み定格値(RatingValues)を予約語別に固定長数値へ整形しElectricalParameters生成(key_checkの逆写像)。Wave1-2遮断器/漏電遮断器系、Wave3引込PS/P/UP、Wave4電磁接触器系MC/THR/MG/SC、Wave5端子台計器系NT/WH/VM/AM/VT/CT/VS/AS、Wave6 TB/CON/TR(多スロット変圧器:PH2/WR2/V2の0詰めパッキング+タップインデックス)収録
+関数,eparm_set,EquipmentParameterFormatter.EparmSet,toku/sekkei/src/Fyss1f.c,検証済み定格値(RatingValues)を予約語別に固定長数値へ整形しElectricalParameters生成(key_checkの逆写像)。Wave1-6で遮断器/漏電遮断器/引込/電磁接触器/端子台計器/TB/CON/TRを収録。Wave7+で残り全予約語(ZCT/LGR/ELR/HPSB/HSB/RRY/RTR/MCDT/F/LA/DCPW/CR/TM/TS/G系/表示灯WL-BL/COS/PBS/SSW/TSW/BZ/BEL/CP/RSW/EE/HM/XERY/CKS/CSDT/CU/TU/NHMB/APN/SL系/LGT/BLTR/PLTR/LSW/DSW/SV/MV/KPRY/THSW/L/IDF-MDF/WDP/MCFR/MGFR/MCSD/MGSD/MGLD/MGCS/INV/DCSIR/DCNI/MCFRSD/MGFRSD/TSU系ほか)を収録しeparm_set全99分岐移植完了。XERY接尾一致/FLTx先頭一致/TM時間単位倍率/W-V区分/エレメント直接代入/空分岐STM等の忠実再現含む
 関数,set_9,EquipmentParameterFormatter.Set9,toku/sekkei/src/Fyss1f.c,from先頭from_length文字をatof×multipleしC書式(例%09.3f)でto_length桁固定長へ整形(strncpy相当・末尾NUL埋めなし)
 関数,chk_9,EquipmentParameterFormatter.Chk9,toku/sekkei/src/Fyss1f.c,from先頭from_length文字のatof
 関数,Stof,EquipmentParameterFormatter.Stof,toku/sekkei/src/Fysk09.c,str先頭size文字のatof(chk_9と同義)

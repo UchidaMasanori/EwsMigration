@@ -22,9 +22,10 @@ using Ews.Domain.Analysis;
 /// 未設定フィールドは C では union の 0 埋めにより atof=0 となるため、本移植でも
 /// <see cref="RatingValues.Get"/> が null のフィールドは "" 扱い(atof=0)とする。
 ///
-/// 本フェーズ(Wave 1~6)は遮断器系 MCB/ELB/MMCB/ELMB/SB、漏電遮断器系 RMCB/RELB/RMMCB/RELMB、
-/// 引込 PS/P/UP、電磁接触器系 MC/THR/MG/SC、端子台・計器系 NT/WH/VM/AM/VT/CT/VS/AS、
-/// TB/CON/TR(多スロット変圧器) を収録する。ZCT/LGR/ELR/… 等は後続 Wave で追加する。
+/// 本フェーズで eparm_set の全予約語(約99分岐、Fyss1f.c:2219~3218)を収録する。
+/// 遮断器/漏電遮断器系、引込 PS/P/UP、電磁接触器系、端子台・計器系、TB/CON/TR(多スロット変圧器)、
+/// 表示灯 WL/GL/RL/OL/FL/BL、地絡・漏電リレー ZCT/LGR/ELR、タイマ TM/TS、単位スイッチ TSU/SSWU/... 等。
+/// C 原典で空分岐(STM/SIR/C/R/D/NICA/RE/VVVF/TV)や未該当予約語は '0' 埋めのまま返す。
 /// </summary>
 public sealed class EquipmentParameterFormatter
 {
@@ -41,6 +42,20 @@ public sealed class EquipmentParameterFormatter
         ArgumentNullException.ThrowIfNull(values);
         ElectricalParameters ep = new();
         string yoyaku = reservedWord ?? string.Empty;
+
+        // memcmp 部分一致の予約語群(先頭/接尾一致)を先に処理する。
+        // XERY = 2ERY/3ERY/4ERY(【C原典】memcmp("ERY",&yoyaku[1],7))
+        if (yoyaku.Length == 4 && yoyaku.EndsWith("ERY", StringComparison.Ordinal))
+        {
+            SetXery(values, ep);
+            return ep;
+        }
+        // FLTx(【C原典】memcmp(yoyaku,"FLT",3))
+        if (yoyaku.StartsWith("FLT", StringComparison.Ordinal))
+        {
+            SetFltx(values, ep);
+            return ep;
+        }
 
         switch (yoyaku)
         {
@@ -126,6 +141,327 @@ public sealed class EquipmentParameterFormatter
                 break;
             case "TR":
                 SetTr(values, ep);
+                break;
+            case "ZCT":  // Fyss1f.c:2617
+                ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ep.Ksize = Set9(values.Get("p"), 3, 5, "%05.1f", 1.0);  // 径サイズ
+                break;
+            case "LGR":  // Fyss1f.c:2628
+                ep.K = Set9(values.Get("k"), 2, 3, "%03.0f", 1.0);
+                for (int i = 0; i < 4; i++)  // 感度電流 4スロット(from_length=4)
+                {
+                    ep.Ma[i] = Set9(values.Get($"ma[{i}]"), 4, 4, "%04.0f", 1.0);
+                }
+                ApplyVc(ep, values);
+                break;
+            case "ELR":  // Fyss1f.c:2638
+                for (int i = 0; i < 3; i++)
+                {
+                    ep.Ma[i] = Set9(values.Get($"ma[{i}]"), 3, 4, "%04.0f", 1.0);
+                }
+                ApplyVc(ep, values);
+                break;
+            case "HPSB":  // Fyss1f.c:2646
+            case "HSB":   // Fyss1f.c:2655
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.Af = Set9(values.Get("af"), 3, 9, "%09.3f", 1.0);
+                ep.At = Set9(values.Get("at"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ep.Am = Set9(values.Get("am"), 3, 3, "%03.0f", 1.0);  // メーター定格
+                break;
+            case "RRY":  // Fyss1f.c:2664
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 2, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                break;
+            case "RTR":  // Fyss1f.c:2674
+                ep.V1[0] = Set9(values.Get("sv"), 3, 8, "%08.1f", 1.0);
+                ApplyV2(ep, values);
+                ep.Va = Set9(values.Get("va"), 2, 10, "%010.2f", 1.0);
+                break;
+            case "MCDT":  // Fyss1f.c:2681
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                break;
+            case "F":  // Fyss1f.c:2691
+                ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "LA":  // Fyss1f.c:2698
+                ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+                ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "DCPW":  // Fyss1f.c:2705
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("w"), 5, 10, "%010.2f", 1.0);
+                ep.V1[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);   // 定格電圧1(区分は設定しない)
+                ep.V2Kbn = FvKbn(values.Get("fvdc"));
+                ep.V2[0] = Set9(values.Get("vdc"), 3, 8, "%08.1f", 1.0);
+                break;
+            case "CR":  // Fyss1f.c:2717
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.Ac = Set9(values.Get("ac"), 2, 2, "%02.0f", 1.0);
+                ep.Bc = Set9(values.Get("bc"), 2, 2, "%02.0f", 1.0);
+                ep.Cc = Set9(values.Get("cc"), 2, 2, "%02.0f", 1.0);
+                break;
+            case "TM":  // Fyss1f.c:2729
+                SetTimer(values, ep);
+                break;
+            case "TS":  // Fyss1f.c:2754
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.Ac = Set9(values.Get("ac"), 2, 2, "%02.0f", 1.0);
+                ep.Bc = Set9(values.Get("bc"), 2, 2, "%02.0f", 1.0);
+                ep.Cc = Set9(values.Get("cc"), 2, 2, "%02.0f", 1.0);
+                break;
+            case "G":
+            case "G1":
+            case "G2":
+            case "G3":
+            case "G4":
+            case "GI":
+            case "GP":
+            case "GPN":  // Fyss1f.c:2765 (表示灯群: 制御電圧のみ)
+                ApplyVc(ep, values);
+                break;
+            case "WL":
+            case "GL":
+            case "RL":
+            case "OL":
+            case "FL":
+            case "BL":  // Fyss1f.c:2782 (表示灯: 電圧/負荷容量/径サイズ)
+                ApplyV2(ep, values);
+                ep.W1 = Set9(values.Get("w"), 4, 10, "%010.2f", 1.0);
+                ep.Ksize = Set9(values.Get("p"), 4, 5, "%05.1f", 1.0);
+                break;
+            case "COS":  // Fyss1f.c:2793
+            case "PBS":  // Fyss1f.c:2800
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ep.Ksize = Set9(values.Get("p"), 4, 5, "%05.1f", 1.0);
+                break;
+            case "SSW":  // Fyss1f.c:2809
+            case "TSW":  // Fyss1f.c:2816
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "BZ":  // Fyss1f.c:2823 (ブザー: W は×1)
+                ApplyVc(ep, values);
+                SetWva(values, ep, "fwva", "wva", 4, wMultiple: 1.0, vMultiple: 1.0);
+                break;
+            case "BEL":  // Fyss1f.c:2832 (ベル: W は×1000)
+                ApplyVc(ep, values);
+                SetWva(values, ep, "fwva", "wva", 4, wMultiple: 1000.0, vMultiple: 1.0);
+                ep.Ksize = Set9(values.Get("p"), 3, 5, "%05.1f", 1.0);
+                break;
+            case "CP":  // Fyss1f.c:2842
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.Af = Set9(values.Get("af"), 2, 9, "%09.3f", 1.0);
+                ep.At = Set9(values.Get("at"), 2, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "RSW":  // Fyss1f.c:2850
+                ep.K = Set9(values.Get("k"), 3, 3, "%03.0f", 1.0);
+                ApplyVc(ep, values);
+                break;
+            case "EE":  // Fyss1f.c:2856
+                ep.A2 = Set9(values.Get("a"), 2, 9, "%09.3f", 1.0);
+                ApplyVc(ep, values);
+                break;
+            case "HM":  // Fyss1f.c:2862
+                ApplyVc(ep, values);
+                ep.Hz = Set9(values.Get("Hz"), 2, 2, "%02.0f", 1.0);
+                break;
+            case "CKS":  // Fyss1f.c:2876 (epae は直接代入)
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.E = EDirect(values.Get("e"));
+                ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "CSDT":  // Fyss1f.c:2884
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "CU":  // Fyss1f.c:2892
+                ApplyVc(ep, values);
+                break;
+            case "TU":  // Fyss1f.c:2897
+                ep.K = Set9(values.Get("k"), 1, 3, "%03.0f", 1.0);
+                ApplyVc(ep, values);
+                break;
+            case "NHMB":  // Fyss1f.c:2903
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.At = Set9(values.Get("at"), 5, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 4, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                break;
+            case "APN":  // Fyss1f.c:2911
+                ApplyVc(ep, values);
+                break;
+            case "SL23":
+            case "SL32":
+            case "SL42":
+            case "SL43":  // Fyss1f.c:2916 (制御電圧のみ)
+                ApplyVc(ep, values);
+                break;
+            case "LGT":  // Fyss1f.c:2925
+                ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 4, 9, "%09.3f", 1.0);
+                ep.T = Set9(values.Get("t"), 4, 5, "%05.1f", 1.0);   // 板厚
+                ep.W2 = Set9(values.Get("w"), 3, 3, "%03.0f", 1.0);  // 幅
+                break;
+            case "BLTR":  // Fyss1f.c:2931
+                ep.V1[0] = Set9(values.Get("sv"), 3, 8, "%08.1f", 1.0);
+                ApplyV2(ep, values, vLen: 2);
+                ep.Va = Set9(values.Get("va"), 2, 10, "%010.2f", 1.0);
+                break;
+            case "PLTR":  // Fyss1f.c:2938
+                ep.V1[0] = Set9(values.Get("sv"), 3, 8, "%08.1f", 1.0);
+                ApplyV2(ep, values, vLen: 4);
+                ep.Va = Set9(values.Get("va"), 1, 10, "%010.2f", 1.0);
+                break;
+            case "LSW":  // Fyss1f.c:2951
+            case "DSW":  // Fyss1f.c:2957
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                break;
+            case "SV":  // Fyss1f.c:2963
+                ApplyV2(ep, values);
+                ep.Va = Set9(values.Get("va"), 2, 10, "%010.2f", 1.0);
+                break;
+            case "MV":  // Fyss1f.c:2969 (fwva で W×1000 / V×1 分岐)
+                ApplyV2(ep, values);
+                SetWva(values, ep, "fwva", "va", 3, wMultiple: 1000.0, vMultiple: 1.0);
+                break;
+            case "KPRY":  // Fyss1f.c:2978 (接点数 from_length=1)
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.Ac = Set9(values.Get("ac"), 1, 2, "%02.0f", 1.0);
+                ep.Bc = Set9(values.Get("bc"), 1, 2, "%02.0f", 1.0);
+                ep.Cc = Set9(values.Get("cc"), 1, 2, "%02.0f", 1.0);
+                break;
+            case "THSW":  // Fyss1f.c:2990 (温度設定)
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ep.C1 = Set9(values.Get("cs"), 3, 3, "%03.0f", 1.0);
+                ep.C2 = Set9(values.Get("c"), 3, 3, "%03.0f", 1.0);
+                ep.Cset = Set9(values.Get("cset"), 3, 3, "%03.0f", 1.0);
+                break;
+            case "L":  // Fyss1f.c:2999
+                ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
+                ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
+                ep.A2 = Set9(values.Get("a"), 2, 9, "%09.3f", 1.0);
+                break;
+            case "IDF":
+            case "HDF":
+            case "MDF":  // Fyss1f.c:3004/3007/3010 (極数のみ, from_length=3)
+                ep.P = Set9(values.Get("p"), 3, 3, "%03.0f", 1.0);
+                break;
+            case "TV":  // Fyss1f.c:3013 (C原典は何もしない)
+                break;
+            case "WDP":  // Fyss1f.c:3015
+                ep.T = Set9(values.Get("t"), 2, 5, "%05.1f", 1.0);
+                break;
+            case "MCFR":  // Fyss1f.c:3018
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.Ac = Set9(values.Get("ac"), 1, 2, "%02.0f", 1.0);
+                ep.Bc = Set9(values.Get("bc"), 1, 2, "%02.0f", 1.0);
+                break;
+            case "MGFR":  // Fyss1f.c:3030 (epae 直接代入 + at)
+                ep.E = EDirect(values.Get("e"));
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.Ac = Set9(values.Get("ac"), 1, 2, "%02.0f", 1.0);
+                ep.Bc = Set9(values.Get("bc"), 1, 2, "%02.0f", 1.0);
+                ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+                break;
+            case "MCSD":  // Fyss1f.c:3044
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                break;
+            case "MGSD":  // Fyss1f.c:3054 (epae 直接代入 + at)
+                ep.E = EDirect(values.Get("e"));
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+                break;
+            case "MGLD":  // Fyss1f.c:3066
+            case "MGCS":  // Fyss1f.c:3075
+            case "INV":   // Fyss1f.c:3084
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                break;
+            case "DCSIR":  // Fyss1f.c:3105 (epav2kbn を fv → fvdc で上書き)
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("w"), 5, 10, "%010.2f", 1.0);
+                ep.V2Kbn = FvKbn(values.Get("fv"));
+                ep.V1[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+                ep.V2Kbn = FvKbn(values.Get("fvdc"));
+                ep.V2[0] = Set9(values.Get("vdc"), 4, 8, "%08.1f", 1.0);
+                break;
+            case "DCNI":  // Fyss1f.c:3115
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("w"), 5, 10, "%010.2f", 1.0);
+                ep.V2Kbn = FvKbn(values.Get("fv"));
+                ep.V1[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+                ep.V2Kbn = FvKbn(values.Get("fvdc"));
+                ep.V2[0] = Set9(values.Get("vdc"), 4, 8, "%08.1f", 1.0);
+                ep.Mah = Set9(values.Get("mah"), 5, 5, "%05.0f", 1.0);
+                break;
+            case "MCFRSD":  // Fyss1f.c:3126
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                break;
+            case "MGFRSD":  // Fyss1f.c:3136 (epae 直接代入 + at)
+                ep.E = EDirect(values.Get("e"));
+                ep.A2 = Set9(values.Get("a"), 6, 9, "%09.3f", 1.0);
+                ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+                break;
+            case "STM":
+            case "SIR":
+            case "C":
+            case "R":
+            case "D":
+            case "NICA":
+            case "RE":
+            case "VVVF":  // Fyss1f.c:3148-3162 (C原典は空分岐 → '0' 埋めのまま)
+                break;
+            case "TSU":    // Fyss1f.c:3164
+            case "SSWU":   // Fyss1f.c:3173
+            case "PBSU":   // Fyss1f.c:3182
+            case "COSU":   // Fyss1f.c:3191
+            case "2COSU":  // Fyss1f.c:3200
+            case "OLU":    // Fyss1f.c:3209 (単位スイッチ群)
+                ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+                ApplyV2(ep, values);
+                ApplyVc(ep, values);
+                ep.K = Set9(values.Get("k"), 2, 3, "%03.0f", 1.0);
                 break;
             default:
                 // 未収録予約語: ep は '0' 埋めのまま(C の Main_Area_Clear 相当)。
@@ -512,6 +848,92 @@ public sealed class EquipmentParameterFormatter
 
         // 定格容量
         ep.Va = Set9(values.Get("va"), 6, 10, "%010.2f", 1.0);
+    }
+
+    /// <summary>定格電圧2 区分/電圧を共通セットする(【C原典】epav2kbn=fv?…; set_9(v,vLen,epav2[0],8,"%08.1f"))。</summary>
+    private static void ApplyV2(ElectricalParameters ep, RatingValues values, string vField = "v", int vLen = 3, string fvField = "fv")
+    {
+        ep.V2Kbn = FvKbn(values.Get(fvField));
+        ep.V2[0] = Set9(values.Get(vField), vLen, 8, "%08.1f", 1.0);
+    }
+
+    /// <summary>制御電圧2 区分/電圧を共通セットする(【C原典】epavckbn=fvc?…; set_9(vc,3,epavc,3,"%03.0f"))。</summary>
+    private static void ApplyVc(ElectricalParameters ep, RatingValues values)
+    {
+        ep.VcKbn = FvKbn(values.Get("fvc"));
+        ep.Vc = Set9(values.Get("vc"), 3, 3, "%03.0f", 1.0);
+    }
+
+    /// <summary>
+    /// エレメント数(Ｅ)を直接代入する(【C原典】<c>ep-&gt;epae = u-&gt;xxx.e;</c>)。
+    /// MCB 系の <c>e?e:'0'</c> と異なり NUL 保護しない。未設定時は C の直接バイトコピー('\0')を再現する。
+    /// </summary>
+    private static string EDirect(string? e) => !string.IsNullOrEmpty(e) ? e[..1] : "\0";
+
+    /// <summary>
+    /// W/V 区分付き容量をセットする(【C原典】BZ/BEL/MV: fwva=='W'→epaw1, =='V'→epava)。
+    /// </summary>
+    private static void SetWva(RatingValues values, ElectricalParameters ep, string fwvaField, string valueField, int len, double wMultiple, double vMultiple)
+    {
+        string? fwva = values.Get(fwvaField);
+        char f = string.IsNullOrEmpty(fwva) ? '\0' : fwva[0];
+        if (f == 'W')
+        {
+            ep.W1 = Set9(values.Get(valueField), len, 10, "%010.2f", wMultiple);
+        }
+        else if (f == 'V')
+        {
+            ep.Va = Set9(values.Get(valueField), len, 10, "%010.2f", vMultiple);
+        }
+    }
+
+    /// <summary>
+    /// 【C原典】TM(タイマ、Fyss1f.c:2729)。定格電流/電圧2/制御電圧2 に加え、
+    /// nset/nss/ns の時間単位('1':秒×1, '2':分×60, '3':時×3600)で SSET/SS/S を整形する。
+    /// </summary>
+    private static void SetTimer(RatingValues values, ElectricalParameters ep)
+    {
+        ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+        ApplyV2(ep, values);
+        ApplyVc(ep, values);
+        ep.Sset = SetTime(values, "nset", "set", ep.Sset);
+        ep.Ss = SetTime(values, "nss", "ss", ep.Ss);
+        ep.S = SetTime(values, "ns", "s", ep.S);
+        ep.Ac = Set9(values.Get("ac"), 2, 2, "%02.0f", 1.0);
+        ep.Bc = Set9(values.Get("bc"), 2, 2, "%02.0f", 1.0);
+        ep.Cc = Set9(values.Get("cc"), 2, 2, "%02.0f", 1.0);
+    }
+
+    /// <summary>
+    /// タイマ時間値を単位フラグに応じて整形する。'1':×1 '2':×60 '3':×3600、
+    /// それ以外は C では set_9 を呼ばず現状値('0' 埋め)のまま。
+    /// </summary>
+    private static string SetTime(RatingValues values, string nField, string valField, string current)
+    {
+        string? n = values.Get(nField);
+        char c = string.IsNullOrEmpty(n) ? '\0' : n[0];
+        double mul = c switch { '1' => 1.0, '2' => 60.0, '3' => 3600.0, _ => double.NaN };
+        return double.IsNaN(mul) ? current : Set9(values.Get(valField), 9, 13, "%013.3f", mul);
+    }
+
+    /// <summary>【C原典】XERY(2ERY/3ERY/4ERY、Fyss1f.c:2868)。AF/AT/負荷容量(×1000)/制御電圧2。</summary>
+    private static void SetXery(RatingValues values, ElectricalParameters ep)
+    {
+        ep.Af = Set9(values.Get("af"), 6, 9, "%09.3f", 1.0);
+        ep.At = Set9(values.Get("at"), 6, 9, "%09.3f", 1.0);
+        ep.W1 = Set9(values.Get("kw"), 6, 10, "%010.2f", 1000.0);
+        ApplyVc(ep, values);
+    }
+
+    /// <summary>【C原典】FLTx(Fyss1f.c:3093、memcmp 先頭3文字 "FLT")。定格電流/電圧2/制御電圧2/接点数。</summary>
+    private static void SetFltx(RatingValues values, ElectricalParameters ep)
+    {
+        ep.A2 = Set9(values.Get("a"), 5, 9, "%09.3f", 1.0);
+        ApplyV2(ep, values);
+        ApplyVc(ep, values);
+        ep.Ac = Set9(values.Get("ac"), 2, 2, "%02.0f", 1.0);
+        ep.Bc = Set9(values.Get("bc"), 2, 2, "%02.0f", 1.0);
+        ep.Cc = Set9(values.Get("cc"), 2, 2, "%02.0f", 1.0);
     }
 
     /// <summary>

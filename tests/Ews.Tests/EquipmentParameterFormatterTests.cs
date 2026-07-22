@@ -7,7 +7,8 @@ namespace Ews.Tests;
 /// <summary>
 /// 電気パラメータ整形(型式展開、<see cref="EquipmentParameterFormatter"/>)の検証。
 /// 【C原典】toku/sekkei/src/Fyss1f.c eparm_set / set_9 / Stof。
-/// 本フェーズ(Wave 1~6)は遮断器系・漏電遮断器系・引込(PS/P/UP)・電磁接触器系(MC/THR/MG/SC)・端子台計器系(NT/WH/VM/AM/VT/CT/VS/AS)・TB/CON/TR(多スロット変圧器)を対象とする。
+/// 本フェーズで eparm_set の全予約語(約99分岐)を対象とする。遮断器系・引込・電磁接触器系・端子台計器系・TB/CON/TRに加え、
+/// 表示灯 WL/GL/RL/OL/FL/BL、地絡・漏電リレー ZCT/LGR/ELR、タイマ TM、XERY/FLTx 部分一致、単位スイッチ群などを検証する。
 /// 入力の <see cref="RatingValues"/> は key_check の格納結果を直接構築して与える。
 /// </summary>
 public sealed class EquipmentParameterFormatterTests
@@ -561,6 +562,202 @@ public sealed class EquipmentParameterFormatterTests
         // v3[0]→epav2[1]、v3[1]→epav2[2] で上書き
         Assert.Equal("000105.0", ep.V2[1]);
         Assert.Equal("000050.0", ep.V2[2]);
+    }
+
+    // ── Wave7+ 代表検証 ──────────────────────────────
+
+    [Fact]
+    public void ZCTは電流電圧径サイズを整形する()
+    {
+        ElectricalParameters ep = Format("ZCT", ("a", "30"), ("fv", "AC220"), ("v", "220"), ("p", "10"));
+        Assert.Equal("00030.000", ep.A2);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000220.0", ep.V2[0]);
+        Assert.Equal("010.0", ep.Ksize);
+    }
+
+    [Fact]
+    public void LGRは感度電流4スロットを整形する()
+    {
+        ElectricalParameters ep = Format("LGR",
+            ("k", "2"), ("ma[0]", "30"), ("ma[1]", "100"), ("ma[2]", "200"), ("ma[3]", "500"),
+            ("fvc", "AC100"), ("vc", "100"));
+        Assert.Equal("002", ep.K);
+        Assert.Equal("0030", ep.Ma[0]);
+        Assert.Equal("0100", ep.Ma[1]);
+        Assert.Equal("0200", ep.Ma[2]);
+        Assert.Equal("0500", ep.Ma[3]);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+    }
+
+    [Fact]
+    public void HPSBは極数AF_AT電圧メーターを整形する()
+    {
+        ElectricalParameters ep = Format("HPSB", ("p", "2"), ("af", "100"), ("at", "75"), ("fv", "AC220"), ("v", "220"), ("am", "30"));
+        Assert.Equal("002", ep.P);
+        Assert.Equal("00100.000", ep.Af);
+        Assert.Equal("00075.000", ep.At);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000220.0", ep.V2[0]);
+        Assert.Equal("030", ep.Am);
+    }
+
+    [Fact]
+    public void TMは時間単位フラグで乗率を切り替える()
+    {
+        // nset='2' → 分(×60)、set="5" → 5×60=300
+        ElectricalParameters ep = Format("TM",
+            ("a", "5"), ("fv", "AC220"), ("v", "220"), ("fvc", "DC24"), ("vc", "24"),
+            ("nset", "2"), ("set", "5"), ("ac", "1"), ("bc", "1"));
+        Assert.Equal("00005.000", ep.A2);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal('D', ep.VcKbn);
+        Assert.Equal("024", ep.Vc);
+        Assert.Equal("000000300.000", ep.Sset);
+        // 未指定の SS/S は '0' 埋め(小数点なし)のまま
+        Assert.Equal("0000000000000", ep.Ss);
+        Assert.Equal("01", ep.Ac);
+        Assert.Equal("01", ep.Bc);
+    }
+
+    [Fact]
+    public void BZはW区分で負荷容量を1倍する()
+    {
+        ElectricalParameters ep = Format("BZ", ("fvc", "AC100"), ("vc", "100"), ("fwva", "W"), ("wva", "100"));
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("0000100.00", ep.W1);
+    }
+
+    [Fact]
+    public void BELはW区分で負荷容量を1000倍し径サイズも整形する()
+    {
+        ElectricalParameters ep = Format("BEL", ("fvc", "AC100"), ("vc", "100"), ("fwva", "W"), ("wva", "5"), ("p", "16"));
+        Assert.Equal("0005000.00", ep.W1);
+        Assert.Equal("016.0", ep.Ksize);
+    }
+
+    [Fact]
+    public void MVはV区分で容量をVA側に入れる()
+    {
+        ElectricalParameters ep = Format("MV", ("fv", "AC100"), ("v", "100"), ("fwva", "V"), ("va", "50"));
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000100.0", ep.V2[0]);
+        Assert.Equal("0000050.00", ep.Va);
+        // W 側は未設定('0' 埋め)
+        Assert.Equal("0000000000", ep.W1);
+    }
+
+    [Fact]
+    public void FLは表示灯群として扱われる()
+    {
+        // 【C原典】WL/GL/RL/OL/FL/BL 分岐(2782)が先に一致し、後方の単独 FL(2945)は不到達。
+        ElectricalParameters ep = Format("FL", ("fv", "AC100"), ("v", "100"), ("w", "40"), ("p", "16"));
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000100.0", ep.V2[0]);
+        Assert.Equal("0000040.00", ep.W1);   // w(4)→W1
+        Assert.Equal("016.0", ep.Ksize);     // p(4)→Ksize
+    }
+
+    [Fact]
+    public void XERYは接尾一致でAF_AT容量を整形する()
+    {
+        ElectricalParameters ep = Format("2ERY", ("af", "100"), ("at", "225"), ("kw", "5.5"), ("fvc", "AC100"), ("vc", "100"));
+        Assert.Equal("00100.000", ep.Af);
+        Assert.Equal("00225.000", ep.At);
+        Assert.Equal("0005500.00", ep.W1);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+    }
+
+    [Fact]
+    public void FLTxは先頭3文字一致で電流電圧接点を整形する()
+    {
+        ElectricalParameters ep = Format("FLT", ("a", "20"), ("fv", "AC220"), ("v", "220"), ("fvc", "DC24"), ("vc", "24"), ("ac", "1"), ("bc", "1"), ("cc", "0"));
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000220.0", ep.V2[0]);
+        Assert.Equal('D', ep.VcKbn);
+        Assert.Equal("024", ep.Vc);
+        Assert.Equal("01", ep.Ac);
+        Assert.Equal("01", ep.Bc);
+        Assert.Equal("00", ep.Cc);
+    }
+
+    [Fact]
+    public void CKSはエレメント数を直接代入する()
+    {
+        ElectricalParameters ep = Format("CKS", ("p", "1"), ("e", "3"), ("a", "30"), ("fv", "AC110"), ("v", "110"));
+        Assert.Equal("001", ep.P);
+        Assert.Equal("3", ep.E);
+        Assert.Equal("00030.000", ep.A2);
+        Assert.Equal("000110.0", ep.V2[0]);
+    }
+
+    [Fact]
+    public void THSWは温度設定を整形する()
+    {
+        ElectricalParameters ep = Format("THSW", ("a", "20"), ("fv", "AC220"), ("v", "220"), ("cs", "30"), ("c", "80"), ("cset", "50"));
+        Assert.Equal("030", ep.C1);
+        Assert.Equal("080", ep.C2);
+        Assert.Equal("050", ep.Cset);
+    }
+
+    [Fact]
+    public void LGTは極数電流板厚幅を整形する()
+    {
+        ElectricalParameters ep = Format("LGT", ("p", "1"), ("a", "20"), ("t", "1.6"), ("w", "50"));
+        Assert.Equal("001", ep.P);
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal("001.6", ep.T);
+        Assert.Equal("050", ep.W2);
+    }
+
+    [Fact]
+    public void DCNIはfvdcでV2区分を上書きしMAHも整形する()
+    {
+        ElectricalParameters ep = Format("DCNI",
+            ("a", "10"), ("w", "500"), ("fv", "AC100"), ("v", "100"), ("fvdc", "DC220"), ("vdc", "220"), ("mah", "1200"));
+        Assert.Equal("00010.000", ep.A2);
+        Assert.Equal("0000500.00", ep.W1);
+        Assert.Equal("000100.0", ep.V1[0]);
+        Assert.Equal('D', ep.V2Kbn);          // fv → fvdc で上書き
+        Assert.Equal("000220.0", ep.V2[0]);
+        Assert.Equal("01200", ep.Mah);
+    }
+
+    [Fact]
+    public void MGFRはエレメント直接代入とフレーム電流を整形する()
+    {
+        ElectricalParameters ep = Format("MGFR",
+            ("e", "3"), ("a", "20"), ("kw", "5.5"), ("fv", "AC220"), ("v", "220"),
+            ("fvc", "DC24"), ("vc", "24"), ("ac", "1"), ("bc", "1"), ("at", "50"));
+        Assert.Equal("3", ep.E);
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal("0005500.00", ep.W1);
+        Assert.Equal("00050.000", ep.At);
+        Assert.Equal("01", ep.Ac);
+    }
+
+    [Fact]
+    public void TSU等単位スイッチは電流電圧回路数を整形する()
+    {
+        ElectricalParameters ep = Format("2COSU", ("a", "20"), ("fv", "AC220"), ("v", "220"), ("fvc", "DC24"), ("vc", "24"), ("k", "4"));
+        Assert.Equal("00020.000", ep.A2);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000220.0", ep.V2[0]);
+        Assert.Equal("024", ep.Vc);
+        Assert.Equal("004", ep.K);
+    }
+
+    [Fact]
+    public void STM等空分岐は既定値のまま()
+    {
+        // 【C原典】STM/SIR/C/R/D/NICA/RE/VVVF/TV は空分岐 → '0' 埋めのまま
+        ElectricalParameters ep = Format("STM", ("a", "20"));
+        Assert.Equal("000", ep.P);
+        Assert.Equal("000000000", ep.A2);
+        Assert.Equal('0', ep.V2Kbn);
     }
 
     // ── 未収録予約語は '0' 埋めのまま ────────────────────────────────
