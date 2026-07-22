@@ -7,7 +7,7 @@ namespace Ews.Tests;
 /// <summary>
 /// 電気パラメータ整形(型式展開、<see cref="EquipmentParameterFormatter"/>)の検証。
 /// 【C原典】toku/sekkei/src/Fyss1f.c eparm_set / set_9 / Stof。
-/// 本フェーズ(Wave 1~5)は遮断器系・漏電遮断器系・引込(PS/P/UP)・電磁接触器系(MC/THR/MG/SC)・端子台計器系(NT/WH/VM/AM/VT/CT/VS/AS)を対象とする。
+/// 本フェーズ(Wave 1~6)は遮断器系・漏電遮断器系・引込(PS/P/UP)・電磁接触器系(MC/THR/MG/SC)・端子台計器系(NT/WH/VM/AM/VT/CT/VS/AS)・TB/CON/TR(多スロット変圧器)を対象とする。
 /// 入力の <see cref="RatingValues"/> は key_check の格納結果を直接構築して与える。
 /// </summary>
 public sealed class EquipmentParameterFormatterTests
@@ -465,6 +465,102 @@ public sealed class EquipmentParameterFormatterTests
         ElectricalParameters ep = Format("AS", ("p", "3"), ("w", "4"));
         Assert.Equal("3", ep.Ph2[0]);
         Assert.Equal("4", ep.Wr2[0]);
+    }
+
+    // ── TB/CON(端子台・コネクタ) ────────────────────────────────────
+
+    [Fact]
+    public void TBは極数_電流_電圧_電線サイズを整形する()
+    {
+        ElectricalParameters ep = Format("TB",
+            ("p", "100"), ("a", "60"), ("v", "200"), ("fv", "A"), ("sq", "38"));
+
+        Assert.Equal("100", ep.P);           // p は from_length=3
+        Assert.Equal("00060.000", ep.A2);
+        Assert.Equal("000200.0", ep.V2[0]);
+        Assert.Equal("038.00", ep.Sq);       // sq,6桁→epasq "%06.2f"
+    }
+
+    [Fact]
+    public void CONは極数1桁電流2桁で整形する()
+    {
+        ElectricalParameters ep = Format("CON",
+            ("p", "3"), ("a", "20"), ("v", "200"), ("fv", "A"));
+
+        Assert.Equal("003", ep.P);           // p は from_length=1
+        Assert.Equal("00020.000", ep.A2);    // a は from_length=2
+        Assert.Equal("000200.0", ep.V2[0]);
+    }
+
+    // ── TR(変圧器: 多スロット/タップインデックス/0詰めパッキング) ────
+
+    [Fact]
+    public void TRは1次電圧3スロットとタップインデックスを整形する()
+    {
+        // v1[1] の4文字目 'T' → タップ使用インデックス '2'
+        ElectricalParameters ep = Format("TR",
+            ("p1", "3"), ("w1", "4"),
+            ("v1[0]", "210"), ("v1[1]", "105T"), ("v1[2]", "100"),
+            ("va", "50"));
+
+        Assert.Equal("3", ep.Ph1);
+        Assert.Equal("4", ep.Wr1);
+        Assert.Equal("000210.0", ep.V1[0]);
+        Assert.Equal("000105.0", ep.V1[1]);
+        Assert.Equal("000100.0", ep.V1[2]);
+        Assert.Equal("2", ep.V1Idx);         // v1[1][3]=='T'
+        Assert.Equal("0000050.00", ep.Va);   // va,6桁→epava "%010.2f"
+    }
+
+    [Fact]
+    public void TRは2次相数を0でないものから順詰めする()
+    {
+        // p2 非0 → {p2→epaph2[0], p3→epaph2[1]}
+        ElectricalParameters ep = Format("TR",
+            ("p1", "3"), ("p2", "3"), ("p3", "1"), ("w2", "4"), ("w3", "2"));
+
+        Assert.Equal("3", ep.Ph2[0]);
+        Assert.Equal("1", ep.Ph2[1]);
+        Assert.Equal("4", ep.Wr2[0]);
+        Assert.Equal("2", ep.Wr2[1]);
+    }
+
+    [Fact]
+    public void TRはp2が0のときp3を先頭に詰める()
+    {
+        // p2==0 → {p3→epaph2[0]}(epaph2[1] は 0 のまま)
+        ElectricalParameters ep = Format("TR",
+            ("p1", "3"), ("p2", "0"), ("p3", "1"), ("w2", "0"), ("w3", "2"));
+
+        Assert.Equal("1", ep.Ph2[0]);
+        Assert.Equal("0", ep.Ph2[1]);        // memset '0' のまま
+        Assert.Equal("2", ep.Wr2[0]);
+        Assert.Equal("0", ep.Wr2[1]);
+    }
+
+    [Fact]
+    public void TRはfv2がAC_DC以外のときfv3で区分判定する()
+    {
+        // fv2 が 'A'/'D' 以外 → fv3 で判定
+        ElectricalParameters ep = Format("TR",
+            ("p1", "3"), ("fv2", "X"), ("fv3", "D"), ("v2[0]", "210"));
+        Assert.Equal('D', ep.V2Kbn);
+    }
+
+    [Fact]
+    public void TRは2次電圧のchk9非0のみ詰めタップインデックスを設定する()
+    {
+        // v2[0] 非0(タップ 'T')、v2[1] 0 でスキップ、v2[2] 非0
+        ElectricalParameters ep = Format("TR",
+            ("p1", "3"), ("fv2", "A"),
+            ("v2[0]", "210T"), ("v2[1]", "0"), ("v2[2]", "100"),
+            ("v3[0]", "105"), ("v3[1]", "50"));
+
+        Assert.Equal("000210.0", ep.V2[0]);
+        Assert.Equal("1", ep.V2Idx);         // v2[0][3]=='T' で '1'。v2[2]="100" は4文字目なしでタップ非設定
+        // v3[0]→epav2[1]、v3[1]→epav2[2] で上書き
+        Assert.Equal("000105.0", ep.V2[1]);
+        Assert.Equal("000050.0", ep.V2[2]);
     }
 
     // ── 未収録予約語は '0' 埋めのまま ────────────────────────────────

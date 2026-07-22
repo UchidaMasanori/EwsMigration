@@ -22,9 +22,9 @@ using Ews.Domain.Analysis;
 /// 未設定フィールドは C では union の 0 埋めにより atof=0 となるため、本移植でも
 /// <see cref="RatingValues.Get"/> が null のフィールドは "" 扱い(atof=0)とする。
 ///
-/// 本フェーズ(Wave 1~5)は遮断器系 MCB/ELB/MMCB/ELMB/SB、漏電遮断器系 RMCB/RELB/RMMCB/RELMB、
-/// 引込 PS/P/UP、電磁接触器系 MC/THR/MG/SC、端子台・計器系 NT/WH/VM/AM/VT/CT/VS/AS を収録する。
-/// TB/CON/TR(多スロット)や ZCT/LGR/… 等は後続 Wave で追加する。
+/// 本フェーズ(Wave 1~6)は遮断器系 MCB/ELB/MMCB/ELMB/SB、漏電遮断器系 RMCB/RELB/RMMCB/RELMB、
+/// 引込 PS/P/UP、電磁接触器系 MC/THR/MG/SC、端子台・計器系 NT/WH/VM/AM/VT/CT/VS/AS、
+/// TB/CON/TR(多スロット変圧器) を収録する。ZCT/LGR/ELR/… 等は後続 Wave で追加する。
 /// </summary>
 public sealed class EquipmentParameterFormatter
 {
@@ -117,6 +117,15 @@ public sealed class EquipmentParameterFormatter
                 // 【C原典】eparm_set VS/AS(Fyss1f.c:2552/2556): 相数２/線式２ のみ。
                 ep.Ph2[0] = Set9(values.Get("p"), 1, 1, "%1.0f", 1.0);
                 ep.Wr2[0] = Set9(values.Get("w"), 1, 1, "%1.0f", 1.0);
+                break;
+            case "TB":
+                SetTb(values, ep);
+                break;
+            case "CON":
+                SetCon(values, ep);
+                break;
+            case "TR":
+                SetTr(values, ep);
                 break;
             default:
                 // 未収録予約語: ep は '0' 埋めのまま(C の Main_Area_Clear 相当)。
@@ -392,6 +401,117 @@ public sealed class EquipmentParameterFormatter
         ep.A1 = Set9(values.Get("sa"), 4, 9, "%09.3f", 1.0);
         ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
         ep.Va = Set9(values.Get("va"), 2, 10, "%010.2f", 1.0);
+    }
+
+    /// <summary>
+    /// 端子台(TB)。【C原典】eparm_set TB(Fyss1f.c:2560)。
+    /// 極数(p,3桁→epap)/定格電流2(a,3桁→epaa2)/定格電圧2/電線サイズ(sq,6桁→epasq "%06.2f")。
+    /// </summary>
+    private static void SetTb(RatingValues values, ElectricalParameters ep)
+    {
+        ep.P = Set9(values.Get("p"), 3, 3, "%03.0f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 3, 9, "%09.3f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+        ep.Sq = Set9(values.Get("sq"), 6, 6, "%06.2f", 1.0);
+    }
+
+    /// <summary>
+    /// コネクタ(CON)。【C原典】eparm_set CON(Fyss1f.c:2568)。
+    /// 極数(p,1桁→epap)/定格電流2(a,2桁→epaa2)/定格電圧2。
+    /// </summary>
+    private static void SetCon(RatingValues values, ElectricalParameters ep)
+    {
+        ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
+        ep.A2 = Set9(values.Get("a"), 2, 9, "%09.3f", 1.0);
+        ep.V2Kbn = FvKbn(values.Get("fv"));
+        ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+    }
+
+    /// <summary>
+    /// 変圧器(TR)。【C原典】eparm_set TR(Fyss1f.c:2575)。多スロットの最複雑分岐。
+    /// <list type="bullet">
+    /// <item>1次: 相数(p1→epaph1)/線式(w1→epawr1)/定格電圧1 3スロット(v1[0..2]→epav1[0..2])。
+    ///   各 v1[i] の4文字目(index 3)が 'T' ならタップ使用インデックス epav1idx=i+1。</item>
+    /// <item>2次相数(PH2)を 0 でないものから順詰め: chk_9(p2)≠0 なら {p2→epaph2[0], p3→epaph2[1]}、
+    ///   さもなくば {p3→epaph2[0]}。線式(WR2)も同様に w2/w3 を順詰め。</item>
+    /// <item>AC/DC区分: fv2 が 'A'/'D' なら fv2、さもなくば fv3 で判定。</item>
+    /// <item>2次電圧(V2): v2[i](i=0..2)のうち chk_9≠0 のものを epav2[i] へ、4文字目 'T' で epav2idx=i+1。
+    ///   加えて v3[0]→epav2[1]、v3[1]→epav2[2](各 chk_9≠0 のときのみ上書き)。</item>
+    /// <item>定格容量(va,6桁→epava "%010.2f")。</item>
+    /// </list>
+    /// </summary>
+    private static void SetTr(RatingValues values, ElectricalParameters ep)
+    {
+        // 1次 相数/線式
+        ep.Ph1 = Set9(values.Get("p1"), 1, 1, "%1.0f", 1.0);
+        ep.Wr1 = Set9(values.Get("w1"), 1, 1, "%1.0f", 1.0);
+
+        // 1次 定格電圧1 3スロット + タップインデックス(4文字目 'T')
+        for (int i = 0; i < 3; i++)
+        {
+            string? v1 = values.Get($"v1[{i}]");
+            ep.V1[i] = Set9(v1, 3, 8, "%08.1f", 1.0);
+            if (v1 is not null && v1.Length > 3 && v1[3] == 'T')
+            {
+                ep.V1Idx = (i + 1).ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        // 2次 相数(PH2): 0 でないものから順詰め
+        if (Chk9(values.Get("p2"), 1) != 0.0)
+        {
+            ep.Ph2[0] = Set9(values.Get("p2"), 1, 1, "%1.0f", 1.0);
+            ep.Ph2[1] = Set9(values.Get("p3"), 1, 1, "%1.0f", 1.0);
+        }
+        else
+        {
+            ep.Ph2[0] = Set9(values.Get("p3"), 1, 1, "%1.0f", 1.0);
+        }
+
+        // 2次 線式(WR2): 0 でないものから順詰め
+        if (Chk9(values.Get("w2"), 1) != 0.0)
+        {
+            ep.Wr2[0] = Set9(values.Get("w2"), 1, 1, "%1.0f", 1.0);
+            ep.Wr2[1] = Set9(values.Get("w3"), 1, 1, "%1.0f", 1.0);
+        }
+        else
+        {
+            ep.Wr2[0] = Set9(values.Get("w3"), 1, 1, "%1.0f", 1.0);
+        }
+
+        // AC/DC区分: fv2 が 'A'/'D' なら fv2、さもなくば fv3
+        string? fv2 = values.Get("fv2");
+        char fv2c = string.IsNullOrEmpty(fv2) ? '\0' : fv2[0];
+        ep.V2Kbn = fv2c is 'A' or 'D' ? FvKbn(fv2) : FvKbn(values.Get("fv3"));
+
+        // 2次 電圧(V2): chk_9≠0 のものを詰める + タップインデックス
+        for (int i = 0; i < 3; i++)
+        {
+            string? v2 = values.Get($"v2[{i}]");
+            if (Chk9(v2, 3) != 0.0)
+            {
+                ep.V2[i] = Set9(v2, 3, 8, "%08.1f", 1.0);
+                if (v2 is not null && v2.Length > 3 && v2[3] == 'T')
+                {
+                    ep.V2Idx = (i + 1).ToString(CultureInfo.InvariantCulture);
+                }
+            }
+        }
+        // v3[0]→epav2[1]、v3[1]→epav2[2](各 chk_9≠0 のときのみ)
+        string? v3_0 = values.Get("v3[0]");
+        if (Chk9(v3_0, 3) != 0.0)
+        {
+            ep.V2[1] = Set9(v3_0, 3, 8, "%08.1f", 1.0);
+        }
+        string? v3_1 = values.Get("v3[1]");
+        if (Chk9(v3_1, 3) != 0.0)
+        {
+            ep.V2[2] = Set9(v3_1, 3, 8, "%08.1f", 1.0);
+        }
+
+        // 定格容量
+        ep.Va = Set9(values.Get("va"), 6, 10, "%010.2f", 1.0);
     }
 
     /// <summary>
