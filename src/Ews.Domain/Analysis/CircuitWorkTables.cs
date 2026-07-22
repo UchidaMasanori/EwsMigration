@@ -425,6 +425,18 @@ public sealed class CircuitParseResult
     public BanKind CurrentBan { get; set; } = BanKind.End;
 
     /// <summary>
+    /// ”Õ–¼Ìó‘Ô(Œ»İ)ByCŒ´“TzFyss1f.c static CHAR epabn(‰Šú '1')B
+    /// mainfile_set ‚ª—\–ñŒê(P/SP/MP/UP)•Ê‚ÉXV‚µ ep[0].epabn ‚Ö”½‰f‚·‚éB
+    /// Fyss12_Make_Main_Sub ‚Ì–`“ª‚Å '1' ‚ÉƒŠƒZƒbƒg‚³‚ê‚éB
+    /// </summary>
+    public char PanelNameKind { get; set; } = '1';
+
+    /// <summary>
+    /// ”Õ–¼Ìó‘Ô(’¼‘O)ByCŒ´“TzFyss1f.c static CHAR bepabn(‰Šú '\0')B
+    /// </summary>
+    public char PanelNameKindPrevious { get; set; } = '\0';
+
+    /// <summary>
     /// Œ»İ‚ÌŒn“í•Ê(’¼‹ß‚Ì P/SP/MP/UP s‚ÅŠm’è)B
     /// yCŒ´“Tzstatic CHAR syu = '5'(Šù’è’l)B—\–ñŒês‚Í‚±‚ÌŒn“‚É‘®‚·‚éB
     /// </summary>

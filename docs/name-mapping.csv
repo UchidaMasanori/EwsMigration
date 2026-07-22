@@ -180,7 +180,11 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Main_File_Make_s,MainCircuitBuilder.MainFileMakeSimple,toku/sekkei/src/Fyss1f.c,単純グループ(kj<kensu かつ D_No<=maxNo)を走査しmainfile_pre_setを呼ぶ
 関数,Main_File_Make_d,MainCircuitBuilder.MainFileMakeIteration,toku/sekkei/src/Fyss1f.c,繰り返し開始追番(D_No)前の機器を出力後、D_No以降の機器群をIteration回繰り返しmainfile_pre_set(iteration=j)を呼ぶ。DLV伝播/交互運転Kougoは未モデル化で未実装
 関数,mainfile_pre_set,MainCircuitBuilder.MainFilePreSet,toku/sekkei/src/Fyss1f.c,Kosu分展開(F/VT/CTは1固定)、DNOをCSV分割してgstringをmainfile_setへ渡す
-関数,mainfile_set,MainCircuitBuilder.MainAreaSet,toku/sekkei/src/Fyss1f.c,FYRT800(syukairo)1レコード整形。決定的フィールド(datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn)を移植。kairsfx/gyono/datatype/ep/fpは上流(Fyss13-15機器選定・型式展開)未移植のためTODO
+関数,mainfile_set,MainCircuitBuilder.MainAreaSet,toku/sekkei/src/Fyss1f.c,FYRT800(syukairo)1レコード整形。datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn/kairsfx/gyono/ep[0](eparm_set)/epabn/epaqtyを移植。datatype(DTYPE)・fp(付属パラメータ)は上流(Fyss13-15機器選定)未モデル化のためTODO
+関数,eparm_set(mainfile_set統合),MainCircuitBuilder.MainAreaSet(EquipmentParameterFormatter.EparmSet呼出),toku/sekkei/src/Fyss1f.c,定格キー(RatingValues)検証済機器のep[0]をeparm_set相当で生成しepabn/epaqtyを後置きで設定
+関数,Max_Bunno_Find,MainCircuitBuilder.MaxBunnoFind,toku/sekkei/src/Fyss1f.c,同一G_No内の最大文番号(B_No)を前方走査で取得(kairsfx生成)
+関数,Max_Kbangou_Find,MainCircuitBuilder.MaxKbangouFind,toku/sekkei/src/Fyss1f.c,同一G_No内の最大回路番号(N_No)を前方走査で取得(kairsfx生成)
+関数,Find_Bangou(行種番号),MainCircuitBuilder.FindBangou,toku/sekkei/src/Fysscommon.c,行種名(原文)後方の連続数値を抽出しgyonoへ設定(Fyss11.cのFind_Bangouとは別関数)
 関数,Find_Kairo_Kubun,MainCircuitBuilder.FindCircuitElement,toku/sekkei/src/Fyss1f.c,回路要素区分(kiryoso)算出。K_Kubun/予約語/TOP_Flgから'1':主/'2':CT/'3':計器/'4':VT/'5':ZCT,SB,MCB,LGR/' ':SEPを返す。非先頭計器は先頭(TOP_Flg=='1')まで後方走査
 関数,Yoyakugo_Add_Main,MainCircuitBuilder.AddDerivedEquipment,toku/sekkei/src/Fyss12.c,step6機器追加。全D_Noを×10後、系統走査でCT/VT/WH/ZCT計器回路を主回路レコードへ展開。SEP追加(系統ブレーク/souden差分/改訂<12>PropChkSEPBox/PropChkHbnHB300)は段階移植で未実装
 関数,Yoyakugo_Add_Main(type_CT分岐),MainCircuitBuilder.ConsolidateCurrentTransformerCircuit,toku/sekkei/src/Fyss12.c,CT計器回路展開。同一G_NoのK_Kubun=='K'群を走査しWH検出でKikitable_Keiki_Make(D_No=CT.D_No-1)、末尾でKikitable_Main_Make(D_No=末尾+1)

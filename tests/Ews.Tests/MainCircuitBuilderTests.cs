@@ -1342,4 +1342,98 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal('M', zctMain.CircuitDivision);
         Assert.Equal((short)31, zctMain.EquipmentNumber);
     }
+
+    // ==== step17: mainfile_set 行種番号(gyono: Find_Bangou) ====
+
+    [Fact]
+    public void MainFileSet_行種名の数値から行種番号gyonoをセットする()
+    {
+        // 【C原典】mainfile_set: G_No!=0 のとき Find_Bangou(S_Gyosyu->Gyosyu) で
+        //   行種名(原文)後方の数値を取り出し "%02d" で gyono へ設定する。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2, raw: "M12");
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal("12", rec.Data.LineTypeNumber);
+    }
+
+    [Fact]
+    public void MainFileSet_行種名に数値が無ければgyonoは空のまま()
+    {
+        // 【C原典】Find_Bangou が偽(数値なし)なら gyono は初期値(空)のまま。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2, raw: "M");
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal(string.Empty, rec.Data.LineTypeNumber);
+    }
+
+    // ==== step17: mainfile_set 電気パラメータ(eparm_set 統合 / epabn / epaqty) ====
+
+    [Fact]
+    public void MainFileSet_非FVTCTの主機器は手配数量QTYを1にセットする()
+    {
+        // 【C原典】mainfile_set: F/VT/CT 以外の予約語は epaqty='1'。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var result = RunYoyakugo(new[] { p, m }, MainKiki(groupNumber: 2, equipmentNumber: 1));
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal('1', rec.Data.ElectricalParameterSlots[0].Qty);
+    }
+
+    [Fact]
+    public void MainFileSet_F予約語は数量Kosuに応じてQTYをセットする()
+    {
+        // 【C原典】mainfile_set: F/VT/CT は Kosu(3→'3',2→'2',4→'4',他→'1')を epaqty へ。
+        //   F は mainfile_pre_set で Kosu=1(レコード1件)だが epaqty は S_Kiki->Kosu を見る。
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var f = new EquipmentTableEntry
+        {
+            ReservedWord = "F",             // 【C原典】yoyaku(memcmp 完全一致で F/VT/CT)
+            ReservedWordNumber = "0",
+            SystemNumber = 1,
+            GroupNumber = 2,
+            EquipmentNumber = 1,
+            Quantity = 3,                   // 【C原典】Kosu=3 → epaqty='3'
+            LineNumber = 2,
+        };
+        var result = RunYoyakugo(new[] { p, m }, f);
+
+        Assert.True(result.IsValid);
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal('3', rec.Data.ElectricalParameterSlots[0].Qty);
+    }
+
+    // ==== step17: mainfile_set 生成回路サフィックス(kairsfx: Max_Bunno_Find) ====
+
+    [Fact]
+    public void MainFileSet_文番号B_Noから生成回路サフィックスkairsfxをセットする()
+    {
+        // 【C原典】mainfile_set: P系統(Kind='1')かつ行種分類(G_kind)が 'P' 以外のとき、
+        //   文番号(B_No>1)に応じて 'A' 起点のサフィックスを付与する(kairsfx)。
+        //   B_No=2 の機器 → (B_No-1)+'A'-1 = 'A'。B_No=1 の機器はサフィックスなし。
+        var sys = new SystemTableEntry { SystemNumber = 1, SystemKind = '1' };
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        m.CircuitClass = 'B';   // 【C原典】G_kind='B'(≠'P') → kairsfx 分岐
+
+        var parse = new CircuitParseResult();
+        parse.Systems.Add(sys);
+        parse.LineTypes.AddRange(new[] { p, m });
+        parse.MainEquipment.Add(MainKiki(groupNumber: 2, equipmentNumber: 1, stringSequence: 1));
+        parse.MainEquipment.Add(MainKiki(groupNumber: 2, equipmentNumber: 2, stringSequence: 2));
+        new MainCircuitBuilder().MakeMain(parse);
+
+        Assert.True(parse.IsValid);
+        Assert.Equal(2, parse.MainCircuits.Count);
+        Assert.Equal(string.Empty, parse.MainCircuits[0].Data.CircuitNumberSuffix); // B_No=1
+        Assert.Equal("A", parse.MainCircuits[1].Data.CircuitNumberSuffix);          // B_No=2
+    }
 }

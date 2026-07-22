@@ -124,11 +124,18 @@ public sealed class MainCircuitData
     /// <summary>生成回路番号サフィックス。【C原典】kairsfx[5]("C")。</summary>
     public string CircuitNumberSuffix { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 電気パラメータ(3 スロット)。【C原典】struct eparmg ep[3](fydf806.h)。
+    /// ep[0]=入力値(mainfile_set が eparm_set で設定)、ep[1]=入力値からの生成値、
+    /// ep[2]=システム側の生成値。本移行では ep[0] を <c>eparm_set</c> 相当で設定する。
+    /// </summary>
+    public ElectricalParameters[] ElectricalParameterSlots { get; set; } = [new(), new(), new()];
+
     // ---------------------------------------------------------------------
     // 以降のフィールド(使用相 siyouso / 線番 senban1,2 / 回路電気値 kpa* /
-    // 通電電流 denryu / 電気パラメータ ep[3] / 付属パラメータ fp 等)は、
-    // それぞれ対応する mainfile_set のブロック(eparm_set・負荷容量/電圧セット等)を
-    // 移植する段階で追加する。これらは機器選定(Fyss13-15)の未移植データに依存する。
+    // 通電電流 denryu / 付属パラメータ fp 等)は、それぞれ対応する mainfile_set の
+    // ブロック(負荷容量/電圧セット等)を移植する段階で追加する。これらは機器選定
+    // (Fyss13-15)の未移植データ(DLW/DLV/DLN/DTYPE 等)に依存する。
     // ---------------------------------------------------------------------
 
     /// <summary>

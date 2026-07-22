@@ -83,6 +83,12 @@ public sealed class MainCircuitBuilder
     }
 
     /// <summary>
+    /// 電気パラメータ整形器。【C原典】eparm_set(Fyss1f.c:2208)。
+    /// mainfile_set が機器の定格キー(key_tbl)から ep[0] を生成するために使用する。
+    /// </summary>
+    private static readonly EquipmentParameterFormatter EquipmentParameterFormatter = new();
+
+    /// <summary>
     /// 主回路生成の統括処理。
     /// 【C原典】Fyss12_Make_Main()。系統/行種/仕様/機器テーブルを受け取り、
     /// 17段の処理を順に実行する。エラー検出時は <paramref name="parse"/> の
@@ -1429,6 +1435,9 @@ public sealed class MainCircuitBuilder
         // 【C原典】主回路ファイルカウント *Pmainc(mainfile_set が生成毎に ++)。
         int mainCount = 0;
 
+        // 【C原典】Fyss12_Make_Main_Sub 冒頭 epabn='1'(盤名称状態リセット)。
+        parse.PanelNameKind = '1';
+
         while (i < count)
         {
             EquipmentTableEntry cur = equipment[i];
@@ -1710,8 +1719,73 @@ public sealed class MainCircuitBuilder
             {
                 dt.CircuitClass = kairobun;
                 dt.CircuitNumber = "000";
-                // 【段階移植】生成回路サフィックス(kairsfx)は Max_Bunno_Find/Max_Kbangou_Find
-                //   (S_Kiki 全走査)依存のため未実装。C原典 Fyss1f.c:1657-1786。
+
+                // 【C原典】生成回路サフィックス(kairsfx)。Fyss1f.c:1657-1786。
+                //   文番号(B_No)/回路番号(N_No)/数量(Suryo)/繰り返し(Iteration)に応じて
+                //   'A' 起点の連続サフィックスを組み立てる。近傍機器(S_Kiki-i)は
+                //   parse.MainEquipment[kikiIndex-i] を参照(範囲外は G_No=-1 として不一致扱い)。
+                List<EquipmentTableEntry> equip = parse.MainEquipment;
+                short GNoAt(int idx) => idx >= 0 && idx < equip.Count ? equip[idx].GroupNumber : (short)-1;
+                short GKosuAt(int idx) => idx >= 0 && idx < equip.Count ? equip[idx].GroupQuantity : (short)0;
+
+                var work = new System.Text.StringBuilder();
+                short gNoK = sKiki.GroupNumber;
+                short bNoK = sKiki.StringSequence;       // 【C原典】B_No。
+                short nNoK = sKiki.CircuitNumberSequence; // 【C原典】N_No。
+
+                // 【C原典】文番号(B_No>1)。
+                if (bNoK > 1)
+                {
+                    short maxBunno = (short)(MaxBunnoFind(equip, kikiIndex, gNoK) - 1);
+                    short bunno = (short)(bNoK - 1);
+                    if (maxBunno != 0) work.Append((char)(bunno + 'A' - 1));
+                }
+
+                // 【C原典】回路番号(N_No!=0)。
+                if (nNoK != 0)
+                {
+                    short maxKbangou = MaxKbangouFind(equip, kikiIndex, gNoK);
+                    if (GNoAt(kikiIndex - 2) == gNoK)          // 【C原典】950201。
+                    {
+                        if (maxKbangou != 0) work.Append((char)(kbangou + 'A'));
+                    }
+                    if (maxSuryo > 1) work.Append((char)(suryo + 'A'));   // 【C原典】950919 >1。
+                }
+
+                // 【C原典】950906 繰り返し種別判定(同一 G_No 近傍で GKosu が Max_Iteration と異なるか)。
+                short bunkind = -1;
+                if (maxIteration > 1)
+                {
+                    bunkind = 0;
+                    for (int ii = 1; ; ii++)
+                    {
+                        if (GNoAt(kikiIndex - ii) == gNoK)
+                        {
+                            if (maxIteration != GKosuAt(kikiIndex - ii)) bunkind = 1;
+                        }
+                        else break;
+                    }
+                }
+
+                // 【C原典】F/VT/CT は数量サフィックスを付けない(完全一致)。
+                bool notFvtct = sKiki.ReservedWord is not ("F" or "VT" or "CT");
+
+                if (bunkind == 1)
+                {
+                    if (maxIteration > 1) work.Append((char)(iteration + 'A'));           // 繰り返し。
+                    if (notFvtct && maxSuryo > 1) work.Append((char)(suryo + 'A'));       // 数量。
+                }
+                else if (bunkind == 0)
+                {
+                    if (notFvtct && maxSuryo > 1) work.Append((char)(suryo + 'A'));       // 数量。
+                }
+                else if (GNoAt(kikiIndex - 1) == gNoK)
+                {
+                    if (maxIteration > 1 && maxSuryo > 1) work.Append((char)(iteration + 'A')); // 950511。
+                    if (notFvtct && maxSuryo > 1) work.Append((char)(suryo + 'A'));       // 950123 数量。
+                }
+
+                dt.CircuitNumberSuffix = work.ToString();
             }
         }
 
@@ -1744,7 +1818,13 @@ public sealed class MainCircuitBuilder
         char lineDivision = gyocd3 == "PM " ? 'K' : 'M';
         dt.CircuitElement = FindCircuitElement(parse.MainEquipment, kikiIndex, lineDivision);
 
-        // 【段階移植】行種番号(gyono)は Find_Bangou(行種マスタ照合)依存のため未実装。
+        // 【C原典】行種番号(gyono)。G_No!=0 のとき Find_Bangou(S_Gyosyu->Gyosyu) で
+        //   行種名(原文)後方の数値を取り出し、0 以外なら "%02d" で設定する。Fyss1f.c:1832-1841。
+        if (sKiki.GroupNumber != 0 && sGyosyu is not null &&
+            FindBangou(sGyosyu.LineTypeRaw, out short bangou) && bangou != 0)
+        {
+            dt.LineTypeNumber = bangou.ToString("D2");
+        }
 
         // 【C原典】行種グループ番号。
         dt.LineTypeGroupNumber = "000";
@@ -1776,8 +1856,113 @@ public sealed class MainCircuitBuilder
         // 【C原典】交互運転区分(jagekbn = Kougo)。
         dt.StackKind = kougo;
 
+        // 【段階移植】タイプ(datatype[7][7])は KIKITABLE.DTYPE(機器選定 Fyss13-15)未モデル化のため未実装。
+
+        // 【C原典】電気パラメータ。eparm_set(&S_Kiki->key_tbl,&ep[0],yoyaku)。Fyss1f.c:1890。
+        //   定格キー(RatingValues)が検証済みの機器のみ ep[0] を生成する(未検証は Main_Area_Clear 既定)。
+        if (sKiki.RatingValues is not null)
+        {
+            dt.ElectricalParameterSlots[0] = EquipmentParameterFormatter.EparmSet(sKiki.RatingValues, dt.ReservedWord);
+        }
+        ElectricalParameters ep0 = dt.ElectricalParameterSlots[0];
+
+        // 【C原典】盤名称(epabn)。P/SP/MP/UP は盤番号(ban)で確定、それ以外は直前状態(bepabn)を継承。
+        //   Fyss1f.c:1893-1925。負荷名称(DLN→fp.fpaln[1])の代用セットは fp 未モデル化のため未実装。
+        char epabn = parse.PanelNameKind;
+        char bepabn = parse.PanelNameKindPrevious;
+        if (dt.ReservedWord is "P" or "SP" or "MP" or "UP")
+        {
+            if ((int)sKiki.Ban == 0)
+            {
+                bepabn = epabn;
+                epabn = ' ';
+            }
+            else
+            {
+                epabn = (char)('0' + (int)sKiki.Ban);
+                bepabn = epabn;
+            }
+        }
+        else
+        {
+            if (bepabn == ' ') bepabn = '1';
+            epabn = bepabn;
+        }
+        ep0.Bn = epabn;
+        if (epabn == ' ') epabn = '1';
+        parse.PanelNameKind = epabn;
+        parse.PanelNameKindPrevious = bepabn;
+
+        // 【C原典】手配数量(epaqty)。F/VT/CT は数量(Kosu)で 1～4、それ以外は '1'。Fyss1f.c:1930-1954。
+        if (dt.ReservedWord is "F" or "VT" or "CT")
+        {
+            ep0.Qty = sKiki.Quantity switch
+            {
+                3 => '3',
+                2 => '2',
+                4 => '4',   // 改訂<15>。
+                _ => '1',
+            };
+        }
+        else
+        {
+            ep0.Qty = '1';
+        }
+
         parse.MainCircuits.Add(rec);
         return true; // 【C原典】return(TRUE)。
+    }
+
+    /// <summary>
+    /// 同一行種グループ(G_No)内の最大文番号(B_No)を求める。【C原典】Max_Bunno_Find(Fyss1f.c:3447)。
+    /// <paramref name="index"/> から前方へ G_No が一致する間走査し、最後の B_No を返す。
+    /// </summary>
+    private static short MaxBunnoFind(List<EquipmentTableEntry> equipment, int index, short groupNo)
+    {
+        short max = 0;
+        for (int i = index; i < equipment.Count && equipment[i].GroupNumber == groupNo; i++)
+        {
+            max = equipment[i].StringSequence;
+        }
+        return max;
+    }
+
+    /// <summary>
+    /// 同一行種グループ(G_No)内の最大回路番号(N_No)を求める。【C原典】Max_Kbangou_Find(Fyss1f.c:3471)。
+    /// <paramref name="index"/> から前方へ G_No が一致する間走査し、最後の N_No を返す。
+    /// </summary>
+    private static short MaxKbangouFind(List<EquipmentTableEntry> equipment, int index, short groupNo)
+    {
+        short max = 0;
+        for (int i = index; i < equipment.Count && equipment[i].GroupNumber == groupNo; i++)
+        {
+            max = equipment[i].CircuitNumberSequence;
+        }
+        return max;
+    }
+
+    /// <summary>
+    /// 行種名(原文)後方の連続数値を取り出す。【C原典】Find_Bangou(Fysscommon.c:407)。
+    /// 先頭数値列 → 非数値列 → 続く数値列 を順に読み飛ばし、最後の数値列を <paramref name="number"/> へ返す。
+    /// </summary>
+    /// <returns>数値が存在すれば true。【C原典】return(!NULLSTRING(numeric))。</returns>
+    private static bool FindBangou(string gyosyu, out short number)
+    {
+        number = 0;
+        int i = 0;
+        int n = gyosyu.Length;
+        static bool IsAsciiDigit(char c) => c is >= '0' and <= '9';
+        // 【C原典】先頭の数字列を読み飛ばす。
+        while (i < n && IsAsciiDigit(gyosyu[i])) i++;
+        // 【C原典】非数字列を読み飛ばす。
+        while (i < n && !IsAsciiDigit(gyosyu[i])) i++;
+        // 【C原典】続く数字列を取り出す。
+        int start = i;
+        while (i < n && IsAsciiDigit(gyosyu[i])) i++;
+        if (i == start) return false;
+        // 【C原典】atoi(numeric)。桁溢れは SHORT へキャスト(C の代入と同じ)。
+        number = (short)long.Parse(gyosyu[start..i]);
+        return true;
     }
 
     /// <summary>
