@@ -1,6 +1,7 @@
 using System.Text;
 using Ews.Domain.Analysis;
 using Ews.Domain.Circuits;
+using Ews.Domain.Common;
 using Ews.Domain.Projects;
 
 namespace Ews.Analysis;
@@ -18,8 +19,11 @@ namespace Ews.Analysis;
 /// 各行種の詳細チェック(Check_NP/Check_BN/Check_P/Check_C/Mojiretu_Find 等)および
 /// テーブル生成本体(keitou/gyosyu/spec_table_set, kikitable_set/add)は、
 /// Fyss11 配下のリーフ関数として<b>段階移植</b>するためのスタブを用意している。
+///
+/// 代入文(Check_Dainyuu, Fyss1b.c)の移植は部分クラス
+/// <see cref="CircuitStringChecker"/>(CircuitStringChecker.Assignment.cs)に分離している。
 /// </summary>
-public sealed class CircuitStringChecker
+public sealed partial class CircuitStringChecker
 {
     /// <summary>行種(gyosyu)定数。【C原典】Fyss11.c の #define 群。</summary>
     private static class LineTypes
@@ -1239,14 +1243,18 @@ public sealed class CircuitStringChecker
     // Blankless -> empty:FY-628E; ApplyReservedWord (kikitable_add "1"); reserved-word master (fyak_tbl) match -> ProductName (s_yoyaku/kikimei); no match:FY-879E.
     private void CheckKikiMeisyou(EquipmentTableEntry kiki, string control, int lineNumber, CircuitParseResult result)
     {
-        string kikimeisyou = Blankless(control);
+        // 【C原典】Check_KikiMeisyou(Fyss1b.c): Find_KikiMeisyou で予約語部(代入文'('以前)を
+        // 取り出し、電気パラメータ・予約語番号の判定は予約語部のみを対象とする。代入文
+        // 「(LW=…)」等の '=' を電気パラメータの '=' と誤認しないよう本体と分離する。
+        string reservedClause = ExtractReservedClause(control);
+        string kikimeisyou = Blankless(reservedClause);
         if (IsNullString(kikimeisyou))
         {
             result.Errors.Add(new CircuitParseError("FY-628E", lineNumber, 1, "FYMEE80"));
             return;
         }
 
-        ApplyReservedWord(kiki, control);
+        ApplyReservedWord(kiki, kikimeisyou);
 
         string yoyaku = SplitReservedToken(kikimeisyou);
         bool resolvedOk = ResolveReservedWord(yoyaku, out string resolved);
@@ -1279,9 +1287,14 @@ public sealed class CircuitStringChecker
         if (resolvedOk)
         {
             PopulateRatingValues(kiki, kikimeisyou, resolved, lineNumber, result);
+
+            // 【C原典】Check_KikiMeisyou(Fyss1b.c) の代入文 while ループ(Check_Dainyuu)。
+            // 機器名称が解決できた(Fyss1c_Mojiretu_Check が ret==0)場合のみ、予約語部に続く
+            // 代入文「(TAG=値)」を検証し機器テーブル(DMK/DCM/DLW/DLN/DLV/DUP/DNO/…)へ格納する。
+            ProcessAssignmentStatements(kiki, control, lineNumber, result);
         }
 
-        // TODO: Fyss1e S_key_check_main / Check_Dainyuu (deferred).
+        // TODO: Fyss1e S_key_check_main (制御機器の代入文, deferred).
         // TODO: 改訂<36>G_TYPE_ET / 改訂<48>G_TB_800A / 改訂<47>G_TYPE_6A / 改訂<39>G_YOYAKU_MGSH は
         //       電気パラメータ/タイプ設定エンジン(未移植)向けフラグのため未対応。
     }

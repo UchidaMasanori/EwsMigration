@@ -210,6 +210,203 @@ public sealed class CircuitStringCheckerTests
     }
 
 
+    // ==== Check_KikiMeisyou ‘ã“ü•¶ƒ‹[ƒv ¨ Check_Dainyuu(Fyss1b.c) ====
+
+    [Fact]
+    public void Check_‘ã“ü•¶LW‚Å•‰‰×—e—Ê‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_LW: Check_LW(Œ`Ž®ŒŸØ)¨ kikitable_add("LW", c)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(LW=100W)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("MCB", kiki.ProductName);
+        Assert.Equal("100W", kiki.LoadCapacity);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶LN‚Å•‰‰×–¼Ì‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_LN: Check_LN ¨ kikitable_add("LN", c)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(LN=•‰‰×–¼Ì)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("•‰‰×–¼Ì", kiki.LoadName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶LV‚Å•‰‰×“dˆ³‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_LV: Check_LV ¨ kikitable_add("LV0", c)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(LV=200V)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("200V", kiki.LoadVoltage[0]);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶CM‚ÅƒRƒƒ“ƒg‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_CM: Check_CM(20byte ˆÈ“à)¨ kikitable_add("CM", c)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(CM=ƒRƒƒ“ƒg)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("ƒRƒƒ“ƒg", kiki.Comment);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶MK‚Åƒ[ƒJ[‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_MK: kikitable_add("MK", c)BISAM Æ‡(Check_MK)‚Í•Û—¯B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(MK=ƒ[ƒJ[)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("ƒ[ƒJ[", kiki.Maker);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶HAI‚Å‘—‚è”z’u‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_HAI: Check_HAI(L/C/T/O/D)¨ HAI = yoyakugo[0]B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(HAI=L)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal('L', kiki.SendPlacement);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶B‚Å•ªŠò”z—ñ‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_B: (B=W/L/R)¨ BUN_RETU = yoyakugo[0]B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(B=W)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal('W', kiki.BranchArrangement);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶CNCT‚Å‰º•”oü‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_CNCT: (CNCT=POW)¨ CNCT = 'P'(‘¾—zŒõŒ‹ü)B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(CNCT=POW)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal('P', kiki.BottomOutgoing);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_‘ã“ü•¶NO‚Å‰ñ˜H”Ô†‚ð‹@Ší‚ÖŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_Dainyuu ‚Ì sym_NO: Check_NO(ƒJƒ“ƒ}˜AŒ‹)¨ kikitable_add("NO", &newdainyuu[1])B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(NO=2,3)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("2,3", kiki.CircuitNumberText);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_•¡”‚Ì‘ã“ü•¶‚ð‡‚ÉŠi”[‚·‚é()
+    {
+        // yCŒ´“TzCheck_KikiMeisyou ‚Ì while ƒ‹[ƒv‚ª‘ã“ü•¶‚ð‡‚É Check_Dainyuu ‚Ö“n‚·B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(LW=100W)(LN=•‰‰×)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.Equal("100W", kiki.LoadCapacity);
+        Assert.Equal("•‰‰×", kiki.LoadName);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_“d‹Cƒpƒ‰ƒ[ƒ^‚Æ‘ã“ü•¶‚ª‹¤‘¶‚Å‚«‚é()
+    {
+        // yCŒ´“Tz—\–ñŒê•”(“d‹Cƒpƒ‰ƒ[ƒ^)‚ð Parm_Check_Main ‚ÅA'(' ˆÈ~‚Ì‘ã“ü•¶‚ð Check_Dainyuu ‚Åˆ—B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB=3P225AF150AT(LW=100W)", 2),
+        });
+
+        EquipmentTableEntry kiki = Assert.Single(result.MainEquipment, k => k.LineType == "M");
+        Assert.NotNull(kiki.RatingValues);
+        Assert.Equal("3", kiki.RatingValues!.Get("p"));
+        Assert.Equal("100W", kiki.LoadCapacity);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_•s³‚È•‰‰×—e—Ê‚ÍFY639E‚É‚È‚é()
+    {
+        // yCŒ´“TzCheck_LW ‚ª FALSE ¨ Check_Dainyuu ‚ª FY-639E ‚ð•Ô‚·B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(LW=100X)", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-639E");
+    }
+
+    [Fact]
+    public void Check_•s³‚È‘—‚è”z’u‚ÍFY647E‚É‚È‚é()
+    {
+        // yCŒ´“TzCheck_HAI ‚ª FALSE(L/C/T/O/D ˆÈŠO)¨ Check_Dainyuu ‚ª FY-647E ‚ð•Ô‚·B
+        var result = Run(new[]
+        {
+            Line("P", "1P2W105V", 1),
+            Line("M", "MCB(HAI=X)", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-647E");
+    }
+
     [Theory]
     [InlineData("BUN", BanKind.Branch)]
     [InlineData("HIK", BanKind.Incoming)]

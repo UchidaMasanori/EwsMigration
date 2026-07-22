@@ -271,6 +271,97 @@ public sealed class EquipmentTableEntry
     public string GroupCircuitNumberText { get; set; } = string.Empty;
 
     /// <summary>
+    /// 括弧種別１。【C原典】Kakko1。複合予約語の括弧階層識別。
+    /// </summary>
+    public short Kakko1 { get; set; }
+
+    /// <summary>
+    /// 括弧種別２。【C原典】Kakko2。複合予約語の括弧階層識別。
+    /// </summary>
+    public short Kakko2 { get; set; }
+
+    /// <summary>
+    /// 電源番号。【C原典】C_No。kikitable_add("5") で電源機器に採番する。
+    /// </summary>
+    public short PowerSourceNumber { get; set; }
+
+    /// <summary>
+    /// ＳＰフラグ。【C原典】SP_Flg。kikitable_add("9") で設定する。
+    /// </summary>
+    public char SpecialFlag { get; set; } = ' ';
+
+    /// <summary>
+    /// メーカー。【C原典】DMK[3+1]。代入文「(MK=…)」の値。kikitable_add("MK")。
+    /// </summary>
+    public string Maker { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 品名。【C原典】DIT[25+1]。代入文「(IT=…)」の値。kikitable_add("IT")。
+    /// (機器マスター品名索引 FYDF817 による妥当性検証 Check_IT は ISAM 依存のため未実施)
+    /// </summary>
+    public string ItemName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// コメント。【C原典】DCM[20+1]。代入文「(CM=…)」の値(1つ目)。kikitable_add("CM")。
+    /// </summary>
+    public string Comment { get; set; } = string.Empty;
+
+    /// <summary>
+    /// コメント2。【C原典】DCM2[20+1]。代入文「(CM=…)」の値(2つ目)。kikitable_add("CM")。
+    /// </summary>
+    public string Comment2 { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ＳＰ(寸法)。【C原典】DSP[14+1]。代入文「(SP=…)」の値。kikitable_add("SP")。
+    /// </summary>
+    public string SpecialDimension { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 負荷容量。【C原典】DLW[10+1]。代入文「(LW=…)」の値。kikitable_add("LW")。
+    /// </summary>
+    public string LoadCapacity { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 負荷名称。【C原典】DLN[20+1]。代入文「(LN=…)」の値。kikitable_add("LN")。
+    /// </summary>
+    public string LoadName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 負荷電圧。【C原典】DLV[2][3+1]。代入文「(LV=…)」の値。kikitable_add("LV0")。
+    /// </summary>
+    public string[] LoadVoltage { get; } = new string[2] { string.Empty, string.Empty };
+
+    /// <summary>
+    /// 有電圧電源。【C原典】DUP[6+1]。代入文「(UP=…)」の値。kikitable_add("UP")。
+    /// </summary>
+    public string PowerVoltage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 特注送り配置。【C原典】HAI。代入文「(HAI=L/C/T/O/D)」の値。kikitable_add("HAI")。
+    /// </summary>
+    public char SendPlacement { get; set; } = ' ';
+
+    /// <summary>
+    /// 特注盤分岐配列。【C原典】BUN_RETU。代入文「(B=W/L/R)」の値。kikitable_add("B")。
+    /// </summary>
+    public char BranchArrangement { get; set; } = ' ';
+
+    /// <summary>
+    /// ＷＨ配置指定。【C原典】WHAI。代入文「(WHAI=L/R)」の値。kikitable_add("WHAI")。
+    /// </summary>
+    public char WhPlacement { get; set; } = ' ';
+
+    /// <summary>
+    /// 備考。【C原典】BIKO[34]。代入文「(BK=…)」「(BKO=…)」の値。kikitable_add("BK")。
+    /// </summary>
+    public string Remark { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 下部出線。【C原典】CNCT。代入文「(CNCT=POW)」の値。kikitable_add("CNCT")。
+    /// </summary>
+    public char BottomOutgoing { get; set; } = ' ';
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>

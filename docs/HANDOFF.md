@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-03
+最終更新: 2026-07-10
 
 ---
 
@@ -123,9 +123,9 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-03 時点）
+## 5. 移植の進捗（2026-07-10 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 279 テスト成功 / 1 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 408 テスト成功 / 0 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -133,6 +133,7 @@ EwsMigration/
   - 系統/行種/仕様テーブル生成、盤名称・入線・有電源等の行種ディスパッチ
   - 予約語解決（`ResolveReservedWord`。特殊キー 27A/27B/27C・SL・G1-4・FLT の短絡一致）
   - 電気パラメータ → 定格値（key_tbl）格納の配線（`Check_Kikimei`→`Parm_Check_Main` 相当）
+  - **代入文パーサ（`Check_Dainyuu` fp サブセット）**: 予約語文の後に続く代入文「(TAG=値)」を検証し機器テーブルへ格納（`CircuitStringChecker.Assignment.cs`＝partial）。`Check_KikiMeisyou` の while ループ（`ProcessAssignmentStatements`）→ `Check_Dainyuu`（`CheckDainyuu`）→ `kikitable_add` タグ（`ApplyAssignmentTag`）。CP932 バイト列カーソル `ByteCursor`（ph/nh/yh・iskanji 全角2バイト）でスキャナ（`FindKikiMeisyou`/`CheckKakko`/`FindName`/`FindDelimetor`/`FindUnit`/`NextKigou`）を忠実再現。対応タグ: MK→DMK/IT→DIT/CM→DCM・DCM2/SP→DSP/LW→DLW/LN→DLN/LV→DLV[0]/UP→DUP/NO→DNO・GNO/HAI→HAI/B→BUN_RETU/WHAI→WHAI/BK・BKO→BIKO/CNCT→'P'/@→ノーチェック。バリデータ `CheckCm/CheckSp/CheckLw/CheckHai/CheckLn/CheckLv/CheckUp/CheckNo/Renketu`＋`CheckNumericC/CheckAlphaNumericC/CheckZenkaku1z`（Fysscommon.c）。予約語部を代入文 '(' の前で分離（`ExtractReservedClause`）し、代入文の '=' を電気パラメータの '=' と誤認しないよう修正。**保留**: Check_IT(FYDF817 ISAM)・Check_MK(FYDM801 ISAM) 照合、Check_LW の Keisan_LW 正規化、Check_NO のハイフン連番展開（PropGetKnoStruct/PropDevelopKno）、Check_Haifunn('S')、PULASU 型式展開（DTYPE, Fysk01 依存）。
 - **電気パラメータ検証** `ElectricalParameterChecker`（`Fyss1d.c` の表駆動パーサ）
   - 定格キー表・型非依存パーサ・MCB/ELB/MC/MG/THR 等の型別検証、`RatingValues` へ格納
   - 定格キー表を拡充: '/'(CT/VT付き)・特殊展開を除く単純構造の残り約70表（VS/TB/CON/GL系/CR/TS/MV/KPRY/MCFR/MGFR/STM/VVVF 等）を移植
