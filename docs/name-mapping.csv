@@ -198,3 +198,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Max_Volt,VoltageInheritance.MaxVoltage,toku/sekkei/src/Fyss14.c,3要素電圧の最大値を先頭要素に設定し残り2要素を0にする
 関数,Right_Volt,VoltageInheritance.RightAlignVoltage,toku/sekkei/src/Fyss14.c,非ゼロ電圧値を3要素配列の右側へ寄せる(先頭のみ非ゼロ/先頭2要素非ゼロ/その他の条件分岐と代入順をC原典どおり再現)
 関数,Left_Volt,VoltageInheritance.LeftAlignVoltage,toku/sekkei/src/Fyss14.c,非ゼロ電圧値を3要素配列の左側へ寄せる(ゼロ除去)。3つの逐次if(各更新後に再判定)を再現
+関数,Zs20SiyoInfoRead,CnsMasterLoader.ParseSpecificationMaster,toku/interf/zs50/src/Fymzs40Cns.c,siyosyo.cns(部署別仕様書一覧)の階層パース。部署→仕様書(名/説明/パス/ファイル[])の状態機械を移植。C原典のZONECD一致部署のみ保持は取込用途で全部署へ変更。図面サイズ(SiyosyoSizeCheck依存)は取り込まない
+構造体,SIYO_INFO,SpecificationInfo,toku/interf/zs50/src/Fymzs40Cns.c,部署別仕様書情報(bumon=部署コード,s_info[]=仕様書種別一覧)
+構造体,SYUBETU_INFO,SpecificationKind,toku/interf/zs50/src/Fymzs40Cns.c,仕様書種別(kaninm=名,explain=説明,path=パス,file_name[]=ファイル名一覧)。no/scale/zmnsyu/kenzu(図面サイズ)は未取込
+関数,StrSPCut,CnsMasterLoader.StrSPCut,toku/interf/zs50/src/Fymzs40Cns.c,前後の半角空白・タブ・改行を除去
