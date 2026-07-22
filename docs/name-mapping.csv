@@ -206,7 +206,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 テーブル,SYUBETU_INFO,SpecificationKind,sql/001_schema.sql,仕様書種別テーブル(主キー=DepartmentCode+KindSeq)。KindName/Description/Path
 テーブル,SYUBETU_INFO.file_name[],SpecificationFile,sql/001_schema.sql,仕様書ファイルテーブル(主キー=DepartmentCode+KindSeq+FileSeq)。SpecificationKindへFK
 関数,-,EquipmentMasterLoader.ParseEquipmentMaster,hostdt/FYDM805.data,FYDM805固定長エクスポート(600byte/rec・LF区切り)を解析しEquipmentMaster一覧化。バイトオフセットでEquipmentMaster.FromFixedRecordへ委譲。244byte未満の末尾断片は読み飛ばす
-関数,-,EquipmentMasterLoader.SeedEquipmentMaster,sql/001_schema.sql,FYDM805.dataをEquipmentMasterテーブルへSqlBulkCopyで全置換投入(実データ8294件・主キー重複0検証済)
+関数,-,EquipmentMasterLoader.SeedEquipmentMaster,sql/001_schema.sql,FYDM805.dataをEquipmentMasterテーブルへSqlBulkCopyで全置換投入(完全再エクスポート実データ18370件・主キー重複0・FYDF816索引11424件が100%解決を検証済)
 構造体,FYDF816,EquipmentPartNumberIndex,toku/include/common/fydf816.h,機器マスター品番索引(184byte)。key=hinban15+datano4,pkey140(yoyaku/mkcd/ptype/teikkey),hinmei25。FromFixedRecordで抽出
 関数,-,EquipmentMasterLoader.ParsePartNumberIndex,hostdt/FYDF816.data,FYDF816固定長エクスポート(184byte/rec・LF区切り)を解析しEquipmentPartNumberIndex一覧化
 関数,-,EquipmentMasterLoader.SeedPartNumberIndex,sql/001_schema.sql,FYDF816.dataをEquipmentPartNumberIndexテーブルへSqlBulkCopyで全置換投入(実データ11424件・キー(品番+追番)一意検証済)
