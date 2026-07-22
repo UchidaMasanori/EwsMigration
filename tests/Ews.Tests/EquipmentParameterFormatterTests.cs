@@ -7,7 +7,7 @@ namespace Ews.Tests;
 /// <summary>
 /// 電気パラメータ整形(型式展開、<see cref="EquipmentParameterFormatter"/>)の検証。
 /// 【C原典】toku/sekkei/src/Fyss1f.c eparm_set / set_9 / Stof。
-/// 本フェーズ(Wave 1)は遮断器系 MCB/ELB/MMCB/ELMB/SB を対象とする。
+/// 本フェーズ(Wave 1~2)は遮断器系 MCB/ELB/MMCB/ELMB/SB と漏電遮断器系 RMCB/RELB/RMMCB/RELMB を対象とする。
 /// 入力の <see cref="RatingValues"/> は key_check の格納結果を直接構築して与える。
 /// </summary>
 public sealed class EquipmentParameterFormatterTests
@@ -166,6 +166,106 @@ public sealed class EquipmentParameterFormatterTests
         Assert.Equal("002", ep.P);
         Assert.Equal("00030.000", ep.Af);
         Assert.Equal("00020.000", ep.At);
+    }
+
+    // ── RMCB(漏電遮断器: 制御電圧 vc/fvc→epavc/epavckbn) ─────────────
+
+    [Fact]
+    public void RMCBは制御電圧を整形する()
+    {
+        ElectricalParameters ep = Format("RMCB",
+            ("p", "3"), ("e", "2"), ("af", "30"), ("at", "20"), ("v", "200"), ("fv", "A"),
+            ("vc", "100"), ("fvc", "A"));
+
+        Assert.Equal("003", ep.P);
+        Assert.Equal("2", ep.E);
+        Assert.Equal("00030.000", ep.Af);
+        Assert.Equal("00020.000", ep.At);
+        Assert.Equal('A', ep.V2Kbn);
+        Assert.Equal("000200.0", ep.V2[0]);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+    }
+
+    [Fact]
+    public void RMCBはエレメント0を9に置換しない()
+    {
+        // 【C原典】RMCB は ep->epae = u->rmcb.e ? u->rmcb.e : '0'; (e=='0'→'9' 変換なし)
+        ElectricalParameters ep = Format("RMCB", ("e", "0"));
+        Assert.Equal("0", ep.E);
+    }
+
+    [Fact]
+    public void RMCBはfvc未設定のとき空白区分にする()
+    {
+        // 【C原典】ep->epavckbn = u->rmcb.fvc ? … : ' ';
+        ElectricalParameters ep = Format("RMCB", ("p", "3"));
+        Assert.Equal(' ', ep.VcKbn);
+        Assert.Equal("000", ep.Vc);
+    }
+
+    [Fact]
+    public void RMCBはfvcがA以外のときDにする()
+    {
+        ElectricalParameters ep = Format("RMCB", ("vc", "24"), ("fvc", "D"));
+        Assert.Equal('D', ep.VcKbn);
+        Assert.Equal("024", ep.Vc);
+    }
+
+    // ── RELB(RMCB + 感度電流 MA) ─────────────────────────────────────
+
+    [Fact]
+    public void RELBは制御電圧と感度電流を整形する()
+    {
+        ElectricalParameters ep = Format("RELB",
+            ("p", "3"), ("e", "3"), ("af", "60"), ("at", "50"), ("v", "200"), ("fv", "A"),
+            ("vc", "100"), ("fvc", "A"),
+            ("ma[0]", "15"), ("ma[1]", "30"), ("ma[2]", "100"));
+
+        Assert.Equal("00060.000", ep.Af);
+        Assert.Equal("00050.000", ep.At);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+        Assert.Equal("0015", ep.Ma[0]);
+        Assert.Equal("0030", ep.Ma[1]);
+        Assert.Equal("0100", ep.Ma[2]);
+    }
+
+    // ── RMMCB(AT 5桁入力 + kw + 制御電圧) ───────────────────────────
+
+    [Fact]
+    public void RMMCBは負荷容量と制御電圧を整形する()
+    {
+        ElectricalParameters ep = Format("RMMCB",
+            ("p", "3"), ("e", "0"), ("af", "60"), ("at", "12500"), ("kw", "5.5"),
+            ("v", "200"), ("fv", "A"), ("vc", "100"), ("fvc", "A"));
+
+        Assert.Equal("003", ep.P);
+        Assert.Equal("0", ep.E);                 // RMMCB は e=='0'→'9' 変換なし
+        Assert.Equal("00060.000", ep.Af);        // AF は from_length=2
+        Assert.Equal("12500.000", ep.At);        // AT は from_length=5
+        Assert.Equal("0005500.00", ep.W1);       // 5.5 × 1000
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
+    }
+
+    // ── RELMB(RMMCB + 感度電流 MA) ───────────────────────────────────
+
+    [Fact]
+    public void RELMBは負荷容量_感度電流_制御電圧を整形する()
+    {
+        ElectricalParameters ep = Format("RELMB",
+            ("p", "3"), ("e", "2"), ("af", "60"), ("at", "12500"), ("kw", "3.7"),
+            ("ma[0]", "30"), ("ma[1]", "100"), ("ma[2]", "200"),
+            ("v", "200"), ("fv", "A"), ("vc", "100"), ("fvc", "A"));
+
+        Assert.Equal("12500.000", ep.At);
+        Assert.Equal("0003700.00", ep.W1);
+        Assert.Equal("0030", ep.Ma[0]);
+        Assert.Equal("0100", ep.Ma[1]);
+        Assert.Equal("0200", ep.Ma[2]);
+        Assert.Equal('A', ep.VcKbn);
+        Assert.Equal("100", ep.Vc);
     }
 
     // ── 未収録予約語は '0' 埋めのまま ────────────────────────────────

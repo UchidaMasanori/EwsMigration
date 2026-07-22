@@ -22,7 +22,7 @@ using Ews.Domain.Analysis;
 /// 未設定フィールドは C では union の 0 埋めにより atof=0 となるため、本移植でも
 /// <see cref="RatingValues.Get"/> が null のフィールドは "" 扱い(atof=0)とする。
 ///
-/// 本フェーズ(Wave 1)は遮断器系 MCB/ELB/MMCB/ELMB/SB を収録する。
+/// 本フェーズ(Wave 1~2)は遮断器系 MCB/ELB/MMCB/ELMB/SB と漏電遮断器系 RMCB/RELB/RMMCB/RELMB を収録する。
 /// PS/P/UP(引込・行種P)や MC/THR/MG/計器系(VM/AM/VT/CT)、TR(多スロット)等は後続 Wave で追加する。
 /// </summary>
 public sealed class EquipmentParameterFormatter
@@ -58,6 +58,18 @@ public sealed class EquipmentParameterFormatter
             case "SB":
                 SetBreaker(values, ep, afLength: 2, atLength: 2, atStofSpecial: false, hasMa: false, hasKw: false, eZeroToNine: true);
                 break;
+            case "RMCB":
+                SetBreaker(values, ep, afLength: 2, atLength: 2, atStofSpecial: false, hasMa: false, hasKw: false, eZeroToNine: false, hasVc: true);
+                break;
+            case "RELB":
+                SetBreaker(values, ep, afLength: 2, atLength: 2, atStofSpecial: false, hasMa: true, hasKw: false, eZeroToNine: false, hasVc: true);
+                break;
+            case "RMMCB":
+                SetBreaker(values, ep, afLength: 2, atLength: 5, atStofSpecial: false, hasMa: false, hasKw: true, eZeroToNine: false, hasVc: true);
+                break;
+            case "RELMB":
+                SetBreaker(values, ep, afLength: 2, atLength: 5, atStofSpecial: false, hasMa: true, hasKw: true, eZeroToNine: false, hasVc: true);
+                break;
             default:
                 // 未収録予約語: ep は '0' 埋めのまま(C の Main_Area_Clear 相当)。
                 break;
@@ -73,8 +85,9 @@ public sealed class EquipmentParameterFormatter
     /// <item><paramref name="afLength"/>/<paramref name="atLength"/> … set_9 の from_length(fyrt811 の AF/AT 桁)。</item>
     /// <item><paramref name="atStofSpecial"/> … MCB/ELB のみ: Stof(at,4)==0 かつ at 非空なら epaat="99999.999"。</item>
     /// <item><paramref name="hasMa"/> … ELB/ELMB: 感度電流 ma[0..2] を epama[0..2] へ("%04.0f")。</item>
-    /// <item><paramref name="hasKw"/> … MMCB/ELMB: kw×1000 を epaw1 へ("%010.2f")。</item>
-    /// <item><paramref name="eZeroToNine"/> … MCB/ELB/SB: e=='0' のとき epae='9'(MMCB/ELMB は無し)。</item>
+    /// <item><paramref name="hasKw"/> … MMCB/ELMB/RMMCB/RELMB: kw×1000 を epaw1 へ("%010.2f")。</item>
+    /// <item><paramref name="eZeroToNine"/> … MCB/ELB/SB: e=='0' のとき epae='9'(MMCB/ELMB/R系は無し)。</item>
+    /// <item><paramref name="hasVc"/> … RMCB/RELB/RMMCB/RELMB: 制御電圧 vc/fvc を epavc/epavckbn へ。</item>
     /// </list>
     /// </summary>
     private static void SetBreaker(
@@ -85,7 +98,8 @@ public sealed class EquipmentParameterFormatter
         bool atStofSpecial,
         bool hasMa,
         bool hasKw,
-        bool eZeroToNine)
+        bool eZeroToNine,
+        bool hasVc = false)
     {
         // 極数（Ｐ）：set_9(&u->xxx.p, 1, ep->epap, 3, "%03.0f", 1.0)
         ep.P = Set9(values.Get("p"), 1, 3, "%03.0f", 1.0);
@@ -143,6 +157,16 @@ public sealed class EquipmentParameterFormatter
 
         // 定格電圧2：set_9(u->xxx.v, 3, ep->epav2[0], 8, "%08.1f", 1.0)
         ep.V2[0] = Set9(values.Get("v"), 3, 8, "%08.1f", 1.0);
+
+        // 制御電圧2：RMCB/RELB/RMMCB/RELMB のみ
+        // ep->epavckbn = u->xxx.fvc ? ((fvc=='A')?'A':'D') : ' ';
+        // set_9(u->xxx.vc, 3, ep->epavc, 3, "%03.0f", 1.0);
+        if (hasVc)
+        {
+            string? fvc = values.Get("fvc");
+            ep.VcKbn = string.IsNullOrEmpty(fvc) ? ' ' : (fvc[0] == 'A' ? 'A' : 'D');
+            ep.Vc = Set9(values.Get("vc"), 3, 3, "%03.0f", 1.0);
+        }
     }
 
     /// <summary>
