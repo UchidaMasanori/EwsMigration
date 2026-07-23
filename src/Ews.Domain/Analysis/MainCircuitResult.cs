@@ -131,9 +131,16 @@ public sealed class MainCircuitData
     /// </summary>
     public ElectricalParameters[] ElectricalParameterSlots { get; set; } = [new(), new(), new()];
 
+    /// <summary>
+    /// 付属パラメータ。【C原典】struct fparmg fp(fydf806.h:64)。
+    /// mainfile_set の付属パラメータ設定ブロック(Fyss1f.c:1957-2205)が機器テーブルの
+    /// 代入文タグ値(DLW/DLV/DLN/DCM/DIT/DMK/DSP/括弧区分/制御電源番号 等)を整形して格納する。
+    /// </summary>
+    public AttachedParameters AttachedParameter { get; set; } = new();
+
     // ---------------------------------------------------------------------
     // 以降のフィールド(使用相 siyouso / 線番 senban1,2 / 回路電気値 kpa* /
-    // 通電電流 denryu / 付属パラメータ fp 等)は、それぞれ対応する mainfile_set の
+    // 通電電流 denryu 等)は、それぞれ対応する mainfile_set の
     // ブロック(負荷容量/電圧セット等)を移植する段階で追加する。これらは機器選定
     // (Fyss13-15)の未移植データ(DLW/DLV/DLN/DTYPE 等)に依存する。
     // ---------------------------------------------------------------------

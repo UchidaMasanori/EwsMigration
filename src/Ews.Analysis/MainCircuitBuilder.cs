@@ -1867,9 +1867,10 @@ public sealed class MainCircuitBuilder
         ElectricalParameters ep0 = dt.ElectricalParameterSlots[0];
 
         // 【C原典】盤名称(epabn)。P/SP/MP/UP は盤番号(ban)で確定、それ以外は直前状態(bepabn)を継承。
-        //   Fyss1f.c:1893-1925。負荷名称(DLN→fp.fpaln[1])の代用セットは fp 未モデル化のため未実装。
+        //   Fyss1f.c:1893-1925。予約語 "P"(盤)は負荷名称(DLN)を fp.fpaln[1] へ代用セットし DLN をクリアする。
         char epabn = parse.PanelNameKind;
         char bepabn = parse.PanelNameKindPrevious;
+        string effectiveLoadName = sKiki.LoadName; // 【C原典】S_Kiki->DLN(fpaln[0] 用)。"P" で空へ。
         if (dt.ReservedWord is "P" or "SP" or "MP" or "UP")
         {
             if ((int)sKiki.Ban == 0)
@@ -1881,6 +1882,13 @@ public sealed class MainCircuitBuilder
             {
                 epabn = (char)('0' + (int)sKiki.Ban);
                 bepabn = epabn;
+            }
+
+            // 【C原典】予約語 "P" のみ: fp.fpaln[1] = DLN(負荷名称2を代用) → DLN を '\0' クリア。Fyss1f.c:1915-1918。
+            if (dt.ReservedWord == "P")
+            {
+                dt.AttachedParameter.LoadName[1] = TruncateBytes(sKiki.LoadName, 20);
+                effectiveLoadName = string.Empty;
             }
         }
         else
@@ -1908,6 +1916,10 @@ public sealed class MainCircuitBuilder
         {
             ep0.Qty = '1';
         }
+
+        // 【C原典】付属パラメータ(fp)。mainfile_set の fp 設定ブロック(Fyss1f.c:1957-2205)。
+        //   負荷容量/負荷電圧/負荷名称/コメント/品名/SP区分/寸法/括弧区分/制御電源番号/メーカーコードを整形。
+        EquipmentParameterFormatter.FparmSet(sKiki, dt.AttachedParameter, effectiveLoadName);
 
         parse.MainCircuits.Add(rec);
         return true; // 【C原典】return(TRUE)。
@@ -2108,6 +2120,42 @@ public sealed class MainCircuitBuilder
     /// <summary>先頭 <paramref name="length"/> 文字を返す。【C原典】sprintf("%.Ns", ...) 相当。</summary>
     private static string Truncate(string value, int length)
         => value.Length <= length ? value : value[..length];
+
+    /// <summary>CP932 バイト幅で切り詰める(全角=2バイトの分断を回避)。【C原典】sprintf("%.Ns")+memcpy(strlen)。</summary>
+    private static string TruncateBytes(string? value, int maxBytes)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        byte[] b = Ews.Domain.Common.FixedFieldCodec.ShiftJis.GetBytes(value);
+        if (b.Length <= maxBytes)
+        {
+            return value;
+        }
+
+        int i = 0;
+        int cut = 0;
+        while (i < maxBytes)
+        {
+            bool lead = (b[i] >= 0x81 && b[i] <= 0x9F) || (b[i] >= 0xE0 && b[i] <= 0xFC);
+            if (lead)
+            {
+                if (i + 2 > maxBytes)
+                {
+                    break;
+                }
+                i += 2;
+            }
+            else
+            {
+                i += 1;
+            }
+            cut = i;
+        }
+        return Ews.Domain.Common.FixedFieldCodec.ShiftJis.GetString(b, 0, cut);
+    }
 
     /// <summary>
     /// 繰り返し(グループ数量)データ検索。【C原典】Find_Iteration(Fyss1f.c:560)。

@@ -3,6 +3,7 @@ namespace Ews.Analysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Ews.Domain.Analysis;
+using Ews.Domain.Common;
 
 /// <summary>
 /// 電気パラメータ整形エンジン(型式展開)。
@@ -1021,6 +1022,196 @@ public sealed class EquipmentParameterFormatter
 
     /// <summary>"%[0]W.Df" 形式(浮動小数点固定書式)のパターン。</summary>
     private static readonly Regex FloatFormat = new(@"^%(0?)(\d+)\.(\d+)f$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 機器テーブル(<see cref="EquipmentTableEntry"/> / KIKITABLE)の代入文タグ値を予約語別に整形して
+    /// 付属パラメータ(<see cref="AttachedParameters"/> / struct fparmg)へ格納する。
+    /// 【C原典】mainfile_set の付属パラメータ設定ブロック(Fyss1f.c:1957-2205)。
+    ///
+    /// 負荷名称[0](fpaln[0])は <paramref name="effectiveLoadName"/> を使う。C 原典では予約語 "P"(盤)のとき
+    /// 負荷名称を fp.fpaln[1] へ代用セットした後 DLN を '\0' クリアするため、その場合は空文字を渡す
+    /// (fpaln[1] への代用セットは呼出元 MainAreaSet の epabn ブロックで実施する)。
+    ///
+    /// 【段階移植・未実装】コメント(行種対象)fpacm2/fpacglno(GCM/GCM_Group 依存)、
+    /// 寸法グループ fpasglno(SP_Group/GSP 依存)、SP_GFlg による spkvn 上書き、fpaup/tikbn(当ブロック外)。
+    /// これらは機器選定(Fyss13-15)/行種グループ状態が未モデル化のため既定値のままとする。
+    /// </summary>
+    /// <param name="sKiki">機器テーブルエントリ(【C原典】S_Kiki)。</param>
+    /// <param name="fp">整形先の付属パラメータ(【C原典】mains->dt.fp)。</param>
+    /// <param name="effectiveLoadName">負荷名称[0]に使う DLN(【C原典】"P" では空)。</param>
+    public void FparmSet(EquipmentTableEntry sKiki, AttachedParameters fp, string effectiveLoadName)
+    {
+        ArgumentNullException.ThrowIfNull(sKiki);
+        ArgumentNullException.ThrowIfNull(fp);
+
+        // 負荷容量(fpalw1/fpalw2/fpalwkbn) ← DLW。【C原典】Fyss1f.c:1962-2000。
+        string dlw = sKiki.LoadCapacity ?? string.Empty;
+        if (!string.IsNullOrEmpty(dlw))
+        {
+            // 【C原典】p= &DLW[0]; if(DLW[0]=='K') p++;
+            int p = (dlw[0] == 'K') ? 1 : 0;
+            // 【C原典】p2 = strpbrk(p, "0123456789.") … 先頭の数字/ピリオド位置。
+            int p2 = IndexOfNumeric(dlw, p);
+            if (p2 >= 0)
+            {
+                // 【C原典】負荷種類(数字前の接頭部を "%.2s")。
+                if (p2 != p)
+                {
+                    fp.LoadKind = TruncBytes(dlw[p..p2], 2);
+                }
+                // 【C原典】K = strpbrk(p, "K") != NULL(p は p2 位置)。負荷単位×1000 判定。
+                bool k = dlw.IndexOf('K', p2) >= 0;
+                // 【C原典】strncpy(fpaln[1], p, strlen(p)) … 負荷名称2を代用する。
+                fp.LoadName[1] = TruncBytes(dlw[p2..], 20);
+                // 【C原典】j = strspn(p, "0123456789.") … 先頭数字/ピリオド桁数。
+                int j = SpanNumeric(dlw, p2);
+                int remLen = dlw.Length - p2;
+                if (j < remLen) // 数字部の後に非数字(単位)が続くとき負荷容量をセット。
+                {
+                    double f = AtofC(dlw.Substring(p2, j));
+                    if (k) f *= 1000.0;
+                    fp.LoadCapacity = SprintfF("%07.0f", f); // 【C原典】sprintf("%07.0f", f)。
+                }
+                // 【C原典】負荷単位区分 'V' 優先、無ければ 'W'。数字部の後方から探索。
+                int unitFrom = (j < remLen) ? p2 + j : p2;
+                if (dlw.IndexOf('V', unitFrom) >= 0)
+                {
+                    fp.LoadUnitKind = 'V';
+                }
+                else if (dlw.IndexOf('W', unitFrom) >= 0)
+                {
+                    fp.LoadUnitKind = 'W';
+                }
+            }
+        }
+
+        // 負荷電圧(fpalv[0]/fpalv[1]) ← DLV。【C原典】Fyss1f.c:2013-2029。
+        if (!string.IsNullOrEmpty(sKiki.LoadVoltage[0]))
+        {
+            fp.LoadVoltage[0] = TruncBytes(sKiki.LoadVoltage[0], 3);
+        }
+        if (!string.IsNullOrEmpty(sKiki.LoadVoltage[1]))
+        {
+            fp.LoadVoltage[1] = TruncBytes(sKiki.LoadVoltage[1], 3);
+        }
+
+        // 負荷名称(fpaln[0]) ← DLN("P" 予約語では空)。【C原典】Fyss1f.c:2031-2033。
+        fp.LoadName[0] = TruncBytes(effectiveLoadName ?? string.Empty, 20);
+
+        // コメント(予約語対象)(fpacm1) ← DCM。【C原典】Fyss1f.c:2035-2036。
+        fp.Comment = TruncBytes(sKiki.Comment, 20);
+
+        // コメント(行種対象)fpacm2/fpacglno ← GCM/GCM_Group: 未モデル化のため未実装。
+
+        // 品名(fpaitpt) ← DIT。【C原典】Fyss1f.c:2078-2081。
+        fp.ItemName = TruncBytes(sKiki.ItemName, 25);
+
+        // SP区分(spkvn) ← SP_Flg。【C原典】Fyss1f.c:2084-2087。SP_GFlg 上書きは未モデル化。
+        fp.SpFutureMountKind = sKiki.SpecialFlag;
+
+        // 寸法グループ fpasglno ← SP_Group: 未モデル化のため未実装。
+
+        // 寸法(fpah/fpaw/fpad) ← DSP "縦*横*深"。【C原典】Fyss1f.c:2109-2138。
+        string dsp = sKiki.SpecialDimension ?? string.Empty;
+        if (dsp.Length > 0)
+        {
+            string[] dims = dsp.Split('*');
+            fp.DimensionHeight = SprintfD04((int)AtofC(dims[0]));
+            if (dims.Length >= 2)
+            {
+                fp.DimensionWidth = SprintfD04((int)AtofC(dims[1]));
+            }
+            if (dims.Length >= 3)
+            {
+                fp.DimensionDepth = SprintfD04((int)AtofC(dims[2]));
+            }
+        }
+
+        // 括弧区分(fpag/fpahu/fpak/fpas/fpamh) ← Kakko1/Kakko2。【C原典】Fyss1f.c:2140-2160。
+        short k1 = sKiki.Kakko1;
+        short k2 = sKiki.Kakko2;
+        if (k1 == 12 || k2 == 12) fp.ExternalMountKind = 'G'; // 外部取り付区分 G()
+        if (k1 == 13 || k2 == 13) fp.SealKind = 'H';          // 封印区分 H()
+        if (k1 == 14 || k2 == 14) fp.PartitionKind = 'K';     // 隔壁区分 K() 改訂<13>
+        if (k1 == 15 || k2 == 15) fp.SuppliedKind = 'S';      // 支給品区分 S() 改訂<13>
+        if (k1 == 16 || k2 == 16) fp.MeterSealKind = 'M';     // メータ封印区分 MH()
+
+        // 制御電源番号(fpac) ← C_Flg=='1', C_No。【C原典】Fyss1f.c:2161-2164。
+        if (sKiki.PowerSourceFlag == '1')
+        {
+            fp.ControlPowerNumber = ((int)sKiki.PowerSourceNumber).ToString("D2", CultureInfo.InvariantCulture);
+        }
+
+        // メーカーコード(fpamk) ← DMK。【C原典】Fyss1f.c:2167-2168。
+        fp.MakerCode = TruncBytes(sKiki.Maker, 3);
+    }
+
+    /// <summary>C の <c>sprintf(buff, "%04d", n)</c> 相当。最小4桁ゼロ埋め、4桁超は上位4桁(strncpy 4)。</summary>
+    private static string SprintfD04(int n)
+    {
+        string s = n.ToString("D4", CultureInfo.InvariantCulture);
+        return s.Length > 4 ? s[..4] : s;
+    }
+
+    /// <summary>先頭 <paramref name="start"/> 以降で最初の数字/ピリオド位置。【C原典】strpbrk(p, "0123456789.")。</summary>
+    private static int IndexOfNumeric(string s, int start)
+    {
+        for (int i = start; i < s.Length; i++)
+        {
+            if ((s[i] >= '0' && s[i] <= '9') || s[i] == '.')
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>先頭 <paramref name="start"/> 以降の連続する数字/ピリオドの桁数。【C原典】strspn(p, "0123456789.")。</summary>
+    private static int SpanNumeric(string s, int start)
+    {
+        int i = start;
+        while (i < s.Length && ((s[i] >= '0' && s[i] <= '9') || s[i] == '.'))
+        {
+            i++;
+        }
+        return i - start;
+    }
+
+    /// <summary>CP932 バイト幅で切り詰める(全角=2バイトの分断を回避)。【C原典】sprintf("%.Ns")+memcpy(strlen)。</summary>
+    private static string TruncBytes(string? value, int maxBytes)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        byte[] b = FixedFieldCodec.ShiftJis.GetBytes(value);
+        if (b.Length <= maxBytes)
+        {
+            return value;
+        }
+
+        int i = 0;
+        int cut = 0;
+        while (i < maxBytes)
+        {
+            bool lead = (b[i] >= 0x81 && b[i] <= 0x9F) || (b[i] >= 0xE0 && b[i] <= 0xFC);
+            if (lead)
+            {
+                if (i + 2 > maxBytes)
+                {
+                    break;
+                }
+                i += 2;
+            }
+            else
+            {
+                i += 1;
+            }
+            cut = i;
+        }
+        return FixedFieldCodec.ShiftJis.GetString(b, 0, cut);
+    }
 
     /// <summary>
     /// C の <c>atof()</c> 相当。先頭の数値部(符号・整数・小数)を実数化する。
