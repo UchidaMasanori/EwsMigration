@@ -259,3 +259,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,FYDF801.FromFixedRecord,ProjectInformation.FromFixedRecord,toku/include/common/fydf801.h,1200バイト固定長Shift-JISレコードから物件共通情報をデコード(hzkbn@199/sshiykbn@159等の実オフセット)
 関数,ParseProjectInformation(FYDF801.data),ProjectInformationLoader.ParseProjectInformation,toku/include/common/fydf801.h,FYDF801.data(1200バイト固定長・LF区切り1201/行)を解析してProjectInformation一覧を生成(実データ33264件で全オフセット検証済)
 関数,SeedProjectInformation,ProjectInformationLoader.SeedProjectInformation,toku/include/common/fydf801.h,FYDF801物件情報をSQL Server(dbo.ProjectInformation)へSqlBulkCopyで全置換投入
+構造体,bmeisai,PanelDetailInformation,toku/include/common/fydf801m.h,FYDF801盤明細情報(union com.mei)。盤名称/数量/ボックス品番タイプ/寸法。Fyss12 SEP判定はboxsund(BoxDepth)@285を参照
+関数,PanelDetailInformation.FromFixedRecord,PanelDetailInformation.FromFixedRecord,toku/include/common/fydf801m.h,1200バイト固定長Shift-JISから盤明細情報をデコード(bannm@55/boxsund@285等の実オフセット、実データ検証済)
+関数,ParsePanelDetails,ProjectInformationLoader.ParsePanelDetails,toku/include/common/fydf801m.h,FYDF801.dataの盤明細レコード(明細番号非ブランク)を解析してPanelDetailInformation一覧を生成

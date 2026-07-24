@@ -146,4 +146,122 @@ public sealed class ProjectInformationLoader
 
         return table;
     }
+
+    // ---- 盤明細情報 (FYDF801 bmeisai, 明細番号 非ブランク) --------------------
+
+    /// <summary>
+    /// 盤明細情報を読むために必要な最小バイト長。
+    /// 【C原典】ボックスフカサ boxsund の終端 = offset 285 + 5 = 290。
+    /// </summary>
+    private const int MinDetailRecordBytes = 290;
+
+    /// <summary>
+    /// FYDF801.data のうち盤明細情報レコード(明細番号 非ブランク)を解析して
+    /// <see cref="PanelDetailInformation"/> 一覧を返す。
+    /// </summary>
+    public static IReadOnlyList<PanelDetailInformation> ParsePanelDetails(string dataPath)
+    {
+        byte[] all = File.ReadAllBytes(dataPath);
+        var list = new List<PanelDetailInformation>();
+
+        int start = 0;
+        for (int i = 0; i <= all.Length; i++)
+        {
+            if (i != all.Length && all[i] != (byte)'\n')
+            {
+                continue;
+            }
+
+            int end = i;
+            if (end > start && all[end - 1] == (byte)'\r')
+            {
+                end--;
+            }
+
+            int length = end - start;
+            if (length >= MinDetailRecordBytes)
+            {
+                // 明細番号 非ブランク(盤明細情報)のレコードのみ採用する。
+                PanelDetailInformation detail = PanelDetailInformation.FromFixedRecord(all.AsSpan(start, length));
+                if (detail.DetailNumber.Length > 0)
+                {
+                    list.Add(detail);
+                }
+            }
+
+            start = i + 1;
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// FYDF801.data の盤明細情報を SQL Server の PanelDetailInformation テーブルへ投入する(全置換)。
+    /// </summary>
+    /// <returns>投入件数。</returns>
+    public int SeedPanelDetails(string dataPath)
+    {
+        IReadOnlyList<PanelDetailInformation> rows = ParsePanelDetails(dataPath);
+        DataTable table = BuildDetailDataTable(rows);
+
+        using SqlConnection connection = _factory.CreateOpen();
+        using SqlTransaction transaction = connection.BeginTransaction();
+
+        using (var delete = new SqlCommand("DELETE FROM PanelDetailInformation", connection, transaction))
+        {
+            delete.ExecuteNonQuery();
+        }
+
+        using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.Default, transaction)
+        {
+            DestinationTableName = "PanelDetailInformation",
+        })
+        {
+            foreach (DataColumn column in table.Columns)
+            {
+                bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+            }
+
+            bulk.WriteToServer(table);
+        }
+
+        transaction.Commit();
+        return rows.Count;
+    }
+
+    private static DataTable BuildDetailDataTable(IReadOnlyList<PanelDetailInformation> rows)
+    {
+        var table = new DataTable();
+        table.Columns.Add("RequestNumber", typeof(string));
+        table.Columns.Add("DetailNumber", typeof(string));
+        table.Columns.Add("PanelName", typeof(string));
+        table.Columns.Add("PanelNameKana", typeof(string));
+        table.Columns.Add("StandardCompoSelectionKind", typeof(string));
+        table.Columns.Add("Quantity", typeof(string));
+        table.Columns.Add("BoxPartNumber", typeof(string));
+        table.Columns.Add("BoxType", typeof(string));
+        table.Columns.Add("BoxHeight", typeof(string));
+        table.Columns.Add("BoxWidth", typeof(string));
+        table.Columns.Add("BoxDepth", typeof(string));
+
+        static object Nz(string s) => s.Length == 0 ? DBNull.Value : s;
+
+        foreach (PanelDetailInformation row in rows)
+        {
+            table.Rows.Add(
+                row.RequestNumber,
+                row.DetailNumber,
+                Nz(row.PanelName),
+                Nz(row.PanelNameKana),
+                Nz(row.StandardCompoSelectionKind),
+                Nz(row.Quantity),
+                Nz(row.BoxPartNumber),
+                Nz(row.BoxType),
+                Nz(row.BoxHeight),
+                Nz(row.BoxWidth),
+                Nz(row.BoxDepth));
+        }
+
+        return table;
+    }
 }

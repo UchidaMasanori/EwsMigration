@@ -218,3 +218,28 @@ CREATE TABLE dbo.ProjectInformation
     CONSTRAINT PK_ProjectInformation PRIMARY KEY (RequestNumber, DetailNumber)
 );
 GO
+/* ---------------------------------------------------------------------------
+   盤明細情報
+   【C原典】struct FYDF801 の union com.mei = struct bmeisai (盤明細情報, fydf801m.h)
+            明細番号(meisaino)非ブランク('01'～'99'/'0A'～'0D')のレコード。
+            Fyss12 の SEP 作図判定(PropChkSEPBox)がボックスフカサ(BoxDepth=boxsund)を参照する。
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.PanelDetailInformation', 'U') IS NOT NULL
+    DROP TABLE dbo.PanelDetailInformation;
+GO
+CREATE TABLE dbo.PanelDetailInformation
+(
+    RequestNumber              NVARCHAR(7)   NOT NULL,   -- 【C原典】key.im (eigyocd[2]+filler1[5]) 依頼番号
+    DetailNumber               NVARCHAR(2)   NOT NULL,   -- 【C原典】key.meisaino[2]      明細番号 '01'～'99'/'0A'～
+    PanelName                  NVARCHAR(30)  NULL,        -- 【C原典】com.mei.bannm[30]    盤名称1
+    PanelNameKana              NVARCHAR(30)  NULL,        -- 【C原典】com.mei.bannmkng[30] 盤名称2
+    StandardCompoSelectionKind NVARCHAR(1)   NULL,        -- 【C原典】com.mei.hycpskbn     標準・コンポ盤選定区分
+    Quantity                   NVARCHAR(2)   NULL,        -- 【C原典】com.mei.suuryo[2]    数量
+    BoxPartNumber              NVARCHAR(15)  NULL,        -- 【C原典】com.mei.boxhinbn[15] ボックス品番
+    BoxType                    NVARCHAR(8)   NULL,        -- 【C原典】com.mei.boxtype[8]   ボックスタイプ
+    BoxHeight                  NVARCHAR(5)   NULL,        -- 【C原典】com.mei.boxsunh[5]   ボックス寸法タテ(mm)
+    BoxWidth                   NVARCHAR(5)   NULL,        -- 【C原典】com.mei.boxsunw[5]   ボックス寸法ヨコ(mm)
+    BoxDepth                   NVARCHAR(5)   NULL,        -- 【C原典】com.mei.boxsund[5]   ボックス寸法フカサ(mm)(SEP判定で参照)
+    CONSTRAINT PK_PanelDetailInformation PRIMARY KEY (RequestNumber, DetailNumber)
+);
+GO

@@ -85,6 +85,58 @@ public sealed class ProjectInformationRealDataTests
         }
     }
 
+    [Fact]
+    public void 実FYDF801_盤明細レコードのbmeisaiオフセットを満たす()
+    {
+        string? path = FindMasterFile("FYDF801.data");
+        if (path is null)
+        {
+            _output.WriteLine("master/FYDF801.data 未配置のため検証をスキップします。");
+            return;
+        }
+
+        IReadOnlyList<PanelDetailInformation> rows = ProjectInformationLoader.ParsePanelDetails(path);
+
+        Assert.True(rows.Count > 1000, $"盤明細レコード数が想定より少ない: {rows.Count}");
+
+        int populatedName = 0;
+        int populatedDepth = 0;
+        foreach (PanelDetailInformation r in rows)
+        {
+            // 盤明細レコードは明細番号 非ブランクかつ最大 2 文字。
+            Assert.True(
+                r.DetailNumber.Length is > 0 and <= 2,
+                $"明細番号が不正: [{r.DetailNumber}] (req=[{r.RequestNumber}])");
+
+            // ボックス寸法(タテ/ヨコ/フカサ)は '9' 属性 → 空 または 数字のみ(mm, 5 桁ゼロ詰め)。
+            AssertBlankOrDigits(r.BoxHeight, "BoxHeight", r.RequestNumber);
+            AssertBlankOrDigits(r.BoxWidth, "BoxWidth", r.RequestNumber);
+            AssertBlankOrDigits(r.BoxDepth, "BoxDepth", r.RequestNumber);
+
+            if (r.PanelName.Length > 0)
+            {
+                populatedName++;
+            }
+            if (r.BoxDepth.Length > 0)
+            {
+                populatedDepth++;
+            }
+        }
+
+        // 盤名称(日本語)・ボックスフカサが埋まった盤明細が存在する(オフセット健全性)。
+        Assert.True(populatedName > 0, "盤名称が埋まった盤明細が見つからない(オフセット疑い)。");
+        Assert.True(populatedDepth > 0, "ボックスフカサが埋まった盤明細が見つからない(オフセット疑い)。");
+
+        _output.WriteLine($"panelDetails={rows.Count} populatedName={populatedName} populatedDepth={populatedDepth}");
+    }
+
+    private static void AssertBlankOrDigits(string value, string field, string requestNumber)
+    {
+        Assert.True(
+            value.Length == 0 || IsAllDigit(value),
+            $"{field} が数値でない: [{value}] (req=[{requestNumber}])");
+    }
+
     private static bool IsAllDigit(string s)
     {
         foreach (char c in s)
