@@ -257,3 +257,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kairo_Parm_Set,CircuitParameterResolver.SetCircuitParameter,toku/sekkei/src/Fyss14.c,親機器の回路情報と主回路データ(ep[0]相線式極/fp.fpalv負荷電圧)から自機器の下流回路パラメータを決定(NTは1P2W固定/mcprmcnv変換/Fは主回路・計器回路で近傍LA・VS・VM参照して相を上書き。ISAM非依存の決定的処理)
 構造体,FYDF801,ProjectInformation,toku/include/common/fydf801.h,物件情報(物件共通情報)固定長1200バイトレコード。キー=依頼明細番号(依頼番号7+明細番号2)。回路解析エンジンは周波数区分hzkbn・製作仕様区分sshiykbnを参照
 関数,FYDF801.FromFixedRecord,ProjectInformation.FromFixedRecord,toku/include/common/fydf801.h,1200バイト固定長Shift-JISレコードから物件共通情報をデコード(hzkbn@199/sshiykbn@159等の実オフセット)
+関数,ParseProjectInformation(FYDF801.data),ProjectInformationLoader.ParseProjectInformation,toku/include/common/fydf801.h,FYDF801.data(1200バイト固定長・LF区切り1201/行)を解析してProjectInformation一覧を生成(実データ33264件で全オフセット検証済)
+関数,SeedProjectInformation,ProjectInformationLoader.SeedProjectInformation,toku/include/common/fydf801.h,FYDF801物件情報をSQL Server(dbo.ProjectInformation)へSqlBulkCopyで全置換投入

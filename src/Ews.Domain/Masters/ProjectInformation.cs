@@ -81,7 +81,8 @@ public sealed class ProjectInformation : IIsamRecord
 
     /// <summary>
     /// 周波数区分。【C原典】com.kyo.hzkbn。
-    /// '1':50Hz '2':60Hz '3':50/60Hz。<b>回路解析エンジンが回路周波数決定で参照する。</b>
+    /// '1':50Hz '2':60Hz '3':50/60Hz。実データには地域別の '5'(東日本=50Hz)/'6'(西日本=60Hz)も存在する。
+    /// <b>回路解析エンジンが回路周波数決定で参照する(C 原典は hzkbn=='2' のときのみ 60Hz、他は 50Hz 扱い)。</b>
     /// </summary>
     public string FrequencyKind { get; set; } = string.Empty;
 
