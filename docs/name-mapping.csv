@@ -267,3 +267,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChkSEPBox,SeparatorBoxCheck.CheckSepBox,toku/sekkei/src/Fyss12.c,セパレータ作図BOX判定(生成BOX品番crboxtmp優先/無ければ適用BOXタイプboxtypがJBR・JOC始まり かつ boxsund=350 でSEP作図あり=0)
 関数,PropChkHbnHB300,SeparatorBoxCheck.CheckHb300,toku/sekkei/src/Fyss12.c,HB300判定(幅300用ユニット品番のいずれかが入力品番inputhbに部分一致で該当=0)
 関数,PropChkHbnHB300(unithb300.cns読込),Hb300UnitPartLoader.Parse,toku/const/sekkei/unithb300.cns,幅300用ユニット品番一覧を解析(先頭/*コメント除外・最初のカンマ前をトリム)
+関数,Kikitable_SEP_Make,SeparatorInsertion.CreateSeparatorEntry,toku/sekkei/src/Fyss12.c,系統末尾機器(R_Kiki)から合成SEP機器を生成(D_No+5/yoyaku=SEP/K_Kubun=M/yoyakkbn=1/TOP_Flg=1、K_No・B_No・N_No・ban引継ぎ)
+関数,sep_flg(PropChkSEPBox+HB300合成),SeparatorInsertion.IsSeparatorApplicable,toku/sekkei/src/Fyss12.c,PropChkSEPBox==0(SEP対象BOX)またはPropChkHbnHB300!=0(幅300非該当)でSEP作図あり=true
+関数,sep_del判定,SeparatorInsertion.HasSeparatorDeletionCondition,toku/sekkei/src/Fyss12.c,2系統以上かつ行種相線(PhaseWires)に1P3Wと3P3Wが混在でSEP削除条件(追加しない)
+関数,sep_del!=sep_numゲート,SeparatorInsertion.IsSeparatorInsertionAllowed,toku/sekkei/src/Fyss12.c,SEP追加ゲート(作図ありなら常に許可/作図なしは削除条件を満たさなければ許可)
