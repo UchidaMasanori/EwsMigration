@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-10
+最終更新: 2026-07-24
 
 ---
 
@@ -123,9 +123,20 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-10 時点）
+## 5. 移植の進捗（2026-07-24 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 445 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 499 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-24 セッション追加分（サマリ）
+
+下記は本セッションで追加した移植・検証。詳細は [docs/name-mapping.csv](name-mapping.csv) を参照。
+
+- **物件情報 FYDF801（データ層）**: `ProjectInformation`（物件共通情報, 1200バイト固定長, `FromFixedRecord`）＋ `PanelDetailInformation`（盤明細 bmeisai, `bannm`@55/`boxsund`@285）＋ `ProjectInformationLoader`（`ParseProjectInformation`/`SeedProjectInformation`・`ParsePanelDetails`/`SeedPanelDetails`）＋ SQL テーブル。実データ `master/FYDF801.data`（33,264件）で不変条件検証。`hzkbn` 実値は 1/2/**5/6**/空白（地域別 50/60Hz）、`meisaino` は '0A'-'0D' 英字も実在。
+- **品番情報 hbninf（.clh）**: `PartNumberInfo`（`struct hbninf`, 908バイト生バイナリ 1レコード, `inputhb`@0/`boxtyp`@842/`crboxtmp`@864 ほか）＋ `PartNumberInfoLoader.ReadFromFile`。案件ごと `<WORK>/<依頼明細番号>.clh`。SEP 判定の入力。
+- **SEP 追加（`Fyss12.c` step6, 改訂<7>/<12>）**: `SeparatorBoxCheck`（`PropChkSEPBox`/`PropChkHbnHB300`）＋ `Hb300UnitPartLoader`（`unithb300.cns`）＋ `SeparatorInsertion`（`Kikitable_SEP_Make`=`CreateSeparatorEntry` / `sep_flg`=`IsSeparatorApplicable` / `sep_del`=`HasSeparatorDeletionCondition` / 系統ブレーク=`TrySeparatorAtBoundary`）。`MainCircuitBuilder.MakeMain` に `SeparatorInputs?`（hbninf+boxsund+hb300）を任意配線（null 時は SEP なし＝従来挙動）。`souden`/`sousen` は既存 `LineTypeTableEntry.PhaseVoltage`/`PhaseWires` を再利用。**保留の SEP 追加をこれで完了**。
+- **上流パラメータ生成 Fyss14（電気パラメータ本体・着手）**: `mcprmcnv`→`MainCircuitParameterConverter.ConvertParameter`（変換テーブル145行の完全一致照合・DC補正）／`Kairo_Parm_Set`→`CircuitParameterResolver.SetCircuitParameter`（NTは1P2W固定・mcprmcnv変換・F特殊処理。ISAM非依存の決定的処理）。既存の `Volt_Conv`/`Max_Volt`/`Left/Right_Volt`（`VoltageInheritance`）・`Element_Gen`/`Pole_Gen`（`CircuitElementResolver`）と合わせ、上流パラメータ生成の決定的スライスが進行。
+- **実データ突合ハーネス**: `SeparatorRealDataTests`（フルパイプライン FYDF805→`CircuitStringChecker.Check`→`MainCircuitBuilder.MakeMain`(SEP込み) を実4案件で通し、生成SEP数がC版FYDF806のSEPレコード数と一致=負側検証。パイプラインが実データで例外なく完走することを初実証）。既存 `GoldenComparisonHarnessTests`（eparmg/fparmg 往復）と併せ、実機出力に対する回帰基盤を強化。
+- **正側検証（SEP挿入あり）は未了**: 入手済4案件（2607AL01/02/03/05）は FYDF806 に SEP=0 のため。SEP 含有案件データが揃えば同一ハーネスで自動的に正側検証となる。
 
 ### 移植済み
 
