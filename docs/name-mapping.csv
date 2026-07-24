@@ -250,3 +250,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Main_File_Make_n,MainCircuitBuilder.MainFileMakeCircuitNumber,toku/sekkei/src/Fyss1f.c,回路番号文ありグループの主回路設計エリア(FYRT800)生成(DNOトークン展開+次段機器へのDLV伝播)
 関数,include,MainCircuitBuilder.Include,toku/sekkei/src/Fyss1f.c,行種グループNo/回路番号文に回路番号トークンが含まれるか(strstr部分一致)
 関数,Find_Next_Nobangou,MainCircuitBuilder.FindNextCircuitNumber,toku/sekkei/src/Fyss1f.c,回路番号の次段機器を検索(GNO/DNO包含判定で直後機器を返す)
+構造体,MCPRMS,MainCircuitParameter,toku/sekkei/src/Fyss14.c,主回路パラメータ(相/線式/極数/電圧v[3]/AC・DC区分)。機器選定・上流パラメータ生成の中核構造体
+関数,Element_Gen,CircuitElementResolver.ResolveElement,toku/sekkei/src/Fyss14.c,相・線式・極数からエレメント数を得る(静的テーブル完全一致照合。不一致は-1)
+関数,Pole_Gen,CircuitElementResolver.ResolvePole,toku/sekkei/src/Fyss14.c,相・線式から極数を得てpへ設定(静的テーブル完全一致照合。不一致は-1でp不変)
