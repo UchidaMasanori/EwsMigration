@@ -116,4 +116,77 @@ public sealed class SeparatorInsertionTests
         var lineTypes = new List<LineTypeTableEntry> { Lt(1, "1P3W"), Lt(2, "1P3W") };
         Assert.True(SeparatorInsertion.IsSeparatorInsertionAllowed(false, lineTypes));
     }
+
+    private static SystemTableEntry Sys(short number, char kind)
+        => new() { SystemNumber = number, SystemKind = kind };
+
+    private static LineTypeTableEntry LtV(short systemNumber, short groupNumber, string phaseVoltage)
+        => new() { SystemNumber = systemNumber, GroupNumber = groupNumber, PhaseVoltage = phaseVoltage };
+
+    private static EquipmentTableEntry Eq(string reservedWord, short equipmentNumber)
+        => new() { ReservedWord = reservedWord, EquipmentNumber = equipmentNumber, SystemNumber = 1 };
+
+    [Fact]
+    public void TrySeparatorAtBoundary_‘OŒn“‚ÆŸŒn“‚Åsouden·•ª‚È‚çSEP‚ğ•Ô‚·()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "1"), LtV(2, 20, "33") };
+
+        EquipmentTableEntry? sep = SeparatorInsertion.TrySeparatorAtBoundary(
+            '1', "1", 1, systems, lineTypes, Eq("MCB", 100), true);
+
+        Assert.NotNull(sep);
+        Assert.Equal("SEP", sep!.ReservedWord);
+        Assert.Equal((short)105, sep.EquipmentNumber);
+    }
+
+    [Fact]
+    public void TrySeparatorAtBoundary_souden‚ª“¯ˆê‚È‚ç’Ç‰Á‚µ‚È‚¢()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "1"), LtV(2, 20, "1") };
+
+        Assert.Null(SeparatorInsertion.TrySeparatorAtBoundary(
+            '1', "1", 1, systems, lineTypes, Eq("MCB", 100), true));
+    }
+
+    [Fact]
+    public void TrySeparatorAtBoundary_‘OŒn“‚ªPŒn“‚Å‚È‚¢‚È‚ç’Ç‰Á‚µ‚È‚¢()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "1"), LtV(2, 20, "33") };
+
+        Assert.Null(SeparatorInsertion.TrySeparatorAtBoundary(
+            '2', "1", 1, systems, lineTypes, Eq("MCB", 100), true));
+    }
+
+    [Fact]
+    public void TrySeparatorAtBoundary_‘OŒn“souden‚ª–¢w’è‚È‚ç’Ç‰Á‚µ‚È‚¢()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "0"), LtV(2, 20, "33") };
+
+        Assert.Null(SeparatorInsertion.TrySeparatorAtBoundary(
+            '1', "0", 1, systems, lineTypes, Eq("MCB", 100), true));
+    }
+
+    [Fact]
+    public void TrySeparatorAtBoundary_’¼‘O‹@Ší‚ªŠù‚ÉSEP‚È‚ç’Ç‰Á‚µ‚È‚¢()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "1"), LtV(2, 20, "33") };
+
+        Assert.Null(SeparatorInsertion.TrySeparatorAtBoundary(
+            '1', "1", 1, systems, lineTypes, Eq("SEP", 100), true));
+    }
+
+    [Fact]
+    public void TrySeparatorAtBoundary_’Ç‰ÁƒQ[ƒg‚ª‹U‚È‚ç’Ç‰Á‚µ‚È‚¢()
+    {
+        var systems = new List<SystemTableEntry> { Sys(1, '1'), Sys(2, '1') };
+        var lineTypes = new List<LineTypeTableEntry> { LtV(1, 10, "1"), LtV(2, 20, "33") };
+
+        Assert.Null(SeparatorInsertion.TrySeparatorAtBoundary(
+            '1', "1", 1, systems, lineTypes, Eq("MCB", 100), false));
+    }
 }

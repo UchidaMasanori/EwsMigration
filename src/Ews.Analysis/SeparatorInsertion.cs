@@ -152,4 +152,103 @@ public static class SeparatorInsertion
 
         return !HasSeparatorDeletionCondition(lineTypes);
     }
+
+    /// <summary>
+    /// 系統ブレーク時のセパレータ追加を判定し、追加する場合は合成 SEP 機器を返す。
+    /// 【C原典】Fyss12.c:3812-3859 の系統ブレーク時 SEP 追加ブロック。
+    ///
+    /// 前系統(<paramref name="previousKind"/>/<paramref name="previousPhaseVoltage"/>)が
+    /// P 系統(Kind=='1')かつ souden 指定あり(先頭!='0')のとき、番号が
+    /// <paramref name="previousSystemNumber"/> 以降で最初の P 系統(Kind=='1')を探し、
+    /// その系統の行種 souden が前系統と異なれば、前系統末尾機器
+    /// (<paramref name="previousLastEquipment"/>)から SEP を生成する。ただし前系統末尾機器が
+    /// 既に SEP、または追加ゲート(<paramref name="insertionAllowed"/>)が false の場合は追加しない。
+    /// </summary>
+    /// <returns>追加する SEP 機器。追加しない場合は null。</returns>
+    public static EquipmentTableEntry? TrySeparatorAtBoundary(
+        char previousKind,
+        string previousPhaseVoltage,
+        short previousSystemNumber,
+        IReadOnlyList<SystemTableEntry> systems,
+        IReadOnlyList<LineTypeTableEntry> lineTypes,
+        EquipmentTableEntry previousLastEquipment,
+        bool insertionAllowed)
+    {
+        ArgumentNullException.ThrowIfNull(systems);
+        ArgumentNullException.ThrowIfNull(lineTypes);
+        ArgumentNullException.ThrowIfNull(previousLastEquipment);
+
+        // 【C原典】if( Kind == '1' && '0' != souden[0] )
+        if (previousKind != '1')
+        {
+            return null;
+        }
+        if (previousPhaseVoltage.Length == 0 || previousPhaseVoltage[0] == '0')
+        {
+            return null;
+        }
+
+        // 【C原典】for( j=kNo; j<i_Keitouc; j++ ){ W_Keitou=P_Keitou+j; if(Kind=='1') break; }
+        // 番号 previousSystemNumber(=直前系統番号)以降の配列位置で最初の Kind=='1' 系統。
+        SystemTableEntry? wKeitou = systems.Count > 0 ? systems[0] : null;
+        for (int j = previousSystemNumber; j < systems.Count; j++)
+        {
+            wKeitou = systems[j];
+            if (wKeitou.SystemKind == '1')
+            {
+                break;
+            }
+        }
+        if (wKeitou is null || wKeitou.SystemKind != '1')
+        {
+            return null;
+        }
+
+        // 【C原典】for( j=0; j<i_Gyosyuc; j++ ){ W_Gyosyu=P_Gyosyu+j;
+        //          if( W_Gyosyu->K_No==W_Keitou->K_No && souden!=W_Gyosyu->souden ) break; }
+        LineTypeTableEntry? wGyosyu = lineTypes.Count > 0 ? lineTypes[0] : null;
+        for (int j = 0; j < lineTypes.Count; j++)
+        {
+            wGyosyu = lineTypes[j];
+            if (wGyosyu.SystemNumber == wKeitou.SystemNumber &&
+                previousPhaseVoltage != wGyosyu.PhaseVoltage)
+            {
+                break;
+            }
+        }
+
+        // 【C原典】if( W_Gyosyu->K_No==W_Keitou->K_No && souden!=W_Gyosyu->souden )
+        if (wGyosyu is null ||
+            wGyosyu.SystemNumber != wKeitou.SystemNumber ||
+            previousPhaseVoltage == wGyosyu.PhaseVoltage)
+        {
+            return null;
+        }
+
+        // 【C原典】if( 0 != strncmp((S_Kiki+i-1)->yoyaku,"SEP",3) ) : 直前機器が SEP でない。
+        if (previousLastEquipment.ReservedWord.StartsWith("SEP", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        // 【C原典】if( sep_del != sep_num ) Kikitable_SEP_Make(...)。
+        if (!insertionAllowed)
+        {
+            return null;
+        }
+
+        return CreateSeparatorEntry(previousLastEquipment);
+    }
 }
+
+/// <summary>
+/// セパレータ追加判定に必要な案件別の入力。主回路生成(<c>MakeMain</c>)へ任意で渡す。
+/// null の場合は SEP 追加を行わない(既定)。
+/// </summary>
+/// <param name="PartInfo">案件の品番情報(hbninf / .clh)。</param>
+/// <param name="BoxDepth">ボックスフカサ(FYDF801 盤明細 boxsund)。</param>
+/// <param name="Hb300UnitParts">幅300用ユニット品番一覧(unithb300.cns)。</param>
+public sealed record SeparatorInputs(
+    PartNumberInfo PartInfo,
+    string BoxDepth,
+    IReadOnlyList<string> Hb300UnitParts);

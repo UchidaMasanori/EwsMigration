@@ -99,8 +99,15 @@ public sealed class MainCircuitBuilder
     /// 回路設計エリア(正規化済の回路内容記述)。【C原典】imagec/imagea(struct FYDF805)。
     /// 改訂&lt;15&gt; の Gyosyu_Check(PM行例外判定)で参照する。未指定時は当該例外を評価しない。
     /// </param>
+    /// <param name="separatorInputs">
+    /// セパレータ(SEP)追加の案件別入力(品番情報 hbninf / ボックスフカサ / 幅300品番)。
+    /// 未指定(null)時は SEP 追加を行わない。【C原典】step6 の bukken/hbninf/unithb300 参照。
+    /// </param>
     /// <returns>0=正常, 2=エラー打切り。【C原典】SHORT ret。</returns>
-    public short MakeMain(CircuitParseResult parse, IReadOnlyList<CircuitDescriptionLine>? designArea = null)
+    public short MakeMain(
+        CircuitParseResult parse,
+        IReadOnlyList<CircuitDescriptionLine>? designArea = null,
+        SeparatorInputs? separatorInputs = null)
     {
         ArgumentNullException.ThrowIfNull(parse);
 
@@ -126,8 +133,8 @@ public sealed class MainCircuitBuilder
         SetCircuitDivision(parse);
 
         // 6. 機器(SEP,CT,WH,ZCT)の追加。【C原典】Yoyakugo_Add_Main()。
-        //    無条件前段(D_No*=10)を移植。SEP/CT/WH/ZCT 追加本体は段階移植(AddDerivedEquipment 内 TODO)。
-        AddDerivedEquipment(parse);
+        //    D_No*=10 前段 + CT/VT/WH 展開 + 系統ブレーク時 SEP 追加(separatorInputs 指定時)。
+        AddDerivedEquipment(parse, separatorInputs);
 
         // 7. 機器テーブルソート。【C原典】qsort(P_Kiki,*i_Kikic,sizeof(KIKITABLE),cmp)。機器No(D_No)昇順。
         SortEquipmentByNumber(parse);
@@ -197,7 +204,7 @@ public sealed class MainCircuitBuilder
     ///   ・行種(GYOSYU)ごとの souden(相電圧)の全面設定と Find_Keitou による系統種別(Kind)参照
     ///   ・追加機器を消費する後段(ランク付け step8-13.5 / 主回路エリア生成 step17)自体が未移植
     /// </summary>
-    private static void AddDerivedEquipment(CircuitParseResult parse)
+    private static void AddDerivedEquipment(CircuitParseResult parse, SeparatorInputs? separatorInputs)
     {
         List<EquipmentTableEntry> equipment = parse.MainEquipment;
 
@@ -223,7 +230,19 @@ public sealed class MainCircuitBuilder
         //     作図BOX/幅300用品番プロパティ)依存のため未実装(系統状態の更新のみ行う)。
         //   ・CT 以外の計器グループ(VT/WH/ZCT 単独始まり)の主回路レコード展開:
         //     本増分では走査のみ(生成なし)とし、後続増分で移植する。
+        // 【C原典】SEP 追加ゲート(sep_flg/sep_del)。案件コンテキスト未指定時は SEP を追加しない。
+        bool separatorInsertionAllowed = false;
+        if (separatorInputs is not null)
+        {
+            bool separatorApplicable = SeparatorInsertion.IsSeparatorApplicable(
+                separatorInputs.PartInfo, separatorInputs.BoxDepth, separatorInputs.Hb300UnitParts);
+            separatorInsertionAllowed =
+                SeparatorInsertion.IsSeparatorInsertionAllowed(separatorApplicable, parse.LineTypes);
+        }
+
         short kNo = 0;
+        char prevKind = '1';           // 【C原典】Kind(直前系統種別)。初期 '1'。
+        string prevPhaseVoltage = "0"; // 【C原典】souden(直前系統相電圧)。初期 "0"。
         int i = 0;
         while (i < maxKikic)
         {
@@ -234,8 +253,23 @@ public sealed class MainCircuitBuilder
             // 【C原典】if (K_No != (S_Kiki+i)->K_No) : 系統ブレーク。
             if (kNo != cur.SystemNumber)
             {
-                // TODO(SEP): souden 差分 + PropChk で Kikitable_SEP_Make(前系統末尾機器から生成)。
-                kNo = sKeitou?.SystemNumber ?? cur.SystemNumber; // 【C原典】K_No = S_Keitou->K_No。
+                // 【C原典】系統ブレーク時の SEP 追加。前系統(prevKind/prevPhaseVoltage)と
+                //   次の P 系統の souden 差分で判定し、前系統末尾機器(i-1)から SEP を生成する。
+                if (separatorInputs is not null && i > 0)
+                {
+                    EquipmentTableEntry? sep = SeparatorInsertion.TrySeparatorAtBoundary(
+                        prevKind, prevPhaseVoltage, kNo, parse.Systems, parse.LineTypes,
+                        equipment[i - 1], separatorInsertionAllowed);
+                    if (sep is not null)
+                    {
+                        equipment.Add(sep);
+                    }
+                }
+
+                kNo = sKeitou?.SystemNumber ?? cur.SystemNumber;          // 【C原典】K_No = S_Keitou->K_No。
+                prevKind = sKeitou?.SystemKind ?? prevKind;               // 【C原典】Kind = S_Keitou->Kind。
+                LineTypeTableEntry? sGyosyu = FindLineType(parse, cur.GroupNumber);
+                prevPhaseVoltage = sGyosyu?.PhaseVoltage ?? string.Empty; // 【C原典】strcpy(souden, S_Gyosyu->souden)。
                 i++;
                 continue;
             }

@@ -271,3 +271,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,sep_flg(PropChkSEPBox+HB300合成),SeparatorInsertion.IsSeparatorApplicable,toku/sekkei/src/Fyss12.c,PropChkSEPBox==0(SEP対象BOX)またはPropChkHbnHB300!=0(幅300非該当)でSEP作図あり=true
 関数,sep_del判定,SeparatorInsertion.HasSeparatorDeletionCondition,toku/sekkei/src/Fyss12.c,2系統以上かつ行種相線(PhaseWires)に1P3Wと3P3Wが混在でSEP削除条件(追加しない)
 関数,sep_del!=sep_numゲート,SeparatorInsertion.IsSeparatorInsertionAllowed,toku/sekkei/src/Fyss12.c,SEP追加ゲート(作図ありなら常に許可/作図なしは削除条件を満たさなければ許可)
+関数,系統ブレークSEP追加,SeparatorInsertion.TrySeparatorAtBoundary,toku/sekkei/src/Fyss12.c,系統ブレーク時に前系統(P系統かつsouden指定)と次のP系統のsouden差分でSEP生成を判定(前系統末尾機器から/直前SEP・追加ゲート考慮)
+構造体,SEP追加入力,SeparatorInputs,toku/sekkei/src/Fyss12.c,SEP判定の案件別入力(品番情報hbninf/ボックスフカサboxsund/幅300品番)。MakeMainへ任意で渡す(null時はSEP追加なし)
+関数,Yoyakugo_Add_Main(SEP配線),MainCircuitBuilder.AddDerivedEquipment,toku/sekkei/src/Fyss12.c,step6でSEP追加を配線(separatorInputs指定時、系統ブレークでprevKind/prevPhaseVoltage差分からSEP挿入)
