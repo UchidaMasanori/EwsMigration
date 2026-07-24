@@ -32,7 +32,8 @@ public sealed class GoldenComparisonHarnessTests
     private const int Ep0Offset = 114;
     private const int Kairoar805Offset = 17;
     private const int Kairoar805Len = 200;
-
+    /// <summary>fp(付属パラメータ fparmg)のレコード先頭からのオフセット。key(12)+syukairo 内: ep[0]@+114 + eparmg 253×3 = +873。</summary>
+    private const int FpOffset = 873;
     /// <summary>検証対象とする案件数の上限(テスト時間を抑えるためのサンプル)。</summary>
     private const int MaxProjects = 150;
 
@@ -92,6 +93,57 @@ public sealed class GoldenComparisonHarnessTests
         }
 
         _output.WriteLine($"往復検証: 案件={projects} eparmg レコード={records}");
+        Assert.True(records > 0, "検証対象の FYDF806 レコードが見つかりませんでした。");
+    }
+
+    /// <summary>
+    /// fparmg の固定長レイアウト(157 バイト・宣言順)が実機出力と一致することを、
+    /// 実 FYDF806 の fp(付属パラメータ, @+873)を「復元→再直列化」して往復一致で検証する。
+    /// これにより <see cref="FparmgCodec"/> の 157 バイトレイアウト(fycommon.h:77)と
+    /// レコード内オフセット(<see cref="FpOffset"/>)が実 AIX 出力と一致することを実証する。
+    /// </summary>
+    [Fact]
+    public void Fparmg固定長コーデックは実FYDF806のバイト列を往復再現する()
+    {
+        string? work = FindWorkDir();
+        if (work is null)
+        {
+            _output.WriteLine("WORK ディレクトリ未配置のため検証をスキップします。");
+            return;
+        }
+
+        int projects = 0;
+        int records = 0;
+        foreach (string projDir in EnumerateProjects(work))
+        {
+            byte[]? b = ReadRecordFile(projDir, "FYDF806", Rl806);
+            if (b is null)
+            {
+                continue;
+            }
+
+            int count = b.Length / Rl806;
+            for (int r = 0; r < count; r++)
+            {
+                int off = (r * Rl806) + FpOffset;
+                ReadOnlySpan<byte> slice = b.AsSpan(off, FparmgCodec.RecordLength);
+                AttachedParameters fp = FparmgCodec.Deserialize(slice);
+                byte[] round = FparmgCodec.Serialize(fp);
+                if (!slice.SequenceEqual(round))
+                {
+                    Assert.Fail(
+                        $"往復不一致: proj={Path.GetFileName(projDir)} rec={r}\n" +
+                        $"  in =[{Cp932.GetString(slice)}]\n" +
+                        $"  out=[{Cp932.GetString(round)}]");
+                }
+
+                records++;
+            }
+
+            projects++;
+        }
+
+        _output.WriteLine($"往復検証: 案件={projects} fparmg レコード={records}");
         Assert.True(records > 0, "検証対象の FYDF806 レコードが見つかりませんでした。");
     }
 
