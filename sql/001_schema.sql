@@ -190,3 +190,31 @@ CREATE TABLE dbo.SpecificationFile
         REFERENCES dbo.SpecificationKind (DepartmentCode, KindSeq)
 );
 GO
+/* ---------------------------------------------------------------------------
+   •¨Œî•ñ(•¨Œ‹¤’Êî•ñ)
+   yCŒ´“Tzstruct FYDF801 (•¨Œî•ñƒtƒ@ƒCƒ‹, EWS-ISAM, ƒŒƒR[ƒh’· 1200)
+            ƒL[ = ˆË—Š–¾×”Ô†(ˆË—Š”Ô† 7 + –¾×”Ô† 2)B–¾×”Ô†ƒuƒ‰ƒ“ƒN‚ª•¨Œ‹¤’Êî•ñA
+            '01'`'99' ‚Í”Õ–¾×î•ñ(union redefines)B‰ñ˜H‰ğÍƒGƒ“ƒWƒ“‚Í•¨Œ‹¤’Êî•ñ‚Ì
+            ü”g”‹æ•ª(hzkbn)E»ìd—l‹æ•ª(sshiykbn)‚ğQÆ‚·‚éB
+   --------------------------------------------------------------------------- */
+IF OBJECT_ID('dbo.ProjectInformation', 'U') IS NOT NULL
+    DROP TABLE dbo.ProjectInformation;
+GO
+CREATE TABLE dbo.ProjectInformation
+(
+    RequestNumber          NVARCHAR(7)   NOT NULL,   -- yCŒ´“Tzkey.im (eigyocd[2]+filler1[5]) ˆË—Š”Ô†
+    DetailNumber           NVARCHAR(2)   NOT NULL,   -- yCŒ´“Tzkey.meisaino[2]      –¾×”Ô† ' '/'01'`'99'
+    DrawingNumberUpper     NVARCHAR(10)  NULL,        -- yCŒ´“Tzzubanu10[10]         }”Ô(ã10Œ…)
+    DrawingNumberLower     NVARCHAR(5)   NULL,        -- yCŒ´“Tzzubanl5[5]           }”Ô(‰º5Œ…)
+    SalesOfficeName        NVARCHAR(30)  NULL,        -- yCŒ´“Tzcom.kyo.eigyonm[30]  ‰c‹ÆŠ–¼
+    StaffName              NVARCHAR(14)  NULL,        -- yCŒ´“Tzcom.kyo.tantonm[14]  ’S“–Ò–¼
+    ProjectName1           NVARCHAR(30)  NULL,        -- yCŒ´“Tzcom.kyo.kenmei1[30]  Œ–¼1
+    ProjectName2           NVARCHAR(30)  NULL,        -- yCŒ´“Tzcom.kyo.kenmei2[30]  Œ–¼2
+    ManufacturingSpecKind  NVARCHAR(2)   NULL,        -- yCŒ´“Tzcom.kyo.sshiykbn[2]  »ìd—l‹æ•ª(ƒGƒ“ƒWƒ“QÆ)
+    SpecificationName      NVARCHAR(34)  NULL,        -- yCŒ´“Tzcom.kyo.shiyonm[34]  d—l–¼Ì
+    DrawingKind            NVARCHAR(1)   NULL,        -- yCŒ´“Tzcom.kyo.zumenkbn     }–Êí•Ê
+    DrawingRank            NVARCHAR(1)   NULL,        -- yCŒ´“Tzcom.kyo.zumenrnk     }–Êƒ‰ƒ“ƒN
+    FrequencyKind          NVARCHAR(1)   NULL,        -- yCŒ´“Tzcom.kyo.hzkbn        ü”g”‹æ•ª(ƒGƒ“ƒWƒ“QÆ)
+    CONSTRAINT PK_ProjectInformation PRIMARY KEY (RequestNumber, DetailNumber)
+);
+GO
