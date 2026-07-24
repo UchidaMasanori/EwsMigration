@@ -1019,6 +1019,73 @@ public sealed class MainCircuitBuilderTests
         Assert.Equal((short)3, seg.Iteration);
     }
 
+    // ==== step17: Main_File_Make_n(‰ñ˜H”Ô†•¶‚ ‚èƒOƒ‹[ƒv‚Ìå‰ñ˜H¶¬) ====
+
+    [Fact]
+    public void MakeMainSub_‰ñ˜H”Ô†•¶ƒOƒ‹[ƒv‚ÍCircuitNumberƒZƒOƒƒ“ƒg‚É‚È‚é()
+    {
+        // yCŒ´“TzFind_Nobangou: DNO ‚©‚Â GNO ‚ğ‚Â‹@Ší ¨ Main_File_Make_nB
+        //   ’Pˆêƒg[ƒNƒ“("1")‚Å 1 ƒŒƒR[ƒh¶¬‚µAw’è‰ñ˜H”Ô†(Gstring)‚ğİ’è‚·‚éB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var kiki = MainKiki(groupNumber: 2, equipmentNumber: 1, stringSequence: 1);
+        kiki.CircuitNumberText = "1";        // yCŒ´“TzDNO
+        kiki.GroupCircuitNumberText = "1";   // yCŒ´“TzGNO
+        var result = RunYoyakugo(new[] { p, m }, kiki);
+
+        Assert.True(result.IsValid);
+        var seg = Assert.Single(result.MainCircuitSegments);
+        Assert.Equal(MainCircuitSegmentKind.CircuitNumber, seg.Kind);
+        Assert.Equal((short)10, seg.StartNumber);         // yCŒ´“TzD_No(~10)
+        Assert.Equal("1", seg.CircuitNumberText);         // yCŒ´“TzDNO
+
+        var rec = Assert.Single(result.MainCircuits);
+        Assert.Equal("1", rec.Data.CircuitDesignationNumber); // yCŒ´“Tzw’è‰ñ˜H”Ô† = Gstring
+    }
+
+    [Fact]
+    public void MakeMainSub_‰ñ˜H”Ô†•¶‚ª•¡”ƒg[ƒNƒ“‚È‚çƒg[ƒNƒ“–ˆ‚ÉƒŒƒR[ƒh‚ğ¶¬‚·‚é()
+    {
+        // yCŒ´“TzMain_File_Make_n: Gstring=strtok(DNO,",") ‚Ìƒg[ƒNƒ“–ˆ‚É mainfile_set ‚ğŒÄ‚ÔB
+        //   “¯ˆêŠî“_‹@Ší‚É‘Î‚µ safix=0,1,c ‚Ìw’è‰ñ˜H”Ô†‚ÅƒŒƒR[ƒh‚ğ¶¬‚·‚éB
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+        var kiki = MainKiki(groupNumber: 2, equipmentNumber: 1, stringSequence: 1);
+        kiki.CircuitNumberText = "1,2";        // yCŒ´“TzDNO(2 ƒg[ƒNƒ“)
+        kiki.GroupCircuitNumberText = "1,2";   // yCŒ´“TzGNO
+        var result = RunYoyakugo(new[] { p, m }, kiki);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(2, result.MainCircuits.Count);
+        Assert.Equal("1", result.MainCircuits[0].Data.CircuitDesignationNumber);
+        Assert.Equal("2", result.MainCircuits[1].Data.CircuitDesignationNumber);
+    }
+
+    [Fact]
+    public void MakeMainSub_‰ñ˜H”Ô†•¶‚ÌŸ’i‹@Ší‚Ö•‰‰×“dˆ³‚ğ“`”d‚·‚é()
+    {
+        // yCŒ´“TzMain_File_Make_n: include(GNO,Gstring) ¬—§AFind_Next_Nobangou ‚ÅŸ’i‹@Ší‚ğ’T‚µA
+        //   “¯ˆê‰ñ˜H”Ô†(N_No)‚Ì‹@ŠíŒQ‚Ö•‰‰×“dˆ³(DLV)‚ğ“`”d‚·‚é(‹ó‚Ì‹@Ší‚Íæs‹@Ší‚Ì DLV ‚ğŒp³)B
+        var p = Gyo(1, "P", '1', 1, groupNumber: 1);
+        var m = Gyo(1, "M", '1', 2, groupNumber: 2);
+
+        // Šî“_‹@Ší(‰ñ˜H”Ô†•¶): D_No=1, N_No=0B
+        var head = MainKiki(groupNumber: 2, equipmentNumber: 1, stringSequence: 1, circuitNumberSequence: 0);
+        head.CircuitNumberText = "1";
+        head.GroupCircuitNumberText = "1";
+        // Ÿ’i‹@Ší1: N_No=1, DLV=200(“`”dŒ³)B
+        var next1 = MainKiki(groupNumber: 2, equipmentNumber: 2, stringSequence: 1, circuitNumberSequence: 1);
+        next1.LoadVoltage[0] = "200";
+        // Ÿ’i‹@Ší2: N_No=1, DLV ‹ó(next1 ‚Ì 200 ‚ğŒp³)B
+        var next2 = MainKiki(groupNumber: 2, equipmentNumber: 3, stringSequence: 1, circuitNumberSequence: 1);
+
+        var result = RunYoyakugo(new[] { p, m }, head, next1, next2);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(3, result.MainCircuits.Count);       // Šî“_ + Ÿ’i2‹@ŠíB
+        Assert.Equal("200", next2.LoadVoltage[0]);        // yCŒ´“TzDLV “`”d‚ÅŒp³B
+    }
+
     // ==== step17: mainfile_set(å‰ñ˜Hƒtƒ@ƒCƒ‹ƒGƒŠƒA = FYRT800 ƒŒƒR[ƒh®Œ`) ====
 
     /// <summary>Œn“ƒe[ƒuƒ‹•t‚«‚Åå‰ñ˜H¶¬‚ğÀs‚·‚éByCŒ´“TzFind_Keitou —p‚Ì KEITOU ‚ğ—pˆÓ‚·‚éB</summary>

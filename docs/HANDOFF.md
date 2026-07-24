@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-10 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 429 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 432 テスト成功 / 0 スキップ / 0 失敗**。
 
 ### 移植済み
 
@@ -148,14 +148,14 @@ EwsMigration/
   - step9-13.5 機器ランク系: `Kiki_Rank_Set`/`Kiki_Rank_Update`(TOP_Flg)/`Gyosyu_Rank_Update`(`Find_Max_Rank`)/`Pattern_Rank_Update`/`WH_Rank_Set`(改訂14)/`TR_Rank_Set`
   - step16 電気パラメータ一致チェック（`Ele_Equal_Check`）
    - step14/15 グループセット（`Kairo_Group_Set`）/同一機器認識番号セット（`Kiki_Equal_Bangou_Set`）: C原典でコメントアウト（無効化）済のため意図的にスキップ
-   - step17 主回路ファイルエリア数量分解: `Fyss12_Make_Main_Sub`/`Main_File_Area_Make`（`Find_Iteration`/`Find_Nobangou`/`Find_Group` → `MainCircuitSegment`）。FYRT800 レコード整形（`mainfile_set`）は決定的スライス＋回路要素区分（`kiryoso`=`Find_Kairo_Kubun`）を移植
+   - step17 主回路ファイルエリア数量分解: `Fyss12_Make_Main_Sub`/`Main_File_Area_Make`（`Find_Iteration`/`Find_Nobangou`/`Find_Group` → `MainCircuitSegment`）。FYRT800 レコード整形（`mainfile_set`）は決定的スライス＋回路要素区分（`kiryoso`=`Find_Kairo_Kubun`）を移植。3 分解方式すべてレコード生成を移植: `Main_File_Make_s`(`MainFileMakeSimple`)/`Main_File_Make_d`(`MainFileMakeIteration`)/`Main_File_Make_n`(`MainFileMakeCircuitNumber`)。回路番号文（`Main_File_Make_n`）は DNO トークン展開＋`include`(`Include`)/`Find_Next_Nobangou`(`FindNextCircuitNumber`)による次段機器探索と同一回路番号(N_No)群への負荷電圧(DLV)伝播を移植
    - step17後 入力順固定項目チェック（`Fyss1m_Input_Check`/`Fyss1m_Input_Check_CT_AM`）: 計器回路でない AM の直後が計器回路でない CT のとき FY-645E
 
 ### 未移植・TODO（次にやること）
 
 - **step6 の本体（残り）**: CT/VT/WH/ZCT 計器回路の主回路展開は移植済み（`ConsolidateCurrentTransformerCircuit`/`ConsolidateVoltageTransformerCircuit`/`ConsolidateSingleInstrumentCircuit`：同一 G_No の計器区分（K_Kubun=K）群を走査し、計器回路（`Kikitable_Keiki_Make`）／主回路（`Kikitable_Main_Make`）を末尾追加 → step7 で整列。VT は exist_CT/exist_WH の二経路を忠実移植）。**未移植（保留）**：
   - **SEP 追加**（`Kikitable_SEP_Make`, 系統ブレーク時）: `PropChkSEPBox`/`PropChkHbnHB300`（改訂<12> の bukken FYDF801 プロパティ照会）とグループ別 souden 差分判定に依存。データで検証できるようになってから着手（推測移植は忠実性を損なうため保留）。
-- **主回路生成の step14/15**: `Kairo_Group_Set`/`Kiki_Equal_Bangou_Set` はいずれも C原典でコメントアウト（無効化）済のため意図的にスキップ（コメントで明示）。step17後の `Fyss1m_Input_Check`（CT/AM 入力順）は移植済み（回路要素区分 `kiryoso`=`Find_Kairo_Kubun` を `MainAreaSet` で設定して判定）。`PropSetInvbpKbn`（改訂<16>/<18> INVBP 区分）は kairsfx/tokkbn と INVBP 追加機器が上流 Fyss13-15 未移植依存のため保留。step17 FYRT800 レコード整形は **決定的スライスを移植済み**：`MainAreaSet` の決定的フィールド（datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn/P 系統座標/**kairsfx**（`Max_Bunno_Find`/`Max_Kbangou_Find`）/**gyono**（`Find_Bangou`=行種名後方数値）/**ep[0]**（`eparm_set` 統合＝`EquipmentParameterFormatter.EparmSet` 呼出）/**epabn**（盤名称状態 epabn/bepabn を `CircuitParseResult` で伝搬）/**epaqty**（F/VT/CT の Kosu→QTY））を Simple/Iteration セグメント経路で `CircuitParseResult.MainCircuits` に生成。**未移植（TODO）**：datatype（KIKITABLE.DTYPE 未モデル化）、`Make_n` 結線 — いずれも上流 Fyss13-15（機器選定・型式展開）未移植のため保留。fp（付属パラメータ fparmg）は移植済み（`FparmSet`／`FparmgCodec`。fpacm2/fpacglno/fpasglno/spkvn上書き/fpaup/tikbn は上流依存で保留）。
+- **主回路生成の step14/15**: `Kairo_Group_Set`/`Kiki_Equal_Bangou_Set` はいずれも C原典でコメントアウト（無効化）済のため意図的にスキップ（コメントで明示）。step17後の `Fyss1m_Input_Check`（CT/AM 入力順）は移植済み（回路要素区分 `kiryoso`=`Find_Kairo_Kubun` を `MainAreaSet` で設定して判定）。`PropSetInvbpKbn`（改訂<16>/<18> INVBP 区分）は kairsfx/tokkbn と INVBP 追加機器が上流 Fyss13-15 未移植依存のため保留。step17 FYRT800 レコード整形は **決定的スライスを移植済み**：`MainAreaSet` の決定的フィールド（datano/kno/ksyubetu/yoyaku/ysno/yssfx/gyocd/kiryoso/skno/narakbn/doukkno/jagekbn/P 系統座標/**kairsfx**（`Max_Bunno_Find`/`Max_Kbangou_Find`）/**gyono**（`Find_Bangou`=行種名後方数値）/**ep[0]**（`eparm_set` 統合＝`EquipmentParameterFormatter.EparmSet` 呼出）/**epabn**（盤名称状態 epabn/bepabn を `CircuitParseResult` で伝搬）/**epaqty**（F/VT/CT の Kosu→QTY））を Simple/Iteration セグメント経路で `CircuitParseResult.MainCircuits` に生成。**未移植（TODO）**：datatype（KIKITABLE.DTYPE 未モデル化）は上流 Fyss13-15（機器選定・型式展開）未移植のため保留。`Main_File_Make_n`（回路番号文）は移植済み（`MainFileMakeCircuitNumber`＋`Include`/`FindNextCircuitNumber`。DLV 伝播含む）。fp（付属パラメータ fparmg）は移植済み（`FparmSet`／`FparmgCodec`。fpacm2/fpacglno/fpasglno/spkvn上書き/fpaup/tikbn は上流依存で保留）。
 - **上流パラメータ生成（Fyss13-15 機器選定・型式展開）**: 着手。`Fyss14.c`（電圧値の継承）の決定的スライス `Volt_Conv`/`Max_Volt`/`Right_Volt`/`Left_Volt` を `VoltageInheritance`（電圧3要素配列の変換・整列）に移植（純粋関数・単体テスト済）。`Fyss13.c` の `Fyss13_Make_Control`（制御回路エリア生成）は FYRT802/FYRT820（制御仕様・制御回路設計エリア）依存の新規サブシステムのため本格移植は保留。ep/fp 電気パラメータ本体（`Kairo_Parm_Set`/`mcprmcnv`/`Parm_Set_*`）は MCPRMS・ISAM マスタ読込依存で継続保留。
 - **電気パラメータエンジン**（key_check の値検証）: **全 key_check 型を移植完了**。データ駆動 `KeyCheckRules`（MCB/MC/MG/THR/… 変流器/リレー/スイッチ/ブザー/フィーダ/インバータ/ユニット化スイッチ等の全型）＋ TR 専用パーサ（`TrCheckMain`）＋ NT(奇数丸め)/WH(n_kigo 副記号)専用ハンドラ。予約語別名は共有ルール配列(GxRules/XlRules/XeryRules/SlxRules/FltxRules/UnitSwitchRules)。STM/SIR/C/R/D/NICA/RE/VVVF/TVX は C 原典 return 0 のため構造検証のみ。
 - **型式展開（eparm_set 電気パラメータ整形）**: 着手（Wave1）。`eparm_set`（`Fyss1f.c:2208`）を `EquipmentParameterFormatter.EparmSet`（`RatingValues`→`ElectricalParameters`、key_check の逆写像）に移植。整形ヘルパ `set_9`/`chk_9`/`Stof` を C の atof×multiple＋sprintf 書式（`%09.3f` 等）で固定長化。Wave1 は遮断器系 MCB/ELB/MMCB/ELMB/SB を収録（極数/エレメント(e==0→9)/AF/AT(MCB・ELB は Stof==0 かつ非空で `99999.999`)/感度電流 MA/負荷容量 kW×1000/AC・DC 区分/定格電圧2）。`struct eparmg`→`ElectricalParameters`（全フィールドを Main_Area_Clear 相当の 0 埋めで初期化）。残り予約語（PS/P/UP・MC/計器系 VM/AM/VT/CT・TR 多スロット・ZCT/LGR/… 等）と `MainAreaSet` の ep/fp 統合は後続 Wave。

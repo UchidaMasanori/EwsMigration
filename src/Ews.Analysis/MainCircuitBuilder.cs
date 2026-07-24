@@ -1490,6 +1490,11 @@ public sealed class MainCircuitBuilder
                         CircuitNumberText = dno,
                         GroupCircuitNumberText = gno,
                     });
+
+                    // 【C原典】S_Keitou/S_Gyosyu を引き、Main_File_Make_n で
+                    //   回路番号文展開分の主回路設計エリア(FYRT800)を生成する。
+                    MainFileMakeCircuitNumber(parse, equipment, i, nbKensu, nbStartNo, nbMaxNo, nbMaxRank, dno, gno, ref mainCount);
+
                     i += nbKensu - 1;
                 }
                 else if (FindGroup(equipment, i, count,
@@ -1615,6 +1620,201 @@ public sealed class MainCircuitBuilder
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// 回路番号文ありグループの主回路ファイルメイク。【C原典】Main_File_Make_n(Fyss1f.c:1116)。
+    ///
+    /// 機器グループ(equipment[start..start+kensu-1])を対象に、まず機器No(D_No)が回路番号文
+    /// 基点(<paramref name="dNo"/>)未満の機器を <see cref="MainFilePreSet"/> で出力する(Phase1)。
+    /// 続いて回路番号文(<paramref name="dno"/>)をカンマ区切りしたトークンごとに(Phase2):
+    ///   1) 基点機器の主回路レコードを <see cref="MainAreaSet"/> で 1 件生成し、
+    ///   2) そのトークンがグループ回路番号文(<paramref name="gno"/>)に含まれる場合、
+    ///      <see cref="FindNextCircuitNumber"/> で回路番号の次段機器を探し、負荷電圧(DLV)を
+    ///      同一回路番号(N_No)の機器群へ伝播しつつ、グループ数量(GKosu)に応じて出力する。
+    /// 先頭機器判定(TOP)は文字列連番(B_No==1)で行う。指定番号サフィックス(safix)は
+    /// トークン順に 0,1,2,… と割り当てる(C原典の Kbangou/Suryo 引数)。
+    /// </summary>
+    /// <returns>TRUE=先頭機器で終了。【C原典】result。</returns>
+    private static bool MainFileMakeCircuitNumber(
+        CircuitParseResult parse,
+        List<EquipmentTableEntry> equipment, int start, short kensu, short dNo,
+        short maxNo, short maxRank, string dno, string gno,
+        ref int mainCount)
+    {
+        int count = equipment.Count;
+        EquipmentTableEntry basis = equipment[start];
+
+        // 【C原典】Kougo=' '; result=TRUE; TOP=(B_No==1); DLV[0][0]=DLV[1][0]=0。
+        char kougo = ' ';
+        bool result = true;
+        bool top = basis.StringSequence == 1;
+        string[] dlv = { string.Empty, string.Empty };
+
+        int kj = 0;
+
+        // 【C原典】Phase1: while( (S_Kiki+kj)->D_No < D_No && kj < kensu ) 基点未満の機器を出力。
+        while (kj < kensu && equipment[start + kj].EquipmentNumber < dNo)
+        {
+            EquipmentTableEntry w = equipment[start + kj];
+            SystemTableEntry? sKeitou = FindSystem(parse, w.SystemNumber);
+            LineTypeTableEntry? sGyosyu = FindLineType(parse, w.GroupNumber);
+            result = MainFilePreSet(parse, kougo, top, 0, 0, sKeitou, sGyosyu, w, start + kj, ref mainCount);
+            top = false;   // 【C原典】TOP = FALSE。
+            kj++;
+        }
+
+        // 【C原典】Phase2: safix=0; TOPN=TOP。回路番号文トークンごとに主回路を生成する。
+        short safix = 0;
+        bool topN = top;
+        // 【C原典】if( S_Kiki->D_No == D_No && kj < kensu )。基点機器の D_No が一致する場合のみ。
+        if (basis.EquipmentNumber == dNo && kj < kensu)
+        {
+            // 【C原典】Gstring = strtok(DNO, ",")。
+            foreach (string gstring in SplitCsv(dno))
+            {
+                if (kj >= kensu) break;                // 【C原典】while(Gstring!=NULL && kj<kensu)。
+                EquipmentTableEntry cur = equipment[start + kj];
+                SystemTableEntry? cKeitou = FindSystem(parse, cur.SystemNumber);
+                LineTypeTableEntry? cGyosyu = FindLineType(parse, cur.GroupNumber);
+
+                // 【C原典】mainfile_set(Kougo, TOPN, safix, 0, safix, Gstring, ...)。
+                result = MainAreaSet(parse, kougo, topN, safix, 0, safix, gstring,
+                    cKeitou, cGyosyu, cur, start + kj, ref mainCount);
+                top = false;   // 【C原典】TOP = FALSE(以降 Phase2 の pre_set は非先頭)。
+
+                // 【C原典】if( include(GNO, Gstring) ) 回路番号を持つトークンのみ次段機器を展開。
+                if (Include(gno, gstring))
+                {
+                    int rIdx = FindNextCircuitNumber(equipment, kj, kensu, start + kj, gstring);
+                    if (rIdx >= 0 && rIdx < count)
+                    {
+                        short rank = equipment[rIdx].CircuitNumberSequence; // 【C原典】rank = R_Kiki->N_No。
+                        // 【C原典】KougoN は 'K' 検出時のみ設定される(未検出時は既定 ' ')。
+                        char kougoN = ' ';
+
+                        // 【C原典】loop1: 同一 rank の機器から最初の非ゼロ DLV を局所 DLV へ複写。
+                        int nj = kj;
+                        int tIdx = rIdx;
+                        while (tIdx < count && equipment[tIdx].CircuitNumberSequence == rank && nj < kensu)
+                        {
+                            EquipmentTableEntry t = equipment[tIdx];
+                            if (AtoiYsno(t.LoadVoltage[0]) != 0 || AtoiYsno(t.LoadVoltage[1]) != 0)
+                            {
+                                dlv[0] = t.LoadVoltage[0];
+                                dlv[1] = t.LoadVoltage[1];
+                                break;
+                            }
+                            tIdx++;
+                            nj++;
+                        }
+
+                        // 【C原典】loop2: DLW[0]=='K' で交互運転検出、非ゼロ DLV を更新しつつ各機器へ伝播。
+                        nj = kj;
+                        tIdx = rIdx;
+                        while (tIdx < count && equipment[tIdx].CircuitNumberSequence == rank && nj < kensu)
+                        {
+                            EquipmentTableEntry t = equipment[tIdx];
+                            if (t.LoadCapacity.Length > 0 && t.LoadCapacity[0] == 'K') kougoN = 'K';
+                            if (AtoiYsno(t.LoadVoltage[0]) != 0 || AtoiYsno(t.LoadVoltage[1]) != 0)
+                            {
+                                dlv[0] = t.LoadVoltage[0];
+                                dlv[1] = t.LoadVoltage[1];
+                            }
+                            t.LoadVoltage[0] = dlv[0];
+                            t.LoadVoltage[1] = dlv[1];
+                            tIdx++;
+                            nj++;
+                        }
+
+                        // 【C原典】loop3: GKosu<=1 の機器を pre_set で出力(rank 不一致/範囲外で終了)。
+                        nj = kj;
+                        tIdx = rIdx;
+                        while (tIdx < count && equipment[tIdx].GroupQuantity <= 1)
+                        {
+                            if (equipment[tIdx].CircuitNumberSequence != rank || nj >= kensu) break;
+                            EquipmentTableEntry t = equipment[tIdx];
+                            SystemTableEntry? tKeitou = FindSystem(parse, t.SystemNumber);
+                            LineTypeTableEntry? tGyosyu = FindLineType(parse, t.GroupNumber);
+                            result = MainFilePreSet(parse, kougoN, false, safix, 0, tKeitou, tGyosyu, t, tIdx, ref mainCount);
+                            kougoN = ' ';   // 【C原典】KougoN = ' '。
+                            tIdx++;
+                            nj++;
+                        }
+
+                        // 【C原典】loop4: GKosu>1 の機器を繰り返し番号 j ごとに出力する。
+                        if (tIdx < count)
+                        {
+                            short gkosu = equipment[tIdx].GroupQuantity;
+                            for (short j = 0; j < gkosu; j++)
+                            {
+                                int wj = nj;
+                                int wIdx = tIdx;
+                                while (wIdx < count && equipment[wIdx].CircuitNumberSequence == rank && wj < kensu)
+                                {
+                                    EquipmentTableEntry w = equipment[wIdx];
+                                    SystemTableEntry? wKeitou = FindSystem(parse, w.SystemNumber);
+                                    LineTypeTableEntry? wGyosyu = FindLineType(parse, w.GroupNumber);
+                                    result = MainFilePreSet(parse, kougoN, false, safix, j, wKeitou, wGyosyu, w, wIdx, ref mainCount);
+                                    kougoN = ' ';   // 【C原典】KougoN = ' '。
+                                    wIdx++;
+                                    wj++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                safix++;   // 【C原典】safix++。
+            }
+        }
+
+        _ = maxNo;    // 【C原典】Max_No は Make_n 内では参照されない(呼出側整合のため受け取るのみ)。
+        _ = maxRank;  // 【C原典】Max_rank も同様。
+        return result;
+    }
+
+    /// <summary>
+    /// 行種グループ番号(GNO/DNO)に回路番号文トークンが含まれるか。【C原典】include(Fyss1f.c:1338)。
+    /// C原典は strstr による部分一致(strstr(Dstring, Gstring)!=NULL)。
+    /// </summary>
+    private static bool Include(string dstring, string gstring)
+        => !string.IsNullOrEmpty(gstring) && dstring.Contains(gstring, StringComparison.Ordinal);
+
+    /// <summary>
+    /// 回路番号の次段機器を検索する。【C原典】Find_Next_Nobangou(Fyss1f.c:794)。
+    /// 基点機器(equipment[<paramref name="baseIndex"/>])の GNO にトークンが含まれれば直後機器
+    /// (baseIndex+1)を返す。含まれなければ同一 G_No/B_No の後続機器を走査し、DNO にトークンを
+    /// 含む機器の直後を返す。該当なしは -1(C原典 NULL)。
+    /// </summary>
+    private static int FindNextCircuitNumber(
+        List<EquipmentTableEntry> equipment, int kj, short kensu, int baseIndex, string gstring)
+    {
+        int count = equipment.Count;
+        short gNo = equipment[baseIndex].GroupNumber;
+        short bNo = equipment[baseIndex].StringSequence;
+
+        // 【C原典】i=0: include(S_Kiki->GNO, Gstring) なら S_Kiki+1。
+        if (Include(equipment[baseIndex].GroupCircuitNumberText, gstring))
+        {
+            return baseIndex + 1;
+        }
+
+        // 【C原典】i=1 から同一 G_No/B_No の後続機器を走査。
+        int i = 1;
+        while (kj + i < kensu)
+        {
+            int idx = baseIndex + i;
+            if (idx >= count) break;
+            if (gNo != equipment[idx].GroupNumber || bNo != equipment[idx].StringSequence) break;
+            if (Include(equipment[idx].CircuitNumberText, gstring))
+            {
+                return idx + 1;   // 【C原典】return(S_Kiki+i+1)。
+            }
+            i++;
+            if (kj + i >= kensu) break;
+        }
+        return -1;   // 【C原典】return(NULL)。
     }
 
     /// <summary>

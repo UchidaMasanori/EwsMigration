@@ -247,3 +247,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,mainfile_set(fp設定ブロック),EquipmentParameterFormatter.FparmSet,toku/sekkei/src/Fyss1f.c,機器テーブル→fp各フィールド整形(負荷容量kW×1000/負荷電圧/負荷名称/コメント/品名/SP区分/寸法*分割/括弧区分/制御電源/メーカー)
 クラス,fparmg固定長入出力,FparmgCodec,toku/include/common/fycommon.h,fparmg 157バイト固定長の直列化/復元(Shift-JIS。既定は Main_Area_Clear の '0'/' ' 混在)
 フィールド,fpalw1/fpalw2/fpalwkbn/fpalv/fpaln/fpacm1/fpacm2/fpacglno/fpaitpt/spkvn/fpah/fpaw/fpad/fpasglno/fpag/fpahu/fpas/fpak/fpamh/fpac/fpamk/fpaup/tikbn,AttachedParameters.LoadKind/LoadCapacity/LoadUnitKind/LoadVoltage/LoadName/Comment/LineTypeComment/CommentGroupNumber/ItemName/SpFutureMountKind/DimensionHeight/DimensionWidth/DimensionDepth/DimensionGroupNumber/ExternalMountKind/SealKind/SuppliedKind/PartitionKind/MeterSealKind/ControlPowerNumber/MakerCode/PowerVoltage/DoorMountKind,toku/include/common/fycommon.h,付属パラメータ struct fparmg の各フィールド
+関数,Main_File_Make_n,MainCircuitBuilder.MainFileMakeCircuitNumber,toku/sekkei/src/Fyss1f.c,回路番号文ありグループの主回路設計エリア(FYRT800)生成(DNOトークン展開+次段機器へのDLV伝播)
+関数,include,MainCircuitBuilder.Include,toku/sekkei/src/Fyss1f.c,行種グループNo/回路番号文に回路番号トークンが含まれるか(strstr部分一致)
+関数,Find_Next_Nobangou,MainCircuitBuilder.FindNextCircuitNumber,toku/sekkei/src/Fyss1f.c,回路番号の次段機器を検索(GNO/DNO包含判定で直後機器を返す)
