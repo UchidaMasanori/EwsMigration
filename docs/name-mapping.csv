@@ -262,3 +262,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,bmeisai,PanelDetailInformation,toku/include/common/fydf801m.h,FYDF801盤明細情報(union com.mei)。盤名称/数量/ボックス品番タイプ/寸法。Fyss12 SEP判定はboxsund(BoxDepth)@285を参照
 関数,PanelDetailInformation.FromFixedRecord,PanelDetailInformation.FromFixedRecord,toku/include/common/fydf801m.h,1200バイト固定長Shift-JISから盤明細情報をデコード(bannm@55/boxsund@285等の実オフセット、実データ検証済)
 関数,ParsePanelDetails,ProjectInformationLoader.ParsePanelDetails,toku/include/common/fydf801m.h,FYDF801.dataの盤明細レコード(明細番号非ブランク)を解析してPanelDetailInformation一覧を生成
+構造体,hbninf,PartNumberInfo,toku/include/cmpchg/cmplogtr.h,品番情報ファイル(hbntb)。案件別.clh(生バイナリ908バイト=sizeof)。inputhb@0/dekankbn@407/sshiykbn@410/boxtyp@842/crboxtmp@864のCHARフィールドをSEPで参照
+関数,FyCpHbHbnInfFileR,PartNumberInfoLoader.ReadFromFile,toku/compo/lib/clhbn_dir/clfilerw.c,案件別.clh(WORK/<依頼明細番号>.clh, 908バイト)を読みPartNumberInfoを返す。サイズ不一致はnull(C原典と同挙動)
