@@ -45,6 +45,36 @@ public sealed class CircuitStringCheckerTests
         Assert.True(result.IsValid);
     }
 
+    [Fact]
+    public void Check_ñæé¶ìIÇ»SEPçséÌÇÕSEPã@äÌÇê∂ê¨Ç∑ÇÈ()
+    {
+        // ÅyCå¥ìTÅzFyss11_Check_SEP: gyosyu="SEP" Ç©Ç¬âÒòHÇ™ãÛÇ»ÇÁ SEP ã@äÌ(ó\ñÒåÍ="SEP")Çí«â¡ÅB
+        var result = Run(new[]
+        {
+            Line("BN", "BUN", 1),
+            Line("P", "1P3W210/105V", 2),
+            Line("M", "MCB3P100A", 3),
+            Line("SEP", "", 4),
+        });
+
+        Assert.Contains(result.MainEquipment, e => e.ReservedWord == "SEP");
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_SEPçséÌÇ…âÒòHãLèqÇ™Ç†ÇÈÇ∆FY610EÉGÉâÅ[Ç≈ã@äÌÇê∂ê¨ÇµÇ»Ç¢()
+    {
+        // ÅyCå¥ìTÅzFyss11_Check_SEP: ï∂ì‡Ç…Ç≤Ç›Ç™Ç†ÇÍÇŒ return(610)ÅB
+        var result = Run(new[]
+        {
+            Line("P", "1P3W210/105V", 1),
+            Line("SEP", "GOMI", 2),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-610E");
+        Assert.DoesNotContain(result.MainEquipment, e => e.ReservedWord == "SEP");
+    }
+
     [Theory]
     [InlineData("P", '1')]  // kei_chk_tbl[0] Å® syu_tbl[0]
     [InlineData("SP", '2')] // kei_chk_tbl[1] Å® syu_tbl[1]

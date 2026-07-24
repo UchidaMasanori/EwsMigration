@@ -288,3 +288,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,SetParam_ep2_TS_AC,SecondaryParameterSetter.SetTsContactA,toku/sekkei/src/Fyss14.c,ep[2]a接点数(AC)を常に00(941130)
 関数,SetParam_ep2_TS_BC,SecondaryParameterSetter.SetTsContactB,toku/sekkei/src/Fyss14.c,ep[2]b接点数(BC)を常に00(941130)
 構造体,dt.kpa*(回路電気値),MainCircuitData(CircuitPhaseCount/CircuitWireType/CircuitFrequency/CircuitPoleCount/CircuitVoltage/CircuitVoltageKind/MeterPrimaryVoltage/MeterPrimaryVoltageKind),toku/include/common/fydf806.h,FYRT800 dt の回路電気値(kpaph/kpawr/kpahz/kpap/kpav[3][3]/kpavkbn/kpakv1/kpakv1kb)。上流パラメータ生成が設定しSetParam_ep2_*が参照する
+関数,Fyss11_Check_SEP,CircuitStringChecker.CheckSeparator,toku/sekkei/src/Fyss11.c,明示的なSEP行種(gyosyu="SEP")を機器化。回路が空(ENDのみ)でなければFY-610E/空ならkikitable_set+kikitable_add("1"/"SEP")でSEP機器を生成(入力=yoyakkbn既定)。系統ブレーク自動生成(Kikitable_SEP_Make)とは別経路

@@ -1508,7 +1508,27 @@ public sealed partial class CircuitStringChecker
     /// <summary>ƒZƒpƒŒ[ƒ^[•¶ƒ`ƒFƒbƒNByCŒ´“TzFyss11_Check_SEPB</summary>
     private void CheckSeparator(int lineNumber, string circuitText, CircuitParseResult result)
     {
-        // TODO: Fyss11_Check_SEP ‚ğˆÚA‚·‚éB
+        // yCŒ´“TzFyss11_Check_SEP(Fyss11.c:3635)B
+        // •¶“à‚É‚²‚İ‚ª‚ ‚é‚©ƒ`ƒFƒbƒN‚·‚éB‹ó(END ‚Ì‚İ)‚Å‚È‚¯‚ê‚Î FY-610EB
+        //   findsym = Find_CKairo(EOSCHAR, sym_END, control, &keta);
+        //   if(( findsym != sym_END ) || ( !NULLSTRING(control) )) return(610);
+        var scanner = new KairoScanner();
+        scanner.Start(circuitText); // yCŒ´“Tzkairostart(kairoar)
+        KairoSymbol sym = scanner.FindKairo(out string control);
+        if (sym != KairoSymbol.End || !IsNullString(control))
+        {
+            result.Errors.Add(new CircuitParseError("FY-610E", lineNumber, 0, "FYMEE80"));
+            return;
+        }
+
+        // ‹@Šíƒe[ƒuƒ‹‚ğì¬‚µ SEP ‹@Ší‚ğ’Ç‰Á‚·‚éByCŒ´“Tz
+        //   S_Kiki = kikitable_set(1,0,0,0, gyono,(SHORT)0,"SEP", kairoar, ...);
+        //   kikitable_add("0", bans,  ...);  // ”Õ”Ô†(sprintf("%03d",ban))
+        //   kikitable_add("1", "SEP", ...);  // —\–ñŒê SEP(“ü—Í=yoyakkbn Šù’è ' ')
+        EquipmentTableEntry kiki =
+            KikitableSet(1, 0, lineNumber, 0, LineTypes.Separator, circuitText, result);
+        kiki.Attributes["0"] = ((short)result.CurrentBan).ToString("D3"); // yCŒ´“Tzkikitable_add("0", bans)
+        ApplyReservedWord(kiki, "SEP");                                   // yCŒ´“Tzkikitable_add("1", "SEP")
     }
 
     // ---- ƒwƒ‹ƒp ----

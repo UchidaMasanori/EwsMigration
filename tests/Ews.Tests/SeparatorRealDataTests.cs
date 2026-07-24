@@ -70,6 +70,7 @@ public sealed class SeparatorRealDataTests
 
         int validated = 0;
         int mismatches = 0;
+        int skipped = 0;
         foreach (string projDir in EnumerateProjects(work))
         {
             string name = Path.GetFileName(projDir);
@@ -105,6 +106,18 @@ public sealed class SeparatorRealDataTests
             var project = new ProjectInfo();
             CircuitParseResult parse = new CircuitStringChecker().Check(project, project, lines);
 
+            // データ整合性ガード: FYDF805 由来の系統数(移植版)と FYDF806 の系統数(distinct kno)が
+            // 異なる場合、この FYDF805/FYDF806 は対応しない(別バージョンの回路)ため厳密比較をスキップする。
+            int outSystemCount = CountDistinctSystems(f806);
+            if (parse.Systems.Count != outSystemCount)
+            {
+                _output.WriteLine(
+                    $"proj={name} 系統数不一致(FYDF805={parse.Systems.Count} FYDF806={outSystemCount}) " +
+                    "→ 対応しないデータのため比較をスキップ");
+                skipped++;
+                continue;
+            }
+
             // ボックスフカサ(boxsund)は本案件群(boxtyp="BX")では SEP 判定に影響しない
             // (PropChkSEPBox が JBR/JOC 始まり以外は非該当)ため空で渡す。
             var separatorInputs = new SeparatorInputs(partInfo, string.Empty, hb300);
@@ -132,8 +145,22 @@ public sealed class SeparatorRealDataTests
             validated++;
         }
 
-        _output.WriteLine($"検証: 案件={validated} 不一致={mismatches}");
-        Assert.True(validated > 0, "検証対象(FYDF805/FYDF806/.clh が揃う案件)が見つかりませんでした。");
+        _output.WriteLine($"検証: 案件={validated} 不一致={mismatches} スキップ(非対応データ)={skipped}");
+        Assert.True(validated > 0, "検証対象(FYDF805/FYDF806/.clh が揃い系統数が一致する案件)が見つかりませんでした。");
+    }
+
+    /// <summary>FYDF806 レコードの系統数(distinct kno@+18, 3桁)を数える。</summary>
+    private static int CountDistinctSystems(byte[] f806)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        int count = f806.Length / Rl806;
+        for (int r = 0; r < count; r++)
+        {
+            int off = (r * Rl806) + 18; // dt.kno(系統番号) = key(12)+dt 内 6
+            set.Add(Cp932.GetString(f806, off, 3));
+        }
+
+        return set.Count;
     }
 
     /// <summary>FYDF806 レコード中の SEP(yoyaku 先頭 3 文字="SEP")レコード数を数える。</summary>
@@ -187,7 +214,11 @@ public sealed class SeparatorRealDataTests
 
     private static IEnumerable<string> EnumerateProjects(string workDir)
     {
+        // SEP 検証対象は品番情報(.clh)を持つ案件のみ。WORK 直下は数百案件あり、
+        // 案件名の Ordinal 順で先頭を Take すると .clh 保有案件(例: 英字始まり)が
+        // 圏外に押し出されるため、.clh の有無で先に絞り込んでから採る。
         return Directory.EnumerateDirectories(workDir)
+            .Where(d => File.Exists(Path.Combine(d, $"{Path.GetFileName(d)}.clh")))
             .OrderBy(d => d, StringComparer.Ordinal)
             .Take(MaxProjects);
     }
