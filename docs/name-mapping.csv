@@ -254,3 +254,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Element_Gen,CircuitElementResolver.ResolveElement,toku/sekkei/src/Fyss14.c,相・線式・極数からエレメント数を得る(静的テーブル完全一致照合。不一致は-1)
 関数,Pole_Gen,CircuitElementResolver.ResolvePole,toku/sekkei/src/Fyss14.c,相・線式から極数を得てpへ設定(静的テーブル完全一致照合。不一致は-1でp不変)
 関数,mcprmcnv,MainCircuitParameterConverter.ConvertParameter,toku/sekkei/src/Fyss14.c,親回路・入力パラメータから変換テーブルを照合し下流回路パラメータ(相/線式/極数/電圧v[3]/AC・DC区分)を決定(memcmp完全一致。DC補正あり。非該当は-1)
+関数,Kairo_Parm_Set,CircuitParameterResolver.SetCircuitParameter,toku/sekkei/src/Fyss14.c,親機器の回路情報と主回路データ(ep[0]相線式極/fp.fpalv負荷電圧)から自機器の下流回路パラメータを決定(NTは1P2W固定/mcprmcnv変換/Fは主回路・計器回路で近傍LA・VS・VM参照して相を上書き。ISAM非依存の決定的処理)
