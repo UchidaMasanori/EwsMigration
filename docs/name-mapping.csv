@@ -274,3 +274,17 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,系統ブレークSEP追加,SeparatorInsertion.TrySeparatorAtBoundary,toku/sekkei/src/Fyss12.c,系統ブレーク時に前系統(P系統かつsouden指定)と次のP系統のsouden差分でSEP生成を判定(前系統末尾機器から/直前SEP・追加ゲート考慮)
 構造体,SEP追加入力,SeparatorInputs,toku/sekkei/src/Fyss12.c,SEP判定の案件別入力(品番情報hbninf/ボックスフカサboxsund/幅300品番)。MakeMainへ任意で渡す(null時はSEP追加なし)
 関数,Yoyakugo_Add_Main(SEP配線),MainCircuitBuilder.AddDerivedEquipment,toku/sekkei/src/Fyss12.c,step6でSEP追加を配線(separatorInputs指定時、系統ブレークでprevKind/prevPhaseVoltage差分からSEP挿入)
+関数,SetParam_ep2_MCB_P,SecondaryParameterSetter.SetMcbPole,toku/sekkei/src/Fyss14.c,ep[2]極数(P)3桁目を回路極数から設定(kpapが'1'なら'2'/他はkpap)。上流パラメータ生成のシステム側生成値
+関数,SetParam_ep2_MCB_E,SecondaryParameterSetter.SetMcbElement,toku/sekkei/src/Fyss14.c,ep[2]エレメント数(E)を回路相数/線式/極数から決定。ep[0].ATが99999.999なら'0'。epaeの空文字は'0'補正
+関数,SetParam_ep2_MCB_V2,SecondaryParameterSetter.SetMcbVoltage2,toku/sekkei/src/Fyss14.c,回路電圧3スロット最大値をep[2]電圧2[0]の4桁目以降3桁へ格納/残り2スロットは000000.0/AC-DC区分は回路電圧区分
+関数,SetParam_ep2_MC_P,SecondaryParameterSetter.SetMcPole,toku/sekkei/src/Fyss14.c,回路電圧[0]の105境界でep[2]極数3桁目を決定(105超は'2'/105以下は'1')
+関数,SetParam_ep2_MC_V2,SecondaryParameterSetter.SetMcVoltage2,toku/sekkei/src/Fyss14.c,SetParam_ep2_MCB_V2へ転送
+関数,SetParam_ep2_MG_E,SecondaryParameterSetter.SetMgElement,toku/sekkei/src/Fyss14.c,ep[2]エレメント数を常に'2'
+関数,SetParam_ep2_MG_V2,SecondaryParameterSetter.SetMgVoltage2,toku/sekkei/src/Fyss14.c,SetParam_ep2_MCB_V2へ転送
+関数,SetParam_ep2_MG_AC,SecondaryParameterSetter.SetMgContactA,toku/sekkei/src/Fyss14.c,ep[2]a接点数(AC)を常に00
+関数,SetParam_ep2_MG_BC,SecondaryParameterSetter.SetMgContactB,toku/sekkei/src/Fyss14.c,ep[2]b接点数(BC)を常に00
+関数,SetParam_ep2_TS_V2,SecondaryParameterSetter.SetTsVoltage2,toku/sekkei/src/Fyss14.c,SetParam_ep2_MCB_V2へ転送(941130)
+関数,SetParam_ep2_TS_VC,SecondaryParameterSetter.SetTsControlVoltage,toku/sekkei/src/Fyss14.c,回路電圧3スロット最大値をep[2]制御電圧(VC)へ/AC-DC区分は回路電圧区分(941130)
+関数,SetParam_ep2_TS_AC,SecondaryParameterSetter.SetTsContactA,toku/sekkei/src/Fyss14.c,ep[2]a接点数(AC)を常に00(941130)
+関数,SetParam_ep2_TS_BC,SecondaryParameterSetter.SetTsContactB,toku/sekkei/src/Fyss14.c,ep[2]b接点数(BC)を常に00(941130)
+構造体,dt.kpa*(回路電気値),MainCircuitData(CircuitPhaseCount/CircuitWireType/CircuitFrequency/CircuitPoleCount/CircuitVoltage/CircuitVoltageKind/MeterPrimaryVoltage/MeterPrimaryVoltageKind),toku/include/common/fydf806.h,FYRT800 dt の回路電気値(kpaph/kpawr/kpahz/kpap/kpav[3][3]/kpavkbn/kpakv1/kpakv1kb)。上流パラメータ生成が設定しSetParam_ep2_*が参照する

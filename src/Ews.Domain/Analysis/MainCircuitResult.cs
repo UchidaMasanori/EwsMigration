@@ -124,6 +124,36 @@ public sealed class MainCircuitData
     /// <summary>生成回路番号サフィックス。【C原典】kairsfx[5]("C")。</summary>
     public string CircuitNumberSuffix { get; set; } = string.Empty;
 
+    // ---------------------------------------------------------------------
+    // 回路電気値(回路パラメータから決定される電気値)。【C原典】dt.kpa*(fydf806.h)。
+    // 上流パラメータ生成(Fyss14 Make_UpperParm / Kairo_Parm_Set)が設定し、
+    // SetParam_ep2_*(ep[2] 生成)が参照する。
+    // ---------------------------------------------------------------------
+
+    /// <summary>回路相数。【C原典】kpaph(1,"9")。'0':DC '1':単相 '3':三相。</summary>
+    public char CircuitPhaseCount { get; set; } = '0';
+
+    /// <summary>回路線式。【C原典】kpawr(1,"9")。'0':DC '2':2線 '3':3線 '4':4線。</summary>
+    public char CircuitWireType { get; set; } = '0';
+
+    /// <summary>回路周波数。【C原典】kpahz[2]("9")。</summary>
+    public string CircuitFrequency { get; set; } = "00";
+
+    /// <summary>回路極数。【C原典】kpap(1,"9")。</summary>
+    public char CircuitPoleCount { get; set; } = '0';
+
+    /// <summary>回路電圧(3 スロット×3 桁)。【C原典】kpav[3][3]("9")。</summary>
+    public string[] CircuitVoltage { get; set; } = ["000", "000", "000"];
+
+    /// <summary>回路電圧 AC/DC 区分。【C原典】kpavkbn(1,"C")。</summary>
+    public char CircuitVoltageKind { get; set; } = ' ';
+
+    /// <summary>計器１次電圧。【C原典】kpakv1[3]("9")。</summary>
+    public string MeterPrimaryVoltage { get; set; } = "000";
+
+    /// <summary>計器１次電圧 AC/DC 区分。【C原典】kpakv1kb(1,"C")。</summary>
+    public char MeterPrimaryVoltageKind { get; set; } = ' ';
+
     /// <summary>
     /// 電気パラメータ(3 スロット)。【C原典】struct eparmg ep[3](fydf806.h)。
     /// ep[0]=入力値(mainfile_set が eparm_set で設定)、ep[1]=入力値からの生成値、
