@@ -40,21 +40,21 @@ public static class NumericConverter
     }
 
     /// <summary>
-    /// 10 の <paramref name="keta"/> 乗を返す(桁合わせ係数)。
+    /// 10 の <paramref name="exponent"/> 乗を返す(桁合わせ係数)。
     /// 【C原典】Ketaawase(Fysk09.c:41)。<c>a=1; for(k=0;k&lt;abs(keta);k++) a*=10; if(keta&lt;0) a=1/a;</c>。
     /// 負値は 10 の負乗(1/10^|keta|)。
     /// </summary>
-    /// <param name="keta">桁数(負値可)。</param>
-    public static double Ketaawase(short keta)
+    /// <param name="exponent">桁数(負値可)。【C原典】keta。</param>
+    public static double PowerOfTen(short exponent)
     {
         double a = 1.0;
-        int n = Math.Abs((int)keta);
+        int n = Math.Abs((int)exponent);
         for (int k = 0; k < n; k++)
         {
             a *= 10.0;
         }
 
-        if (keta < 0)
+        if (exponent < 0)
         {
             a = 1.0 / a;
         }
@@ -67,11 +67,11 @@ public static class NumericConverter
     /// 【C原典】Kiriage(Fysk09.c:27)。<c>i=(INT)f; if(f-(DOUBLE)i&gt;0.0) i=i+1;</c>。
     /// 整数部(ゼロ方向切り捨て)に対し、小数部が正なら +1 する(数学的な天井関数と一致)。
     /// </summary>
-    /// <param name="f">対象値。</param>
-    public static double Kiriage(double f)
+    /// <param name="value">対象値。【C原典】f。</param>
+    public static double Ceiling(double value)
     {
-        double i = Math.Truncate(f);
-        if (f - i > 0.0)
+        double i = Math.Truncate(value);
+        if (value - i > 0.0)
         {
             i += 1;
         }
@@ -82,29 +82,29 @@ public static class NumericConverter
     /// <summary>
     /// 切り捨て(ゼロ方向)。【C原典】Kirisute(Fysk09.c:34)。<c>return (INT)f;</c>。
     /// </summary>
-    /// <param name="f">対象値。</param>
-    public static double Kirisute(double f) => Math.Truncate(f);
+    /// <param name="value">対象値。【C原典】f。</param>
+    public static double Truncate(double value) => Math.Truncate(value);
 
     /// <summary>
     /// 数値文字列の小数点以下の余分な末尾ゼロ(と、それにより不要となる小数点)を除去する。
     /// 【C原典】Chousei(Fysk09.c:52)。例 "12.300"→"12.3" / "12.000"→"12" / "12.0"→"12"。
     /// C は '.' を含む前提(strchr の戻りを無条件参照)のため、'.' が無い場合は原文をそのまま返す。
     /// </summary>
-    /// <param name="str">数値文字列。</param>
-    public static string Chousei(string str)
+    /// <param name="text">数値文字列。【C原典】str。</param>
+    public static string TrimTrailingZeros(string text)
     {
-        ArgumentNullException.ThrowIfNull(str);
+        ArgumentNullException.ThrowIfNull(text);
 
-        if (!str.Contains('.', StringComparison.Ordinal))
+        if (!text.Contains('.', StringComparison.Ordinal))
         {
-            return str;
+            return text;
         }
 
-        int size = str.Length;
+        int size = text.Length;
         int cut = size;
         for (int i = 0; i < size; i++)
         {
-            char c = str[size - 1 - i];
+            char c = text[size - 1 - i];
             if (c == '0')
             {
                 cut = size - 1 - i;
@@ -120,6 +120,6 @@ public static class NumericConverter
             }
         }
 
-        return str[..cut];
+        return text[..cut];
     }
 }

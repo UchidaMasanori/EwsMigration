@@ -43,7 +43,7 @@ public static class EquipmentSelector
     /// 【C原典】Fysk01_Data_Cmp(Fysk01.c:2668)。
     /// 今回候補(dat1)を前回候補(dat2)と比較し、今回で入れ替えるべきなら 1 を返す。
     /// MG(PC_3)は代表値 dat1v/dat2v の小さい方を優先し、同値かつ幅一致なら定格値キーの辞書順、
-    /// さらに同じなら <see cref="ChokiCmp1"/> の均等度で決める。THR(PC_1)は代表値比較を行わず、
+    /// さらに同じなら <see cref="CompareByRangeCentering"/> の均等度で決める。THR(PC_1)は代表値比較を行わず、
     /// 幅一致時にキー辞書順→均等度で決める。それ以外の処理番号は常に 0(入れ替えない)。
     /// </summary>
     /// <param name="no">処理番号(【C原典】no)。<see cref="Pc1Thr"/> または <see cref="Pc3Mg"/>。</param>
@@ -55,7 +55,7 @@ public static class EquipmentSelector
     /// <param name="dat2v">前回候補の代表値(【C原典】dat2v)。</param>
     /// <param name="dat2Kteichi">前回候補の定格値キー(【C原典】dat2.key.kteichi[50])。</param>
     /// <returns>1:今回候補で入れ替える / 0:入れ替えない。</returns>
-    public static short DataCmp(
+    public static short CompareCandidate(
         short no,
         double schi,
         double[] dat1a,
@@ -87,7 +87,7 @@ public static class EquipmentSelector
                     {
                         k = 1;
                     }
-                    else if (ChokiCmp1(schi, dat1a, dat2a) == 1)
+                    else if (CompareByRangeCentering(schi, dat1a, dat2a) == 1)
                     {
                         k = 1;
                     }
@@ -103,7 +103,7 @@ public static class EquipmentSelector
                 {
                     k = 1;
                 }
-                else if (ChokiCmp1(schi, dat1a, dat2a) == 1)
+                else if (CompareByRangeCentering(schi, dat1a, dat2a) == 1)
                 {
                     k = 1;
                 }
@@ -123,7 +123,7 @@ public static class EquipmentSelector
     /// <param name="dt1">今回比較データ幅値[下端, 上端](【C原典】dt1[2])。</param>
     /// <param name="dt2">前回比較データ幅値[下端, 上端](【C原典】dt2[2])。</param>
     /// <returns>1:データ入れ替えをする / 0:入れ替えない(GOOD) / -1:システムエラー(SYS_ERR)。</returns>
-    public static short ChokiCmp1(double sentchi, double[] dt1, double[] dt2)
+    public static short CompareByRangeCentering(double sentchi, double[] dt1, double[] dt2)
     {
         ArgumentNullException.ThrowIfNull(dt1);
         ArgumentNullException.ThrowIfNull(dt2);
@@ -168,7 +168,7 @@ public static class EquipmentSelector
     /// <param name="dt1">今回比較データ幅値[下端, 上端](【C原典】dt1)。</param>
     /// <param name="dt2">前回比較データ幅値[下端, 上端](【C原典】dt2)。</param>
     /// <returns>1:データ入れ替えをする / 0:入れ替えない(GOOD) / -1:システムエラー(SYS_ERR)。</returns>
-    public static short ChokiCmp2(double sentchi, double[] dt1, double[] dt2)
+    public static short CompareByMidpointDistance(double sentchi, double[] dt1, double[] dt2)
     {
         ArgumentNullException.ThrowIfNull(dt1);
         ArgumentNullException.ThrowIfNull(dt2);

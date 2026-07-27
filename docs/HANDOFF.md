@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-24
+最終更新: 2026-07-27
 
 ---
 
@@ -123,9 +123,18 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-24 時点）
+## 5. 移植の進捗（2026-07-27 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 499 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 618 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-27 セッション追加分（サマリ）
+
+上流パラメータ生成の 2 次側電気値（`SetParam_ep2`）と機器選定（Fysk01/Fysk09）の決定的スライスを増分移植。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **SetParam_ep2 ディスパッチャ拡充（`SecondaryParameterSetter`）**: `Fyss14.c` の予約語別 ep[2] 生成を段階拡充。VS/AS/LA/CON → HPSB/HSB（MCB_P+MCB_V2、golden 検証対象）→ TS（V2/VC/AC/BC/CC、`SetTsContactC` リーフ移植）→ 自己完結ケース一括（L/MCFR/MCSD/MCFRSD/MGFR/MGSD/MGFRSD/DCSIR/DCNI/TSU 系）。**ブレーカ系（SB/HPSB/HSB/MCB/CKS/CSDT/SSW/TSW）は V2 安定 → golden 検証可。選定デバイス系（MC/VM/TS/MGFR/DC 系）は V2 が下流の機器選定で上書きされるため golden 非追加・単体テストのみ**。未収録 case（記録列/物件/計算依存）: NHMB（書式付きゼロ sentinel との memcmp 依存で保留）・WL/GL/RL/OL/BL（物件施策区分）・PLTR・WH/VT/TR/TB/LGR/ELR・DCPW。
+- **機器選定 候補比較（新クラス `EquipmentSelector`）**: `Fysk01.c` の直近上下位検索から、マスタ・記録列非依存の純粋数値比較を移植。`CompareByRangeCentering`（=`Fysk01_Choki_Cmp1`, THR/MG/XERY 用・基準値の幅内均等度で優劣）／`CompareByMidpointDistance`（=`Fysk01_Choki_Cmp2`, THSW/TM 用・幅中点との距離）／`CompareCandidate`（=`Fysk01_Data_Cmp`, THR/MG の候補選択）。返値 1(入替)/0(GOOD)/-1(SYS_ERR)。定数は `fyrt808.h`（GOOD/SYS_ERR/TOL/PC_1=THR/PC_3=MG）。`FYDF812` は定格値キー `kteichi`（50 バイト）のみ参照するため当該文字列を渡す自己完結シグネチャ（`string.CompareOrdinal` で `memcmp` 再現）。
+- **数値ヘルパ（`NumericConverter` へ集約）**: `Fysk09.c` の純粋数値ヘルパを移植。`PowerOfTen`（=`Ketaawase`, 10^keta 桁合わせ係数）／`Ceiling`（=`Kiriage`, 切り上げ）／`Truncate`（=`Kirisute`, ゼロ方向切り捨て）／`TrimTrailingZeros`（=`Chousei`, 小数末尾ゼロ除去）。`Make_Teikakuchi`（定格値キー生成）の前提として先行整備。
+- **命名規約の是正**: 上記の機器選定・数値ヘルパは当初 romaji（`Ketaawase`/`ChokiCmp1` 等）で命名していたが、本プロジェクトの「現代英語命名」方針に合わせ上記の英語名へ改名（元 C 名は `【C原典】` コメントと name-mapping.csv に保持）。以後の移植も現代英語命名を徹底する。
 
 ### 2026-07-24 セッション追加分（サマリ）
 

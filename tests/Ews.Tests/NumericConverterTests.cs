@@ -33,9 +33,9 @@ public sealed class NumericConverterTests
     [InlineData((short)3, 1000.0)]
     [InlineData((short)-1, 0.1)]
     [InlineData((short)-2, 0.01)]
-    public void Ketaawase_10の指定桁乗を返す(short keta, double expected)
+    public void PowerOfTen_10の指定桁乗を返す(short keta, double expected)
     {
-        Assert.Equal(expected, NumericConverter.Ketaawase(keta), 10);
+        Assert.Equal(expected, NumericConverter.PowerOfTen(keta), 10);
     }
 
     [Theory]
@@ -43,18 +43,18 @@ public sealed class NumericConverterTests
     [InlineData(2.1, 3.0)]     // 小数部が正 → +1
     [InlineData(2.9, 3.0)]
     [InlineData(-2.5, -2.0)]   // ゼロ方向切り捨て後、小数部は正でない → そのまま
-    public void Kiriage_切り上げする(double f, double expected)
+    public void Ceiling_切り上げする(double f, double expected)
     {
-        Assert.Equal(expected, NumericConverter.Kiriage(f));
+        Assert.Equal(expected, NumericConverter.Ceiling(f));
     }
 
     [Theory]
     [InlineData(2.9, 2.0)]
     [InlineData(2.1, 2.0)]
     [InlineData(-2.9, -2.0)]   // ゼロ方向切り捨て
-    public void Kirisute_切り捨てする(double f, double expected)
+    public void Truncate_切り捨てする(double f, double expected)
     {
-        Assert.Equal(expected, NumericConverter.Kirisute(f));
+        Assert.Equal(expected, NumericConverter.Truncate(f));
     }
 
     [Theory]
@@ -64,8 +64,8 @@ public sealed class NumericConverterTests
     [InlineData("12.34", "12.34")]
     [InlineData("120", "120")]      // '.' 無しは原文のまま
     [InlineData("1.0", "1")]
-    public void Chousei_末尾ゼロと不要な小数点を除去する(string input, string expected)
+    public void TrimTrailingZeros_末尾ゼロと不要な小数点を除去する(string input, string expected)
     {
-        Assert.Equal(expected, NumericConverter.Chousei(input));
+        Assert.Equal(expected, NumericConverter.TrimTrailingZeros(input));
     }
 }
