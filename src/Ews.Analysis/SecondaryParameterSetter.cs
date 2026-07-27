@@ -175,6 +175,136 @@ public static class SecondaryParameterSetter
     }
 
     /// <summary>
+    /// ep[2](システム側生成値)を予約語別に生成するディスパッチャ。
+    /// 【C原典】SetParam_ep2(Fyss14.c:2872)の予約語分岐のうち、単一レコードで完結し
+    /// 移植済みリーフのみで表せる自己完結ケースを収録する。
+    /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
+    ///
+    /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
+    ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
+    ///   ・記録列参照 MC(2次側検出)/WH/VM/VT/TR/TB/LGR/ELR。
+    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。datatype 依存 LA。未移植リーフ TS(CC)/DCPW/CON/NHMB(計算)。
+    /// </summary>
+    /// <param name="data">ep[0]/fp/回路電気値 kpa* が設定済みの主回路データ。ep[2] を破壊的に更新する。</param>
+    public static void SetParam_ep2(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】部分設定する部位の初期化: memcpy(ep[2].epap,"000",3); memcpy(ep[2].epav2[0],"000000.0",8)。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        switch (data.ReservedWord)
+        {
+            case "MCB":
+            case "ELB":
+            case "MMCB":
+            case "ELMB":
+            case "RMCB":
+            case "RELB":
+            case "RMMCB":
+            case "RELMB":
+                SetMcbPole(data);
+                SetMcbElement(data);
+                SetMcbVoltage2(data);
+                break;
+
+            case "SB":
+                // 【C原典】epap[2]='2'; epae=(kpap=='1'?'1':'2'); MCB_V2。
+                ep2.P = SetCharAt(ep2.P, 2, '2');
+                ep2.E = data.CircuitPoleCount == '1' ? "1" : "2";
+                SetMcbVoltage2(data);
+                break;
+
+            case "THR":
+                // 【C原典】epae='2'; MCB_V2。
+                ep2.E = "2";
+                SetMcbVoltage2(data);
+                break;
+
+            case "MG":
+                SetMcbPole(data);
+                SetMgElement(data);
+                SetMgVoltage2(data);
+                SetMgContactA(data);
+                SetMgContactB(data);
+                break;
+
+            case "SC":
+                // 【C原典】epaph2[0]=kpaph; epaph2[1]='0'; MCB_V2; epahz=kpahz。
+                ep2.Ph2[0] = data.CircuitPhaseCount.ToString();
+                ep2.Ph2[1] = "0";
+                SetMcbVoltage2(data);
+                ep2.Hz = data.CircuitFrequency;
+                break;
+
+            case "NT":
+                SetMcbVoltage2(data);
+                break;
+
+            case "RRY":
+                // 【C原典】epap[2]=kpap; MCB_V2。
+                ep2.P = SetCharAt(ep2.P, 2, data.CircuitPoleCount);
+                SetMcbVoltage2(data);
+                break;
+
+            case "MCDT":
+                SetMcbPole(data);
+                SetMcbVoltage2(data);
+                break;
+
+            case "F":
+                SetMcbVoltage2(data);
+                break;
+
+            case "CP":
+                // 【C原典】epap[2]='2'; MCB_V2。
+                ep2.P = SetCharAt(ep2.P, 2, '2');
+                SetMcbVoltage2(data);
+                break;
+
+            case "LGT":
+                SetMcbPole(data);
+                break;
+
+            case "HM":
+                SetMcbVoltage2(data);
+                ep2.Hz = data.CircuitFrequency;
+                break;
+
+            case "ZCT":
+                SetMcbVoltage2(data);
+                break;
+
+            case "CKS":
+                SetMcbPole(data);
+                SetMcbElement(data);
+                SetMcbVoltage2(data);
+                break;
+
+            case "CSDT":
+                SetMcbPole(data);
+                SetMcbVoltage2(data);
+                break;
+
+            case "SSW":
+            case "TSW":
+                SetMcbPole(data);
+                SetMcbVoltage2(data);
+                break;
+
+            case "FL":
+            case "LSW":
+            case "DSW":
+                SetMcbVoltage2(data);
+                break;
+
+                // その他予約語は上記 TODO(記録列/物件/未移植リーフ依存)のため未処理。
+        }
+    }
+
+    /// <summary>
     /// 回路電圧 3 スロットのうち最大値のインデックスを返す。
     /// 【C原典】n=((memcmp(kpav[0],kpav[1],3)&gt;0)?0:1); n=((memcmp(kpav[n],kpav[2],3)&gt;0)?n:2);。
     /// memcmp は固定 3 バイト比較のため、等長文字列の序数比較で忠実に再現する。

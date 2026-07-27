@@ -189,4 +189,116 @@ public sealed class SecondaryParameterSetterTests
             CircuitVoltageKind = src.CircuitVoltageKind,
         };
     }
+
+    // ---- SetParam_ep2 ディスパッチャ -----------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_MCBは極数_エレメント_電圧を設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "MCB";
+        data.CircuitPhaseCount = '1';
+        data.CircuitWireType = '2';
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["105", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("002", ep2.P);        // kpap='2' → 3桁目 '2'
+        Assert.Equal("2", ep2.E);          // 1P2W(p≠1) → 2
+        Assert.Equal("000105.0", ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V2[1]);
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_SBは極数2とエレメントを設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "SB";
+        data.CircuitPoleCount = '1';
+        data.CircuitVoltage = ["105", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("002", ep2.P); // epap[2]='2'
+        Assert.Equal("1", ep2.E);   // kpap=='1' → '1'
+        Assert.Equal("000105.0", ep2.V2[0]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_RRYは極数を回路極数そのままにしV2を設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "RRY";
+        data.CircuitPoleCount = '3';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("003", ep2.P); // epap[2]=kpap='3'
+        Assert.Equal("000210.0", ep2.V2[0]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_MGは極数_エレメント2_接点_電圧を設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "MG";
+        data.CircuitPhaseCount = '3';
+        data.CircuitWireType = '3';
+        data.CircuitPoleCount = '3';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("003", ep2.P);  // SetMcbPole: kpap='3' → '3'
+        Assert.Equal("2", ep2.E);    // MG_E 常に '2'
+        Assert.Equal("00", ep2.Ac);
+        Assert.Equal("00", ep2.Bc);
+        Assert.Equal("000210.0", ep2.V2[0]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "SC";
+        data.CircuitPhaseCount = '3';
+        data.CircuitFrequency = "60";
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("3", ep2.Ph2[0]);
+        Assert.Equal("0", ep2.Ph2[1]);
+        Assert.Equal("60", ep2.Hz);
+        Assert.Equal("000210.0", ep2.V2[0]);
+        Assert.Equal("000", ep2.P); // 未設定(初期化のまま)
+    }
+
+    [Fact]
+    public void SetParam_ep2_Fは電圧のみ設定し極数は初期化のまま()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "F";
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000210.0", ep2.V2[0]);
+        Assert.Equal("000", ep2.P); // 初期化のまま
+    }
 }

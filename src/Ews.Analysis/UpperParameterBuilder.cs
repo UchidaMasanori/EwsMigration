@@ -77,9 +77,15 @@ public static class UpperParameterBuilder
                     (short)frequency, parentParam, ownParam, records, i, records.Count - i);
                 SetCircuitInfo(data, ownParam, frequency);
 
-                // 【C原典】SetParam_ep2: 例外要素(RTR/WL 系)の回路電気値(kpa*)を再設定する。
-                //   ep[2](システム生成電気パラメータ)の生成は後続増分(TODO)。
+                // 【C原典】SetParam_ep2: 例外要素(RTR/WL 系)の回路電気値(kpa*)を再設定し、
+                //   続いて ep[2](システム側生成値)を予約語別に生成する。C では 1 関数だが本移行では
+                //   kpa* 再設定部(ApplyExceptionCircuitParameters)と ep[2] 生成部
+                //   (SecondaryParameterSetter.SetParam_ep2)に分割している。
+                //   ※ep[2].epap/epae は回路極数 kpap 依存だが、105V→極数1 の特例が本移行では
+                //     Kairo_Parm_Set 内で先に適用されるため、C が SetParam_ep2 後に適用する場合の
+                //     中間 kpap とは一致しないことがある(電圧 V2 は kpap 非依存で一致)。
                 ApplyExceptionCircuitParameters(records, i);
+                SecondaryParameterSetter.SetParam_ep2(data);
 
                 // 【C原典】SetParam_Kubun: 回路電気値から負荷種別(fp.fpalw1)を確定・検証する。
                 //   戻り値 2(不整合)の FY-898 エラー報告はエラー基盤の導入時に配線(TODO)。
@@ -87,7 +93,16 @@ public static class UpperParameterBuilder
             }
         }
 
-        // 【C原典】末尾の MC 共用ループ(SetParam_ep2)は後続増分(TODO)。
+        // 【C原典】末尾の MC 共用ループ: MC が共用する時に極数を設定するため SetParam_ep2 を再実行する。
+        //   MC の ep[2] 生成(2次側検出)は記録列依存でディスパッチャ未収録のため現状は実質 no-op(TODO)。
+        for (int i = 0; i < records.Count; i++)
+        {
+            MainCircuitData data = records[i].Data;
+            if (data.SystemKind == '1' && data.ReservedWord == "MC")
+            {
+                SecondaryParameterSetter.SetParam_ep2(data);
+            }
+        }
     }
 
     /// <summary>
