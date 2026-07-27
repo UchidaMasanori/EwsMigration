@@ -382,6 +382,99 @@ public sealed class SecondaryParameterSetterTests
     }
 
     [Fact]
+    public void SetParam_ep2_Lは相線式を設定しSP枠区分を1にする()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "L";
+        data.CircuitPhaseCount = '1';
+        data.CircuitWireType = '2';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("1", ep2.Ph2[0]);
+        Assert.Equal("0", ep2.Ph2[1]);
+        Assert.Equal("2", ep2.Wr2[0]);
+        Assert.Equal("0", ep2.Wr2[1]);
+        Assert.Equal('1', data.AttachedParameter.SpFutureMountKind); // リミッターは常にSP枠扱い
+    }
+
+    [Theory]
+    [InlineData("MCFR")]
+    public void SetParam_ep2_MCFRは電圧2と接点AC_BCを設定する(string yoyaku)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = yoyaku;
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000210.0", ep2.V2[0]); // MC_V2=MCB_V2
+        Assert.Equal("00", ep2.Ac);
+        Assert.Equal("00", ep2.Bc);
+        Assert.Equal("000", ep2.P);          // 極数は初期化のまま
+    }
+
+    [Theory]
+    [InlineData("MGFR")]
+    [InlineData("MGSD")]
+    [InlineData("MGFRSD")]
+    public void SetParam_ep2_MG派生はエレメントと電圧2を設定する(string yoyaku)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = yoyaku;
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("2", ep2.E);            // MG_E: 常に '2'
+        Assert.Equal("000210.0", ep2.V2[0]); // MG_V2=MCB_V2
+    }
+
+    [Theory]
+    [InlineData("DCSIR")]
+    [InlineData("DCNI")]
+    public void SetParam_ep2_DC系は電圧2を設定し区分を直流Dにする(string yoyaku)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = yoyaku;
+        data.CircuitVoltage = ["100", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000100.0", ep2.V2[0]);
+        Assert.Equal('D', ep2.V2Kbn);        // 直流区分に上書き
+    }
+
+    [Theory]
+    [InlineData("TSU")]
+    [InlineData("SSWU")]
+    [InlineData("PBSU")]
+    [InlineData("COSU")]
+    [InlineData("2COSU")]
+    [InlineData("OLU")]
+    public void SetParam_ep2_TSU系は電圧2と制御電圧を設定する(string yoyaku)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = yoyaku;
+        data.CircuitVoltage = ["100", "210", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000210.0", ep2.V2[0]); // TS_V2=MCB_V2
+        Assert.Equal("210", ep2.Vc);          // TS_VC
+        Assert.Equal('A', ep2.VcKbn);
+    }
+
+    [Fact]
     public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
     {
         MainCircuitData data = NewData();

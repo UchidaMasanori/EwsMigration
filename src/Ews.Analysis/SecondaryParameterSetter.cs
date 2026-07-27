@@ -267,7 +267,8 @@ public static class SecondaryParameterSetter
     /// ˆÚAÏ‚İƒŠ[ƒt‚Ì‚İ‚Å•\‚¹‚é©ŒÈŠ®Œ‹ƒP[ƒX‚ğû˜^‚·‚éB
     /// –`“ª‚Å•”•ªİ’è•”ˆÊ(ep[2].epap/epav2[0])‚ğ‰Šú‰»‚µ‚Ä‚©‚ç•ªŠò‚·‚éB
     /// û˜^: MCB/ELB/MMCB/ELMB/RMCBŒn/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/HPSB/HSB/CKS/
-    ///       CSDT/SSW/TSW/TS/FL/LSW/DSW/VS/AS/VM/LA/CONB
+    ///       CSDT/SSW/TSW/TS/FL/LSW/DSW/VS/AS/VM/LA/L/MCFR/MCSD/MCFRSD/MGFR/MGSD/MGFRSD/
+    ///       DCSIR/DCNI/TSU/SSWU/PBSU/COSU/2COSU/OLU/CONB
     ///
     /// –¢û˜^(Œã‘±‘•ªE‹L˜^—ñ/•¨Œ/–¢ˆÚAƒŠ[ƒtˆË‘¶):
     ///   E‰ñ˜H“d‹C’l kpa* ‚àÄİ’è‚·‚é RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)B
@@ -457,6 +458,61 @@ public static class SecondaryParameterSetter
                 }
 
                 SetMcbVoltage2(data);
+                break;
+
+            case "L":
+                // yCŒ´“Tzcase y_L: epaph2/epawr2 ‚ğ‘Šü®‚©‚çİ’è‚µAƒŠƒ~ƒbƒ^[‚Íí‚É SP ˜gˆµ‚¢(spkvn='1')B
+                ep2.Ph2[0] = data.CircuitPhaseCount.ToString();
+                ep2.Ph2[1] = "0";
+                ep2.Wr2[0] = data.CircuitWireType.ToString();
+                ep2.Wr2[1] = "0";
+                data.AttachedParameter.SpFutureMountKind = '1';
+                break;
+
+            case "MCFR":
+                // yCŒ´“Tzcase y_MCFR: SetParam_ep2_MC_V2/AC/BCBMC ‚Æ“¯‚¶(‹É”‚È‚µ)B
+                SetMcVoltage2(data);
+                SetMcContactA(data);
+                SetMcContactB(data);
+                break;
+
+            case "MCSD":
+            case "MCFRSD":
+                // yCŒ´“Tzcase y_MCSD / y_MCFRSD: SetParam_ep2_MC_V2 ‚Ì‚İB
+                SetMcVoltage2(data);
+                break;
+
+            case "MGFR":
+                // yCŒ´“Tzcase y_MGFR: SetParam_ep2_MG_E/V2/AC/BCB
+                SetMgElement(data);
+                SetMgVoltage2(data);
+                SetMgContactA(data);
+                SetMgContactB(data);
+                break;
+
+            case "MGSD":
+            case "MGFRSD":
+                // yCŒ´“Tzcase y_MGSD / y_MGFRSD: SetParam_ep2_MG_E/V2B
+                SetMgElement(data);
+                SetMgVoltage2(data);
+                break;
+
+            case "DCSIR":
+            case "DCNI":
+                // yCŒ´“Tzcase y_DCSIR / y_DCNI: SetParam_ep2_MCB_V2 ŒãA“dˆ³2‹æ•ª‚ğ’¼—¬ 'D' ‚Éã‘‚«B
+                SetMcbVoltage2(data);
+                ep2.V2Kbn = 'D';
+                break;
+
+            case "TSU":
+            case "SSWU":
+            case "PBSU":
+            case "COSU":
+            case "2COSU":
+            case "OLU":
+                // yCŒ´“Tzcase y_TSU/SSWU/PBSU/COSU/2COSU/OLU: SetParam_ep2_TS_V2/VCB
+                SetTsVoltage2(data);
+                SetTsControlVoltage(data);
                 break;
 
             case "CON":

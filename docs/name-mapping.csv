@@ -313,3 +313,10 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数(分岐),SetParam_ep2 case y_HPSB/y_HSB,SecondaryParameterSetter.SetParam_ep2 case HPSB/HSB,toku/sekkei/src/Fyss14.c,HPSB/HSB(漏電遮断器系)のep[2]生成。MCB_P(極数)+MCB_V2(電圧2最大値)
 関数(分岐),SetParam_ep2 case y_TS,SecondaryParameterSetter.SetParam_ep2 case TS,toku/sekkei/src/Fyss14.c,TS(タイムスイッチ)のep[2]生成。TS_V2(電圧2最大)+TS_VC(制御電圧最大)+TS_AC/BC=00+TS_CC=01
 関数(リーフ),SetParam_ep2_TS_CC,SecondaryParameterSetter.SetTsContactC,toku/sekkei/src/Fyss14.c,TS用c接点数(epacc)を常に01に設定
+関数(分岐),SetParam_ep2 case y_L,SecondaryParameterSetter.SetParam_ep2 case L,toku/sekkei/src/Fyss14.c,L(リミッター)のep[2]生成。相線式epaph2/epawr2設定+常にSP枠扱いspkvn=1
+関数(分岐),SetParam_ep2 case y_MCFR,SecondaryParameterSetter.SetParam_ep2 case MCFR,toku/sekkei/src/Fyss14.c,MCFR(正逆MC)のep[2]生成。MC_V2+MC_AC+MC_BC(極数なし)
+関数(分岐),SetParam_ep2 case y_MCSD/y_MCFRSD,SecondaryParameterSetter.SetParam_ep2 case MCSD/MCFRSD,toku/sekkei/src/Fyss14.c,MCSD/MCFRSDのep[2]生成。MC_V2のみ
+関数(分岐),SetParam_ep2 case y_MGFR,SecondaryParameterSetter.SetParam_ep2 case MGFR,toku/sekkei/src/Fyss14.c,MGFR(正逆MG)のep[2]生成。MG_E+MG_V2+MG_AC+MG_BC
+関数(分岐),SetParam_ep2 case y_MGSD/y_MGFRSD,SecondaryParameterSetter.SetParam_ep2 case MGSD/MGFRSD,toku/sekkei/src/Fyss14.c,MGSD/MGFRSDのep[2]生成。MG_E+MG_V2
+関数(分岐),SetParam_ep2 case y_DCSIR/y_DCNI,SecondaryParameterSetter.SetParam_ep2 case DCSIR/DCNI,toku/sekkei/src/Fyss14.c,直流機器のep[2]生成。MCB_V2後に電圧2区分を直流Dへ上書き
+関数(分岐),SetParam_ep2 case y_TSU/SSWU/PBSU/COSU/2COSU/OLU,SecondaryParameterSetter.SetParam_ep2 case TSU系,toku/sekkei/src/Fyss14.c,タイムスイッチ用途系のep[2]生成。TS_V2+TS_VC
