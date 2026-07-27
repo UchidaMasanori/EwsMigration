@@ -288,6 +288,59 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000", ep2.P);
     }
 
+    [Theory]
+    [InlineData("105", "", "000150.0")] // VT無・105V以下・datatype[1]非VS → 150V
+    [InlineData("210", "", "000300.0")] // VT無・105<v<=220 → 300V
+    [InlineData("105", "VS", "000300.0")] // VT無・105V以下・datatype[1]=VS(改訂<25>) → 300V
+    public void SetParam_ep2_VMのV2はkiryoso3で回路電圧に応じ設定される(string kpav0, string dt1, string expectedV2)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "VM";
+        data.CircuitElement = '3';     // 計器用回路(VT無)
+        data.CircuitVoltage = [kpav0, "000", "000"];
+        data.CircuitVoltageKind = 'A';
+        data.DataType = ["", dt1, "", "", "", "", ""];
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal(expectedV2, ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V1[0]); // kiryoso=='3' は V1=0
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_VMのkiryoso4はV1を1次電圧で_V2を150Vに設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "VM";
+        data.CircuitElement = '4';     // 計器用回路(VT付)
+        data.MeterPrimaryVoltage = "220";
+        data.CircuitVoltage = ["440", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000300.0", ep2.V1[0]); // kpakv1=220(<=220) → 300V
+        Assert.Equal("000150.0", ep2.V2[0]); // VT付 → 150V
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_VMのkiryoso4は1次電圧220超でV1を600Vに設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "VM";
+        data.CircuitElement = '4';
+        data.MeterPrimaryVoltage = "440";
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        Assert.Equal("000600.0", data.ElectricalParameterSlots[2].V1[0]);
+    }
+
     [Fact]
     public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
     {

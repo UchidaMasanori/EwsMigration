@@ -32,6 +32,8 @@ namespace Ews.Tests;
 /// ディスパッチャ未収録のため突合対象外。電圧を設定しない LGT(極数のみ)も対象外。
 /// MC はディスパッチャ収録済(V2=MCB_V2/AC/BC)だが、ep[2].V2 も後段の機器選定が 2 次側(子機器)の
 /// 実電圧で上書きするため突合対象外(実測: MC の記録側 kpav=105 に対し ep[2].V2=220)。
+/// VM もディスパッチャ収録済だが、本ハーネスが VM の入力(kiryoso/kpakv1/datatype[1])を供給しない
+/// ため突合対象外(単体テストで検証)。
 /// 基準データ未配置の環境ではスキップする。
 /// </summary>
 public sealed class GoldenEp2ComparisonTests

@@ -143,6 +143,63 @@ public static class SecondaryParameterSetter
         data.ElectricalParameterSlots[2].Bc = "00";
     }
 
+    /// <summary>
+    /// VM(電圧計)用 電圧１(Ｖ１)・電圧２(Ｖ２)・AC/DC 区分の設定。【C原典】SetParam_ep2 case y_VM。
+    /// 回路要素(kiryoso)が '3'(計器用回路・VT無)/'4'(計器用回路・VT付)で分岐する。
+    ///   ・V1: kiryoso=='3' は "000000.0"。kiryoso=='4' は計器１次電圧(kpakv1)が 220 以下で
+    ///     "000300.0"、超で "000600.0"。V1[1]/V1[2] は "000000.0"。
+    ///   ・V2: kiryoso=='3' は回路電圧最大値が 105 以下なら(datatype[1]=="VS" のとき"000300.0"改訂&lt;25&gt;・
+    ///     他は"000150.0")、220 以下なら "000300.0"、それ超は初期値"000000.0"のまま。
+    ///     kiryoso=='4' は "000150.0"。V2[1]/V2[2] は "000000.0"、V2区分は回路電圧区分(kpavkbn)。
+    /// </summary>
+    public static void SetVoltmeterParameters(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // ---- V1(1 次側電圧) ----
+        if (data.CircuitElement == '3')
+        {
+            ep2.V1[0] = "000000.0";
+        }
+        else if (data.CircuitElement == '4')
+        {
+            // 【C原典】memcpy(buf,kpakv1,3);buf[3]='\0';atoi(buf)。
+            int kv1 = AtoiC(data.MeterPrimaryVoltage);
+            ep2.V1[0] = kv1 <= 220 ? "000300.0" : "000600.0";
+        }
+
+        ep2.V1[1] = "000000.0";
+        ep2.V1[2] = "000000.0";
+
+        // ---- V2(2 次側電圧) ----
+        if (data.CircuitElement == '3')
+        {
+            int n = MaxVoltageIndex(data.CircuitVoltage);
+            int v = AtoiC(data.CircuitVoltage[n]);
+            if (v <= 105)
+            {
+                // 【C原典】改訂<25>: strncmp(datatype[1],"VS ",3)==0 で "000300.0"、他は "000150.0"。
+                bool isVs = data.DataType.Length > 1 && data.DataType[1].TrimEnd() == "VS";
+                ep2.V2[0] = isVs ? "000300.0" : "000150.0";
+            }
+            else if (v <= 220)
+            {
+                ep2.V2[0] = "000300.0";
+            }
+
+            // v>220 のときは初期値 "000000.0" のまま。
+        }
+        else if (data.CircuitElement == '4')
+        {
+            ep2.V2[0] = "000150.0";
+        }
+
+        ep2.V2[1] = "000000.0";
+        ep2.V2[2] = "000000.0";
+        ep2.V2Kbn = data.CircuitVoltageKind;
+    }
+
     /// <summary>MG 用 エレメント数(Ｅ)の設定。【C原典】SetParam_ep2_MG_E。常に '2'。</summary>
     public static void SetMgElement(MainCircuitData data)
     {
@@ -203,12 +260,12 @@ public static class SecondaryParameterSetter
     /// 移植済みリーフのみで表せる自己完結ケースを収録する。
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
     /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/
-    ///       SSW/TSW/FL/LSW/DSW/VS/AS/LA/CON。
+    ///       SSW/TSW/FL/LSW/DSW/VS/AS/VM/LA/CON。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
-    ///   ・記録列参照 WH/VM/VT/TR/TB/LGR/ELR。
+    ///   ・記録列参照 WH/VT/TR/TB/LGR/ELR。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ TS(CC)/DCPW/NHMB(計算)。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
@@ -346,6 +403,10 @@ public static class SecondaryParameterSetter
                 ep2.Ph2[1] = "0";
                 ep2.Wr2[0] = data.CircuitWireType.ToString();
                 ep2.Wr2[1] = "0";
+                break;
+
+            case "VM":
+                SetVoltmeterParameters(data);
                 break;
 
             case "LA":
