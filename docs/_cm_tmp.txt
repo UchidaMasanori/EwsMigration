@@ -1,9 +1,0 @@
-SetParam_ep2にMCケース追加(V2/AC/BC)
-
-Fyss14.c case y_MC の末尾で必ず呼ぶ SetParam_ep2_MC_V2(=MCB_V2)/MC_AC/MC_BC を移植しディスパッチャに case MC を収録。SetMcContactA/Bを追加(非INVBP経路00・INVBP負荷容量分岐はtokkbn/fp未モデルで後続)。
-
-極数epap(2次側検出)は全レコード配列走査依存で単一レコードのディスパッチャでは決定不可のため未収録。
-
-golden学び: MCのep[2].V2も下流の機器選定が2次側(子機器)実電圧で上書きする(実測 記録側kpav=105に対しep[2].V2=220)ためMCB等と異なりV2もgolden非検証。GoldenEp2のDispatchedからMCは除外しクラスdocに記録。
-
-単体テスト+1(全555)。name-mapping追記。
