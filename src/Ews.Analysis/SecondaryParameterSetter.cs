@@ -179,11 +179,16 @@ public static class SecondaryParameterSetter
     /// 【C原典】SetParam_ep2(Fyss14.c:2872)の予約語分岐のうち、単一レコードで完結し
     /// 移植済みリーフのみで表せる自己完結ケースを収録する。
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
+    /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/
+    ///       SSW/TSW/FL/LSW/DSW/VS/AS/LA/CON。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・記録列参照 MC(2次側検出)/WH/VM/VT/TR/TB/LGR/ELR。
-    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。datatype 依存 LA。未移植リーフ TS(CC)/DCPW/CON/NHMB(計算)。
+    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ TS(CC)/DCPW/NHMB(計算)。
+    ///
+    /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
+    /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
     /// </summary>
     /// <param name="data">ep[0]/fp/回路電気値 kpa* が設定済みの主回路データ。ep[2] を破壊的に更新する。</param>
     public static void SetParam_ep2(MainCircuitData data)
@@ -297,6 +302,62 @@ public static class SecondaryParameterSetter
             case "FL":
             case "LSW":
             case "DSW":
+                SetMcbVoltage2(data);
+                break;
+
+            case "VS":
+            case "AS":
+                // 【C原典】epaph2[0]=kpaph; epaph2[1]='0'; epawr2[0]=kpawr; epawr2[1]='0'。
+                ep2.Ph2[0] = data.CircuitPhaseCount.ToString();
+                ep2.Ph2[1] = "0";
+                ep2.Wr2[0] = data.CircuitWireType.ToString();
+                ep2.Wr2[1] = "0";
+                break;
+
+            case "LA":
+                // 【C原典】epaph2/epawr2 設定 +(datatype[0]!="CT" のとき)epaqty + MCB_V2。
+                ep2.Ph2[0] = data.CircuitPhaseCount.ToString();
+                ep2.Ph2[1] = "0";
+                ep2.Wr2[0] = data.CircuitWireType.ToString();
+                ep2.Wr2[1] = "0";
+                if (!(data.DataType.Length > 0 && data.DataType[0].TrimEnd() == "CT"))
+                {
+                    if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '2')
+                    {
+                        ep2.Qty = '3';
+                    }
+                    else if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '3')
+                    {
+                        ep2.Qty = '4';
+                    }
+                    else if (data.CircuitPhaseCount == '3')
+                    {
+                        ep2.Qty = '6';
+                    }
+                }
+
+                SetMcbVoltage2(data);
+                break;
+
+            case "CON":
+                // 【C原典】epap[2] を相線式から、V2 を回路電圧最大値から設定。
+                if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '2')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '2');
+                }
+                else if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '3');
+                }
+                else if (data.CircuitPhaseCount == '3' && data.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '3');
+                }
+                else if (data.CircuitPhaseCount == '3' && data.CircuitWireType == '4')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '4');
+                }
+
                 SetMcbVoltage2(data);
                 break;
 

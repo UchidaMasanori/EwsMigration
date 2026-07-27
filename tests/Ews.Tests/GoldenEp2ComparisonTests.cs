@@ -47,12 +47,13 @@ public sealed class GoldenEp2ComparisonTests
     private const int Kpav806 = 1140;
     private const int Kpavkbn806 = 1149;
 
-    /// <summary>ディスパッチャが収録済みかつ電圧 V2 を設定する自己完結予約語(LGT=極数のみは除く)。</summary>
+    /// <summary>ディスパッチャが収録済みかつ電圧 V2 を設定する自己完結予約語(LGT=極数のみ/VS・AS=相線式のみは除く)。</summary>
     private static readonly HashSet<string> Dispatched = new(StringComparer.Ordinal)
     {
         "MCB", "ELB", "MMCB", "ELMB", "RMCB", "RELB", "RMMCB", "RELMB",
         "SB", "THR", "MG", "SC", "NT", "RRY", "MCDT", "F", "CP",
         "HM", "ZCT", "CKS", "CSDT", "SSW", "TSW", "FL", "LSW", "DSW",
+        "LA", "CON",
     };
 
     private static readonly Encoding Cp932 = FixedFieldCodec.ShiftJis;

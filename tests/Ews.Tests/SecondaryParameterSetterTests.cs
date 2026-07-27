@@ -301,4 +301,74 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000210.0", ep2.V2[0]);
         Assert.Equal("000", ep2.P); // ‰Šú‰»‚Ì‚Ü‚Ü
     }
+
+    [Fact]
+    public void SetParam_ep2_VS‚Í‘Š2Œ…‚Æü®2Œ…‚ğİ’è‚·‚é()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "VS";
+        data.CircuitPhaseCount = '3';
+        data.CircuitWireType = '3';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("3", ep2.Ph2[0]);
+        Assert.Equal("0", ep2.Ph2[1]);
+        Assert.Equal("3", ep2.Wr2[0]);
+        Assert.Equal("0", ep2.Wr2[1]);
+    }
+
+    [Theory]
+    [InlineData('1', '2', '3')] // 1P2W ¨ ŒÂ”3
+    [InlineData('1', '3', '4')] // 1P3W ¨ ŒÂ”4
+    [InlineData('3', '3', '6')] // 3‘Š ¨ ŒÂ”6
+    public void SetParam_ep2_LA‚Í‘Šü®‚©‚çŒÂ”‚ğİ’è‚µV2‚àİ’è‚·‚é(char ph, char wr, char expectedQty)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "LA";
+        data.CircuitPhaseCount = ph;
+        data.CircuitWireType = wr;
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal(expectedQty, ep2.Qty);
+        Assert.Equal(ph.ToString(), ep2.Ph2[0]);
+        Assert.Equal("000210.0", ep2.V2[0]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_LA‚Ídatatype0‚ªCT‚È‚çŒÂ”‚ğİ’è‚µ‚È‚¢()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "LA";
+        data.CircuitPhaseCount = '1';
+        data.CircuitWireType = '2';
+        data.DataType[0] = "CT";
+        data.CircuitVoltage = ["210", "000", "000"];
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        Assert.Equal('0', data.ElectricalParameterSlots[2].Qty); // CT ‚È‚Ì‚ÅŒÂ”–¢İ’è(Šù’è'0')
+    }
+
+    [Fact]
+    public void SetParam_ep2_CON‚Í‘Šü®‚©‚ç‹É”3Œ…–Ú‚ÆV2‚ğİ’è‚·‚é()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "CON";
+        data.CircuitPhaseCount = '3';
+        data.CircuitWireType = '3';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("003", ep2.P); // 3P3W ¨ 3Œ…–Ú '3'
+        Assert.Equal("000210.0", ep2.V2[0]);
+    }
 }
