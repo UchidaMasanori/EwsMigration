@@ -254,19 +254,26 @@ public static class SecondaryParameterSetter
         data.ElectricalParameterSlots[2].Bc = "00";
     }
 
+    /// <summary>TS 用 ｃ接点数(ＣＣ)の設定。【C原典】SetParam_ep2_TS_CC(941130)。常に "01"。</summary>
+    public static void SetTsContactC(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        data.ElectricalParameterSlots[2].Cc = "01";
+    }
+
     /// <summary>
     /// ep[2](システム側生成値)を予約語別に生成するディスパッチャ。
     /// 【C原典】SetParam_ep2(Fyss14.c:2872)の予約語分岐のうち、単一レコードで完結し
     /// 移植済みリーフのみで表せる自己完結ケースを収録する。
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
     /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/HPSB/HSB/CKS/
-    ///       CSDT/SSW/TSW/FL/LSW/DSW/VS/AS/VM/LA/CON。
+    ///       CSDT/SSW/TSW/TS/FL/LSW/DSW/VS/AS/VM/LA/CON。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
     ///   ・記録列参照 WH/VT/TR/TB/LGR/ELR。
-    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ TS(CC)/DCPW/NHMB(計算)。
+    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ DCPW/NHMB(計算)。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -395,6 +402,17 @@ public static class SecondaryParameterSetter
             case "TSW":
                 SetMcbPole(data);
                 SetMcbVoltage2(data);
+                break;
+
+            case "TS":
+                // 【C原典】case y_TS: SetParam_ep2_TS_V2/VC/AC/BC/CC(941130)。
+                //   すべて回路電圧 kpav・区分 kpavkbn のみに依存する自己完結ケース。
+                //   V2=最大回路電圧、VC=最大回路電圧(3桁)、AC="00"、BC="00"、CC="01"。
+                SetTsVoltage2(data);
+                SetTsControlVoltage(data);
+                SetTsContactA(data);
+                SetTsContactB(data);
+                SetTsContactC(data);
                 break;
 
             case "FL":

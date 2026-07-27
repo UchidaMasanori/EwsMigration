@@ -361,6 +361,27 @@ public sealed class SecondaryParameterSetterTests
     }
 
     [Fact]
+    public void SetParam_ep2_TSは電圧2と制御電圧_接点AC_BC_CCを設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "TS";
+        data.CircuitVoltage = ["100", "210", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000210.0", ep2.V2[0]); // TS_V2=MCB_V2: 回路電圧最大値
+        Assert.Equal('A', ep2.V2Kbn);
+        Assert.Equal("210", ep2.Vc);          // TS_VC: 回路電圧最大値(3桁)
+        Assert.Equal('A', ep2.VcKbn);
+        Assert.Equal("00", ep2.Ac);           // TS_AC: 常に "00"
+        Assert.Equal("00", ep2.Bc);           // TS_BC: 常に "00"
+        Assert.Equal("01", ep2.Cc);           // TS_CC: 常に "01"
+        Assert.Equal("000", ep2.P);           // 極数は初期化のまま
+    }
+
+    [Fact]
     public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
     {
         MainCircuitData data = NewData();

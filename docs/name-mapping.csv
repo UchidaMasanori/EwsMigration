@@ -311,3 +311,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数(分岐),SetParam_ep2 case y_MC,SecondaryParameterSetter.SetParam_ep2 case MC,toku/sekkei/src/Fyss14.c,MC予約語のep[2]生成(V2/AC/BC収録・極数2次側検出は記録列依存で未収録)
 関数(分岐),SetParam_ep2 case y_VM,SecondaryParameterSetter.SetVoltmeterParameters,toku/sekkei/src/Fyss14.c,VM(電圧計)のep[2]生成。回路要素kiryoso 3(VT無)/4(VT付)でV1/V2を分岐設定
 関数(分岐),SetParam_ep2 case y_HPSB/y_HSB,SecondaryParameterSetter.SetParam_ep2 case HPSB/HSB,toku/sekkei/src/Fyss14.c,HPSB/HSB(漏電遮断器系)のep[2]生成。MCB_P(極数)+MCB_V2(電圧2最大値)
+関数(分岐),SetParam_ep2 case y_TS,SecondaryParameterSetter.SetParam_ep2 case TS,toku/sekkei/src/Fyss14.c,TS(タイムスイッチ)のep[2]生成。TS_V2(電圧2最大)+TS_VC(制御電圧最大)+TS_AC/BC=00+TS_CC=01
+関数(リーフ),SetParam_ep2_TS_CC,SecondaryParameterSetter.SetTsContactC,toku/sekkei/src/Fyss14.c,TS用c接点数(epacc)を常に01に設定
