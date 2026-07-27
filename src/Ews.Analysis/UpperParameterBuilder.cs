@@ -26,7 +26,66 @@ public static class UpperParameterBuilder
     public const int Hz2 = 60;
 
     /// <summary>
+    /// 主回路の上流パラメータ生成(統括ループのうち回路電気値 kpa* 生成部)。
+    /// 【C原典】Make_UpperParm(Fyss14.c:462)の P 系統ループ。
+    /// 各機器について、入線(yoyaku=="P")は ep[0] から、それ以外は親の回路情報(<see cref="FindParent"/>)
+    /// ＋自機器の変換(<see cref="CircuitParameterResolver.SetCircuitParameter"/>)で主回路パラメータを求め、
+    /// 回路電気値(<c>dt.kpa*</c>)へ書き出す(<see cref="SetCircuitInfo"/>)。
+    ///
+    /// 本増分では kpa* 生成の中核(Kairo_Init_Take / Find_Parent / Kairo_Parm_Set / Kairo_End_Set)を
+    /// 配線する。以下は後続増分(TODO):
+    ///   ・PropFukaDenFromChild(改訂&lt;21&gt; 子の負荷電圧200V反映)
+    ///   ・SetParam_ep2(ep[2]生成 + 例外要素の回路情報再設定)
+    ///   ・SetParam_Kubun(回路電圧からの負荷種類確定)
+    ///   ・末尾の MC 共用ループ(SetParam_ep2)
+    /// </summary>
+    /// <param name="records">主回路レコード列(FYRT800 配列相当)。破壊的に kpa* を更新する。</param>
+    /// <param name="frequency">回路周波数(Hz)。【C原典】Helutzu(HZ1=50/HZ2=60)。</param>
+    public static void GenerateUpperParameters(IReadOnlyList<MainCircuitResult> records, int frequency)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+
+        // 【C原典】pprmp=&pprma; newpprmp=&newpprma; いずれもループ間で再利用される単一領域。
+        var parentParam = new MainCircuitParameter();
+        var ownParam = new MainCircuitParameter();
+
+        for (int i = 0; i < records.Count; i++)
+        {
+            MainCircuitData data = records[i].Data;
+
+            // 【C原典】P 系統(ksyubetu=='1')のみ処理。
+            if (data.SystemKind != '1')
+            {
+                continue;
+            }
+
+            if (data.ReservedWord == "P")
+            {
+                // 【C原典】入線: Kairo_Init_Take(ep[0]→MCPRMS)＋ Kairo_End_Set(→kpa*)。
+                MainCircuitParameter incoming = TakeIncomingParameter(data);
+                SetCircuitInfo(data, incoming, frequency);
+            }
+            else
+            {
+                // 【C原典】PropFukaDenFromChild(改訂<21>)は後続増分(TODO)。
+                // 【C原典】Find_Parent の戻り値は無視される。見つからない場合 parentParam は
+                //   前回値のまま Kairo_Parm_Set に渡される(C の pprma 再利用に忠実)。
+                FindParent(records, i, parentParam);
+                CircuitParameterResolver.SetCircuitParameter(
+                    (short)frequency, parentParam, ownParam, records, i, records.Count - i);
+                SetCircuitInfo(data, ownParam, frequency);
+
+                // 【C原典】SetParam_ep2(ep[2]生成+例外要素のkpa*再設定)/SetParam_Kubun(負荷種類)は
+                //   後続増分(TODO)。
+            }
+        }
+
+        // 【C原典】末尾の MC 共用ループ(SetParam_ep2)は後続増分(TODO)。
+    }
+
+    /// <summary>
     /// 入線(P)の ep[0] から主回路パラメータ(相・線式・極数・電圧・AC/DC)を取り出す。
+
     /// 【C原典】Kairo_Init_Take(Fyss14.c:1198)。
     /// 電圧を右詰め(<see cref="VoltageInheritance.RightAlignVoltage"/>)し、極数を
     /// <see cref="CircuitElementResolver.ResolvePole"/> で確定、左詰めで 105V/単相2線の

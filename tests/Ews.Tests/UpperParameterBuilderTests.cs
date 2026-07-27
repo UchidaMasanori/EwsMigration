@@ -197,5 +197,61 @@ public sealed class UpperParameterBuilderTests
         Assert.True(UpperParameterBuilder.FindParent(records, 1, output));
         Assert.Equal(new short[] { 0, 0, 110 }, output.Voltage); // 110/0/0 → 右詰め
     }
+
+    // ---- Make_UpperParm(統括ループ core) ------------------------------------
+
+    private static MainCircuitResult MakeRec(string datano, string oyatno, string yoyaku, ElectricalParameters ep)
+    {
+        var data = new MainCircuitData
+        {
+            SystemKind = '1',
+            ReservedWord = yoyaku,
+            ParentSequenceNumber = oyatno,
+        };
+        data.ElectricalParameterSlots[0] = ep;
+        return new MainCircuitResult { SequenceNumber = datano, Data = data };
+    }
+
+    [Fact]
+    public void GenerateUpperParameters_入線と子機器のkpaを一貫生成する()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "MCB", MakeEp("3", "3", "003", 'A', 0, 0, 0)),
+        };
+
+        UpperParameterBuilder.GenerateUpperParameters(records, UpperParameterBuilder.Hz1);
+
+        // 入線 kpa*(決定的)
+        MainCircuitData p = records[0].Data;
+        Assert.Equal('1', p.CircuitPhaseCount);
+        Assert.Equal('3', p.CircuitWireType);
+        Assert.Equal("50", p.CircuitFrequency);
+        Assert.Equal('3', p.CircuitPoleCount);
+        Assert.Equal('A', p.CircuitVoltageKind);
+        Assert.Equal("210", p.CircuitVoltage[0]);
+        Assert.Equal("105", p.CircuitVoltage[1]);
+        Assert.Equal("000", p.CircuitVoltage[2]);
+
+        // 子機器: Find_Parent→Kairo_Parm_Set→Kairo_End_Set が走り周波数・AC区分が適用される
+        MainCircuitData c = records[1].Data;
+        Assert.Equal("50", c.CircuitFrequency);
+        Assert.Equal('A', c.CircuitVoltageKind);
+    }
+
+    [Fact]
+    public void GenerateUpperParameters_P系統以外はスキップする()
+    {
+        MainCircuitResult rec = MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0));
+        rec.Data.SystemKind = '2'; // SP系統(P系統でない)
+        var records = new List<MainCircuitResult> { rec };
+
+        UpperParameterBuilder.GenerateUpperParameters(records, UpperParameterBuilder.Hz1);
+
+        Assert.Equal('0', rec.Data.CircuitPhaseCount); // 未処理(既定のまま)
+        Assert.Equal("00", rec.Data.CircuitFrequency);
+    }
 }
+
 

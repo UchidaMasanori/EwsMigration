@@ -296,3 +296,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Set_I,UpperParameterBuilder.SetI,toku/sekkei/src/Fyss14.c,SHORT値をC書式(%0Nd)で整形しstrncpyで先頭length文字を返す(sprintf+strncpy)
 関数,Find_Parent,UpperParameterBuilder.FindParent,toku/sekkei/src/Fyss14.c,親データ追番(dt.oyatno)と一致するデータ追番(datano)を手前へ遡って探し親の回路電気値kpa*を主回路パラメータMCPRMSへ取り出す(右詰め)。予約語がVT/F以外で回路要素=='4'なら電圧110/0/0に上書き。見つかればtrue
 構造体,dt.oyatno(親データ追番),MainCircuitData.ParentSequenceNumber,toku/include/common/fydf806.h,親機器のdatano。Find_Parentの親検索キー(3桁)
+関数,Make_UpperParm(統括ループ kpa*生成部),UpperParameterBuilder.GenerateUpperParameters,toku/sekkei/src/Fyss14.c,P系統(ksyubetu=='1')の各機器で入線(yoyaku=="P")はTakeIncomingParameter+SetCircuitInfo、非入線はFindParent(戻り値無視)+SetCircuitParameter(Kairo_Parm_Set)+SetCircuitInfoで回路電気値kpa*を生成。PropFukaDenFromChild/SetParam_ep2/SetParam_Kubun/MC共用ループは後続TODO
