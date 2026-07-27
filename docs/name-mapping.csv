@@ -291,3 +291,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss11_Check_SEP,CircuitStringChecker.CheckSeparator,toku/sekkei/src/Fyss11.c,明示的なSEP行種(gyosyu="SEP")を機器化。回路が空(ENDのみ)でなければFY-610E/空ならkikitable_set+kikitable_add("1"/"SEP")でSEP機器を生成(入力=yoyakkbn既定)。系統ブレーク自動生成(Kikitable_SEP_Make)とは別経路
 関数,Check_KikimeiC(kikitable_add"1"引数分離),CircuitStringChecker.ExtractReservedDesignation,toku/sekkei/src/Fyss1c.c,予約語番号(ysno)抽出用に電気パラメータ/数量/明示電パラを除いた予約語部を取り出す。MCB3P100A→MCBのように分離しFindBangouが電気パラメータ内数字をysnoと誤認するのを防ぐ(FY-682E誤検出の修正)
 関数,Fyss11_Check_P(入線行souden補正),CircuitStringChecker.CheckIncoming,toku/sekkei/src/Fyss11.c,入線行(P)のsoudenを電源解析で確定した系統相へ更新。TableSetは電源解析前にsoudenを設定するため入線行が前系統相を持つoff-by-oneを補正し系統ブレークSEP判定を正す
+関数,Kairo_Init_Take,UpperParameterBuilder.TakeIncomingParameter,toku/sekkei/src/Fyss14.c,入線(P)のep[0](epaph2/epawr2/epap/epav2kbn/epav2)から主回路パラメータMCPRMSを取り出す。Right_Volt/Pole_Gen/Left_Volt適用+105V単相2線の極数1特例。Make_UpperParmのP系統ループで使用
+関数,Kairo_End_Set,UpperParameterBuilder.SetCircuitInfo,toku/sekkei/src/Fyss14.c,主回路パラメータMCPRMSから回路電気値kpa*(kpaph/kpawr/kpahz/kpap/kpavkbn/kpav)を設定。電圧は左詰め3桁。DCは相/線式/周波数0・極数2に再設定。改訂<14>VM(親Fuse相対参照)は本体配線時TODO
+関数,Set_I,UpperParameterBuilder.SetI,toku/sekkei/src/Fyss14.c,SHORT値をC書式(%0Nd)で整形しstrncpyで先頭length文字を返す(sprintf+strncpy)
