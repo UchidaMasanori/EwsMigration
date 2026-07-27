@@ -24,7 +24,7 @@ namespace Ews.Tests;
 ///   4. 計算 kpa* と実 kpa* を突合し、入線(P)・非入線別に一致率を集計する。
 ///
 /// 【現状の突合結果(547 案件)】入線(P)=789/789 完全一致。非入線=14908/15004(99.4%)一致。
-/// 残存不一致は表示灯(WL/GL/RL/OL/BL)の 005V 再設定のみ。これは主に Type_Set(Fyss14.c:5844, 941121)の
+/// 残存不一致は表示灯(WL/GL/RL/OL/BL)の 005V 再設定のみ。これは主に Pre_PLTR_Make(Fyss14.c:5075, PLTR生成)の
 /// 後段パス(物件施策区分・盤種類・datatype 伝播に依存)で行われ未移植。RTR(→024V)は Parm_Set_RTR 移植済で一致。
 ///
 /// 【C原典・レイアウト(FYDF806 RL=1219, key(12)+syukairo)】
@@ -224,7 +224,7 @@ public sealed class GoldenKpaComparisonTests
             string.Join("\n", samples.Where(s => s.Contains("[P]"))));
 
         // 非入線の残存不一致は未移植の例外パスに限られる:
-        //   ・WL/GL/RL/OL/BL(表示灯)→ 電圧 005V 。主に Type_Set(Fyss14.c:5844, 941121)の後段パスが
+        //   ・WL/GL/RL/OL/BL(表示灯)→ 電圧 005V 。主に Pre_PLTR_Make(Fyss14.c:5075, PLTR生成)の後段パスが
         //     物件施策区分(sshiykbn)・盤種類(epabn)・datatype 伝播に基づいて行う(未移植)。
         // RTR(→024V)は Parm_Set_RTR 移植済のため一致する。相・線式・極数は一致し電圧のみ差異。
         // これ以外の予約語で不一致が出た場合はコア(Kairo_Parm_Set/Find_Parent/Parm_Set_RTR 等)の
@@ -233,7 +233,7 @@ public sealed class GoldenKpaComparisonTests
         List<string> unexpected = mismatchByYoyaku.Keys.Where(k => !knownExceptions.Contains(k)).ToList();
         Assert.True(
             unexpected.Count == 0,
-            $"例外パス(Type_Set の表示灯 005V)以外の予約語で kpa* が不一致でした: [{string.Join(",", unexpected)}]\n" +
+            $"例外パス(Pre_PLTR_Make の表示灯 005V)以外の予約語で kpa* が不一致でした: [{string.Join(",", unexpected)}]\n" +
             string.Join("\n", samples.Where(s => unexpected.Any(u => s.Contains($"[{u}]")))));
     }
 

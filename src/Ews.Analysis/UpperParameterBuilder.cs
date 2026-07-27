@@ -253,7 +253,7 @@ public static class UpperParameterBuilder
     /// 【C原典】SetParam_ep2(Fyss14.c:2872)のうち<b>回路電気値を再設定する</b>分岐のうち RTR を移植:
     ///   ・RTR … Parm_Set_RTR(相/線式/極数/AC・DC/周波数は親から、電圧は自身の ep[0] 定格から)。
     /// 以下は後続増分(TODO):
-    ///   ・WL/GL/RL/OL/BL の 005V 再設定 … 主に Type_Set(Fyss14.c:5844, 941121)の後段パスが
+    ///   ・WL/GL/RL/OL/BL の 005V 再設定 … 主に Pre_PLTR_Make(Fyss14.c:5075, PLTR生成)の後段パスが
     ///     物件施策区分(sshiykbn)・盤種類(epabn)・datatype 伝播に基づいて行う
     ///     (SetParam_ep2 の case y_WL は前段 F+datatype[0]="TR" 時のみ発火し実データでは稀)。
     ///   ・PLTR(y_PLTR)の下流 005V 再設定、その他予約語の ep[2] 生成。
@@ -273,7 +273,7 @@ public static class UpperParameterBuilder
                 break;
 
                 // 【C原典】case y_WL/y_GL/y_RL/y_OL/y_BL(Fyss14.c:3455)の 005V 再設定と
-                //   Type_Set(5844)の後段パスは bukken/ep[2]/datatype 依存のため後続増分(TODO)。
+                //   Pre_PLTR_Make(5075)の後段パスは 工場地区(FyGetZoneCD)/bukken/ep[2]/datatype 依存のため後続増分(TODO)。
         }
     }
 
