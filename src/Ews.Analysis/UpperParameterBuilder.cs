@@ -67,7 +67,9 @@ public static class UpperParameterBuilder
             }
             else
             {
-                // 【C原典】PropFukaDenFromChild(改訂<21>)は後続増分(TODO)。
+                // 【C原典】子の負荷電圧 200V を親(自機器)へ反映(改訂<21>)。
+                PropagateLoadVoltageFromChild(records, i);
+
                 // 【C原典】Find_Parent の戻り値は無視される。見つからない場合 parentParam は
                 //   前回値のまま Kairo_Parm_Set に渡される(C の pprma 再利用に忠実)。
                 FindParent(records, i, parentParam);
@@ -76,9 +78,12 @@ public static class UpperParameterBuilder
                 SetCircuitInfo(data, ownParam, frequency);
 
                 // 【C原典】SetParam_ep2: 例外要素(RTR/WL 系)の回路電気値(kpa*)を再設定する。
-                //   ep[2](システム生成電気パラメータ)の生成と SetParam_Kubun(負荷種類)は
-                //   後続増分(TODO)。
+                //   ep[2](システム生成電気パラメータ)の生成は後続増分(TODO)。
                 ApplyExceptionCircuitParameters(records, i);
+
+                // 【C原典】SetParam_Kubun: 回路電気値から負荷種別(fp.fpalw1)を確定・検証する。
+                //   戻り値 2(不整合)の FY-898 エラー報告はエラー基盤の導入時に配線(TODO)。
+                SetLoadClassification(data);
             }
         }
 
@@ -293,6 +298,140 @@ public static class UpperParameterBuilder
         dt.CircuitFrequency = parent.CircuitFrequency;
 
         // 【C原典】SetParam_ep2_RTR_V1 / SetParam_ep2_TR_V2(ep[2]生成)は後続増分(TODO)。
+    }
+
+    /// <summary>
+    /// 子機器の負荷電圧 200V を親(自機器)の付属パラメータへ反映する。
+    /// 【C原典】PropFukaDenFromChild(Fyss14.c:6766, 改訂<21>)。
+    /// 自機器が B(ブレーカ)行種の MCB/ELB/SB で負荷電圧未入力(≠200)のとき、
+    /// 同一行種グループ内の子機器(oyatno==自 datano)に 200V があれば自機器へコピーする。
+    /// (負荷電圧は Kairo_Parm_Set が参照するため、回路電気値確定の前に呼ぶ。)
+    /// </summary>
+    /// <param name="records">主回路レコード列。</param>
+    /// <param name="index">自機器のインデックス。</param>
+    public static void PropagateLoadVoltageFromChild(IReadOnlyList<MainCircuitResult> records, int index)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitData self = records[index].Data;
+
+        // 【C原典】gyocd が "B " 以外なら対象外。
+        if (!FieldEquals(self.LineTypeCode, "B ", 2))
+        {
+            return;
+        }
+
+        // 【C原典】予約語が MCB/ELB(先頭3) でも SB(先頭2) でもなければ対象外。
+        string y = self.ReservedWord;
+        if (!FieldEquals(y, "MCB", 3) && !FieldEquals(y, "ELB", 3) && !FieldEquals(y, "SB", 2))
+        {
+            return;
+        }
+
+        // 【C原典】自機器の負荷電圧が既に 200V なら何もしない。
+        if (FieldEquals(self.AttachedParameter.LoadVoltage[0], "200", 3))
+        {
+            return;
+        }
+
+        string datano = records[index].SequenceNumber; // 【C原典】oyatno=自 datano
+        string gyoglno = self.LineTypeGroupNumber;   // 行種グループ番号
+
+        for (int i = index + 1; i < records.Count; i++)
+        {
+            MainCircuitData child = records[i].Data;
+
+            // 【C原典】同じ行種グループでなければ打ち切り。
+            if (!Match3(gyoglno, child.LineTypeGroupNumber))
+            {
+                break;
+            }
+
+            // 【C原典】子機器(oyatno==自 datano)でなければスキップ。
+            if (!Match3(datano, child.ParentSequenceNumber))
+            {
+                continue;
+            }
+
+            // 【C原典】子の負荷電圧が 200V なら自機器へコピーして打ち切り。
+            if (FieldEquals(child.AttachedParameter.LoadVoltage[0], "200", 3))
+            {
+                self.AttachedParameter.LoadVoltage[0] = child.AttachedParameter.LoadVoltage[0];
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 機器負荷種別(fp.fpalw1)を回路電気値から確定・検証する。
+    /// 【C原典】SetParam_Kubun(Fyss14.c:4116)。
+    /// 負荷容量(fpalw2)がある機器について、負荷種別が空なら kpa* から H/PS/M を決定し、
+    /// 負荷種別と負荷単位区分(fpalwkbn)・相線式の整合を検証する(不整合は 2)。
+    /// </summary>
+    /// <param name="data">付属パラメータと回路電気値を持つ主回路データ。</param>
+    /// <returns>0:正常 / 2:負荷種別と回路の不整合(【C原典】FY-898)。</returns>
+    public static int SetLoadClassification(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        AttachedParameters fp = data.AttachedParameter;
+
+        // 【C原典】負荷容量(fpalw2)が 0 なら対象外。
+        if (AtoiC(fp.LoadCapacity) == 0)
+        {
+            return 0;
+        }
+
+        // 【C原典】負荷種別(fpalw1)が空(先頭2文字空白)なら kpa* から決定。
+        //   C は Main_Area_Clear で fpalw1="  "(空白2)だが本ドメインは空文字で未設定を表すため両者を空扱い。
+        if (string.IsNullOrWhiteSpace(fp.LoadKind))
+        {
+            if (data.CircuitPhaseCount == '1')
+            {
+                fp.LoadKind = "H";
+            }
+            else if (AtoiC(data.CircuitVoltage[0]) == 210
+                && AtoiC(data.CircuitVoltage[1]) == 210
+                && AtoiC(data.CircuitVoltage[2]) == 105)
+            {
+                fp.LoadKind = "PS";
+            }
+            else
+            {
+                fp.LoadKind = "M";
+            }
+        }
+
+        // 【C原典】負荷種別ごとの整合検証。一致した予約語は(内部条件の真偽に関わらず)
+        //   最終的に 0 を返す。どの種別にも一致しない(else)場合のみ 2。
+        //   ※C の内部条件(fpalwkbn/相線式の一致)は早期 return(0) するのみで、偽でも
+        //     関数末尾の return(0) に落ちるため、戻り値には影響しない。
+        //   ※C は memcmp(fpalw1,"H ",2)(=H+空白)等で判定するが、本ドメインの LoadKind は
+        //     空白詰めしない論理値のため trim 後の完全一致で同値判定する。
+        string kind = fp.LoadKind.TrimEnd();
+        if (kind is "M" or "H" or "S" or "HA" or "FL" or "NA" or "YA" or "YS" or "TR")
+        {
+            return 0;
+        }
+
+        // 【C原典】上記のいずれの負荷種別にも一致しない("PS" 等) → 不整合。
+        return 2;
+    }
+
+    /// <summary>
+    /// C の strncmp(s, prefix, n)==0 相当(先頭 n バイト一致。不足は '\0' 扱い)。
+    /// </summary>
+    private static bool FieldEquals(string s, string prefix, int n)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            char a = i < s.Length ? s[i] : '\0';
+            char b = i < prefix.Length ? prefix[i] : '\0';
+            if (a != b)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>固定 3 バイト一致(先頭 3 文字)。【C原典】memcmp(a, b, 3)==0。</summary>

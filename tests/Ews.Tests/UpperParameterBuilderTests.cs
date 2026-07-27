@@ -290,6 +290,89 @@ public sealed class UpperParameterBuilderTests
 
         Assert.Equal("000", records[0].Data.CircuitVoltage[0]);
     }
+
+    // ---- PropFukaDenFromChild(改訂<21>) --------------------------------------
+
+    [Fact]
+    public void PropagateLoadVoltageFromChild_子の200Vを親へ反映する()
+    {
+        var parent = new MainCircuitResult
+        {
+            SequenceNumber = "001",
+            Data = new MainCircuitData { LineTypeCode = "B ", ReservedWord = "MCB", LineTypeGroupNumber = "001" },
+        };
+        parent.Data.AttachedParameter.LoadVoltage[0] = "000";
+        var child = new MainCircuitResult
+        {
+            SequenceNumber = "002",
+            Data = new MainCircuitData { ParentSequenceNumber = "001", LineTypeGroupNumber = "001" },
+        };
+        child.Data.AttachedParameter.LoadVoltage[0] = "200";
+        var records = new List<MainCircuitResult> { parent, child };
+
+        UpperParameterBuilder.PropagateLoadVoltageFromChild(records, 0);
+
+        Assert.Equal("200", parent.Data.AttachedParameter.LoadVoltage[0]);
+    }
+
+    [Fact]
+    public void PropagateLoadVoltageFromChild_ブレーカ以外は対象外()
+    {
+        var self = new MainCircuitResult
+        {
+            SequenceNumber = "001",
+            Data = new MainCircuitData { LineTypeCode = "M ", ReservedWord = "MC", LineTypeGroupNumber = "001" },
+        };
+        self.Data.AttachedParameter.LoadVoltage[0] = "000";
+        var child = new MainCircuitResult
+        {
+            SequenceNumber = "002",
+            Data = new MainCircuitData { ParentSequenceNumber = "001", LineTypeGroupNumber = "001" },
+        };
+        child.Data.AttachedParameter.LoadVoltage[0] = "200";
+        var records = new List<MainCircuitResult> { self, child };
+
+        UpperParameterBuilder.PropagateLoadVoltageFromChild(records, 0);
+
+        Assert.Equal("000", self.Data.AttachedParameter.LoadVoltage[0]); // gyocd!="B " → 対象外
+    }
+
+    // ---- SetParam_Kubun ------------------------------------------------------
+
+    [Fact]
+    public void SetLoadClassification_空の負荷種別を単相ならHにする()
+    {
+        var data = new MainCircuitData { CircuitPhaseCount = '1' };
+        data.AttachedParameter.LoadCapacity = "0001000";
+        data.AttachedParameter.LoadUnitKind = 'W';
+
+        int r = UpperParameterBuilder.SetLoadClassification(data);
+
+        Assert.Equal("H", data.AttachedParameter.LoadKind);
+        Assert.Equal(0, r);
+    }
+
+    [Fact]
+    public void SetLoadClassification_210_210_105はPSで不整合2()
+    {
+        var data = new MainCircuitData { CircuitPhaseCount = '3', CircuitWireType = '3' };
+        data.AttachedParameter.LoadCapacity = "0001000";
+        data.CircuitVoltage = ["210", "210", "105"];
+
+        int r = UpperParameterBuilder.SetLoadClassification(data);
+
+        Assert.Equal("PS", data.AttachedParameter.LoadKind);
+        Assert.Equal(2, r); // PS は検証リスト外 → 不整合
+    }
+
+    [Fact]
+    public void SetLoadClassification_負荷容量0は対象外で0()
+    {
+        var data = new MainCircuitData();
+        data.AttachedParameter.LoadCapacity = "0000000";
+
+        Assert.Equal(0, UpperParameterBuilder.SetLoadClassification(data));
+    }
 }
 
 
