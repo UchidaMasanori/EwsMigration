@@ -304,7 +304,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,SetParam_ep2(ディスパッチャ ep[2]生成部),SecondaryParameterSetter.SetParam_ep2,toku/sekkei/src/Fyss14.c,予約語別にep[2](システム側生成値)を生成。冒頭でep[2].epap="000"/epav2[0]="000000.0"を初期化し自己完結ケース(MCB/ELB/MMCB/ELMB/RMCB系/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/SSW/TSW/FL/LSW/DSW)を移植。記録列/物件/未移植リーフ依存(MC/RTR/WH/VM/VT/TR/TB/WL/LGR/ELR/TS/DCPW/CON/NHMB/LA)は後続TODO。Make_UpperParm本体でApplyExceptionCircuitParameters後とMC共用ループで呼ぶ
 関数,Check_Haifunn,CircuitStringChecker.CheckHaifunn,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,予約語文末尾の分岐配置(-SP/-C)・数量(*N)を取り込み検証。区分'S'でkikitable_addタグ"4"(数量)/"5"(-C)/"9"(-SP)相当を機器属性quantity/control/spへ格納。goto(END_ASTER/CONTROL/SPACE)を状態ループで表現。これにより+(型式)*数量の*数量が消費されFY-613Eを回避
 関数,Find_Haifunn/nexthaifunn,CircuitStringChecker.FindHaifunn/NextHaifunn,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,-SP(3文字)/-C(2文字)/*(1文字)区切りまで文字を取り込みシンボル(Space/Control/Aster/End/Other)を返す
-関数,Check_ASTER/Check_CONTROL,CircuitStringChecker.CheckAster/CheckControl,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,数量(*N)・分岐配置(-C)の妥当性。空は許容・数値は1?99。両者同一判定(CheckHaifunnNumeric)
+関数,Check_ASTER/Check_CONTROL,CircuitStringChecker.CheckAster/CheckControl,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,数量(*N)・分岐配置(-C)の妥当性。空は許容・数値は1～99。両者同一判定(CheckHaifunnNumeric)
 関数,SetParam_ep2_MC_V2,SecondaryParameterSetter.SetMcVoltage2,toku/sekkei/src/Fyss14.c,MC用電圧2(=MCB_V2 回路電圧最大値をep[2].V2へ)
 関数,SetParam_ep2_MC_AC,SecondaryParameterSetter.SetMcContactA,toku/sekkei/src/Fyss14.c,MC用a接点数(非INVBP経路"00"・INVBP負荷容量分岐は後続増分)
 関数,SetParam_ep2_MC_BC,SecondaryParameterSetter.SetMcContactB,toku/sekkei/src/Fyss14.c,MC用b接点数(非INVBP経路"00"・INVBP負荷容量分岐は後続増分)
@@ -327,3 +327,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kiriage,NumericConverter.Ceiling,toku/sekkei/src/Fysk09.c,小数部が正なら +1 する切り上げ(天井関数)
 関数,Kirisute,NumericConverter.Truncate,toku/sekkei/src/Fysk09.c,ゼロ方向へ切り捨てる
 関数,Chousei,NumericConverter.TrimTrailingZeros,toku/sekkei/src/Fysk09.c,小数点以下の余分な末尾ゼロと不要な小数点を除去する
+構造体,eparmg_s,NumericElectricalParameters,toku/include/sekkei/fyscommon.h,数値化済み電気パラメータ(double版 eparmg)
+構造体,TCHI_T,RatingKeyTableEntry,toku/include/sekkei/fyrt814.h,定格値編集用情報テーブルの1行(len/d_len/kouno/check等)
+テーブル,tt_mcb ほか,RatingKeyTables,toku/include/sekkei/fyrt817.h,予約語別の定格値編集用情報テーブル(遮断器・接触器系)
+関数,Fysk04_Make_Teikakuchi,RatingKeyBuilder.MakeRatingKey,toku/sekkei/src/Fysk04.c,定格値キー(kteichi 50バイト)を生成する
+関数,Fysk00_Get_Datachi,RatingKeyBuilder.GetDataValue,toku/sekkei/src/Fysk00.c,項番に対応する電気パラメータ値を取得する(項番1～53)
+共用体,IFC/SUCHI,RatingKeyBuilder.DataValue,toku/include/sekkei/fyrt814.h,1項目分の数値または区分文字の受渡し値
