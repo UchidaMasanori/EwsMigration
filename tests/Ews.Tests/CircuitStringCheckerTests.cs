@@ -638,6 +638,33 @@ public sealed class CircuitStringCheckerTests
         Assert.Contains(result.Errors, e => e.ErrorCode == "FY-617E");
     }
 
+    [Fact]
+    public void ProcessAssignmentStatements_型式追加と数量記法を受理する()
+    {
+        // 【C原典】+(型式)*数量: Check_PULASU + Check_Haifunn(*N)。
+        // *6 を取り込み FY-613E を出さず、数量を機器属性へ格納する。
+        var result = Run(new[]
+        {
+            Line("M", "MCB+(CS)*6", 1),
+        });
+
+        Assert.DoesNotContain(result.Errors, e => e.ErrorCode == "FY-613E");
+        EquipmentTableEntry kiki = result.MainEquipment.Single(k => k.LineType == "M");
+        Assert.Equal("6", kiki.Attributes["quantity"]);
+    }
+
+    [Fact]
+    public void ProcessAssignmentStatements_数量が範囲外ならFY690Eエラー()
+    {
+        // 【C原典】Check_ASTER: 数量が 1?99 以外(*100)は FY-690E。
+        var result = Run(new[]
+        {
+            Line("M", "MCB+(CS)*100", 1),
+        });
+
+        Assert.Contains(result.Errors, e => e.ErrorCode == "FY-690E");
+    }
+
     // ==== Kairo_Bunrui_Set / Kairo_Bangou_Set(行種区分・回路番号) ====
 
     [Theory]

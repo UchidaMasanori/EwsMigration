@@ -23,7 +23,9 @@ namespace Ews.Analysis;
 ///   - Check_LW の Keisan_LW(負荷容量の加算計算・正規化)は未移植(形式検証のみ、DLW は生値)。
 ///   - Check_NO のハイフン連番展開(PropGetKnoStruct/PropDevelopKno)・Qrespo 全角(CheckQrespoZenkaku1z)
 ///     は未移植(カンマ連結・範囲'>'展開のみ、ハイフンは非展開でそのまま格納)。
-///   - Check_Dainyuu 末尾の Check_Haifunn('S')(分岐配置 -C/-SP)・PULASU(型式展開 DTYPE, Fysk01 依存)は未移植。
+///   - Check_Dainyuu 末尾の Check_Haifunn('S')(分岐配置 -SP/-C・数量 *N)は移植済(数量等は
+///     機器属性 quantity/control/sp へ格納)。PULASU(型式展開 DTYPE, Fysk01 依存)の型式解決自体は未移植
+///     (+(型式)*数量 の構文は受理し数量を取り込むが、型式による機器展開は行わない)。
 /// </summary>
 public sealed partial class CircuitStringChecker
 {
@@ -407,8 +409,16 @@ public sealed partial class CircuitStringChecker
             return 0;
         }
 
-        // 【C原典】Check_Haifunn(dainyuu, 'S')(分岐配置 -C/-SP)は未移植。
-        // 残余がある場合は従来通り FY-613E とする。
+        // 【C原典】Check_Haifunn(dainyuu, 'S'): 予約語文末尾の分岐配置(-SP/-C)・数量(*N)を取り込み検証する。
+        //   +(型式)*数量 の *数量 等はここで消費される(未消費だと後続の残余チェックで FY-613E)。
+        short haifunnRet = CheckHaifunn(tail, kiki, out errorCode);
+        if (haifunnRet != 0)
+        {
+            return haifunnRet;
+        }
+
+        // 【C原典】Check_Haifunn 後、次の ')' 以降に残余があれば FY-613E。
+        findname = FindName(nc, out tail);
         if (findname != ValueSymbol.End || !IsNullString(tail))
         {
             errorCode = "FY-613E";
@@ -416,6 +426,222 @@ public sealed partial class CircuitStringChecker
         }
 
         return 0;
+    }
+
+    /// <summary>末尾の分岐配置(-SP/-C)・数量(*N)判定シンボル。【C原典】nexthaifunn の戻り(sym_SPACE/sym_CONTROL/sym_ASTER)。</summary>
+    private enum HaifunnSymbol
+    {
+        Other, End, Space, Control, Aster,
+    }
+
+    /// <summary>
+    /// 予約語文末尾の「-SP」(送り配置)・「-C」(分岐配置)・「*数量」を取り込み検証する。
+    /// 【C原典】Check_Haifunn(Fyss1b.c:2141)。区分 'S'(主回路)で kikitable_add タグ
+    /// "4"(数量)/"5"(-C)/"9"(-SP)相当を機器属性へ格納する。
+    /// </summary>
+    /// <param name="trailing">閉じ括弧の後の残り文字列。</param>
+    /// <param name="kiki">格納先の機器テーブルエントリ。</param>
+    /// <param name="errorCode">エラー時のエラーコード。</param>
+    /// <returns>0:正常 / それ以外:エラー(FY-613E/FY-690E/FY-621E/FY-620E)。</returns>
+    private short CheckHaifunn(string trailing, EquipmentTableEntry kiki, out string errorCode)
+    {
+        errorCode = string.Empty;
+
+        // 【C原典】parmstart(dainyuu); Find_Haifunn(numeric)。先頭は区切り(-SP/-C/*)のはず。
+        var pc = new ByteCursor(ToShiftJis(trailing));
+        pc.SetCur((byte)' ');
+
+        HaifunnSymbol firstparm = FindHaifunn(pc, out string numeric);
+        HaifunnSymbol findparm = firstparm;
+
+        // 【C原典】先頭に区切り前の余分な文字があれば FY-613E。
+        if (!IsNullString(numeric))
+        {
+            errorCode = "FY-613E";
+            return 613;
+        }
+
+        // 【C原典】goto(END_ASTER_PROC/END_CONTROL_PROC/END_SPACE_PROC)を状態ループで表現。
+        while (true)
+        {
+            switch (findparm)
+            {
+                case HaifunnSymbol.Aster: // 【C原典】END_ASTER_PROC: 数量 *N。
+                    findparm = FindHaifunn(pc, out numeric);
+                    kiki.Attributes["quantity"] = numeric; // kikitable_add("4", numeric)
+                    if (findparm == firstparm)
+                    {
+                        return 653;
+                    }
+
+                    if (!CheckAster(numeric))
+                    {
+                        errorCode = "FY-690E";
+                        return 648;
+                    }
+
+                    if (findparm == HaifunnSymbol.End)
+                    {
+                        return 0;
+                    }
+
+                    if (findparm is HaifunnSymbol.Control or HaifunnSymbol.Space)
+                    {
+                        continue;
+                    }
+
+                    return 649;
+
+                case HaifunnSymbol.Control: // 【C原典】END_CONTROL_PROC: -C の後(分岐配置番号)。
+                    findparm = FindHaifunn(pc, out numeric);
+                    kiki.Attributes["control"] = numeric; // kikitable_add("5", numeric)
+                    if (findparm == firstparm)
+                    {
+                        return 653;
+                    }
+
+                    if (!CheckControl(numeric))
+                    {
+                        errorCode = "FY-621E";
+                        return 650;
+                    }
+
+                    if (findparm == HaifunnSymbol.End)
+                    {
+                        return 0;
+                    }
+
+                    if (findparm is HaifunnSymbol.Aster or HaifunnSymbol.Space)
+                    {
+                        continue;
+                    }
+
+                    return 651;
+
+                case HaifunnSymbol.Space: // 【C原典】END_SPACE_PROC: -SP の後(値なし)。
+                    findparm = FindHaifunn(pc, out numeric);
+                    kiki.Attributes["sp"] = "1"; // kikitable_add("9", NULL)
+                    if (findparm == firstparm)
+                    {
+                        return 653;
+                    }
+
+                    if (!IsNullString(numeric))
+                    {
+                        errorCode = "FY-621E";
+                        return 652;
+                    }
+
+                    if (findparm == HaifunnSymbol.End)
+                    {
+                        return 0;
+                    }
+
+                    if (findparm is HaifunnSymbol.Control or HaifunnSymbol.Aster)
+                    {
+                        continue;
+                    }
+
+                    return 652;
+
+                case HaifunnSymbol.End: // 【C原典】findparm==sym_END → return(000)。
+                    return 0;
+
+                default: // 【C原典】上記以外 → FY-620E。
+                    errorCode = "FY-620E";
+                    return 649;
+            }
+        }
+    }
+
+    /// <summary>「-SP」「-C」「*」区切りまで文字を取り込みシンボルを返す。【C原典】Find_Haifunn(Fyss1b.c:2350)。</summary>
+    private static HaifunnSymbol FindHaifunn(ByteCursor pc, out string token)
+    {
+        var bytes = new List<byte>();
+        HaifunnSymbol sym = NextHaifunn(pc);
+        while (sym == HaifunnSymbol.Other)
+        {
+            bytes.Add(pc.Cur);
+            if (IsKanjiLead(pc.Cur))
+            {
+                bytes.Add(pc.Cur2);
+            }
+
+            pc.Advance();
+            sym = NextHaifunn(pc);
+        }
+
+        token = DecodeBytes(bytes);
+        return sym;
+    }
+
+    /// <summary>目下のシンボル判定(-SP/-C/*)。【C原典】nexthaifunn(Fyss1b.c:2501)。</summary>
+    private static HaifunnSymbol NextHaifunn(ByteCursor pc)
+    {
+        while (pc.Cur == (byte)' ')
+        {
+            pc.Advance();
+        }
+
+        int p = pc.Pos - 1; // 【C原典】parmstring-1(現在バイト位置)。
+        if (pc.MatchAt(p, "-SP"))
+        {
+            AdvanceN(pc, 3);
+            return HaifunnSymbol.Space;
+        }
+
+        if (pc.MatchAt(p, "-C"))
+        {
+            AdvanceN(pc, 2);
+            return HaifunnSymbol.Control;
+        }
+
+        if (pc.MatchAt(p, "*"))
+        {
+            pc.Advance();
+            return HaifunnSymbol.Aster;
+        }
+
+        if (pc.Cur == 0)
+        {
+            return HaifunnSymbol.End;
+        }
+
+        return HaifunnSymbol.Other;
+    }
+
+    /// <summary>数量(*N)の妥当性。【C原典】Check_ASTER(Fyss1b.c:2117)。空は許容、数値は 1?99。</summary>
+    private static bool CheckAster(string value) => CheckHaifunnNumeric(value);
+
+    /// <summary>分岐配置(-C)の妥当性。【C原典】Check_CONTROL(Fyss1b.c:2087)。空は許容、数値は 1?99。</summary>
+    private static bool CheckControl(string value) => CheckHaifunnNumeric(value);
+
+    /// <summary>空許容・数値 1?99 の共通判定。【C原典】Check_ASTER/Check_CONTROL(同一)。</summary>
+    private static bool CheckHaifunnNumeric(string value)
+    {
+        if (IsNullString(Blankless(value)))
+        {
+            return true;
+        }
+
+        foreach (char c in value)
+        {
+            if (c != ' ' && (c < '0' || c > '9'))
+            {
+                return false;
+            }
+        }
+
+        int n = 0;
+        foreach (char c in value)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                n = (n * 10) + (c - '0');
+            }
+        }
+
+        return n is >= 1 and <= 99;
     }
 
     // ============================================================
