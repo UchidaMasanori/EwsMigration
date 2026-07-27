@@ -113,4 +113,85 @@ public sealed class EquipmentSelectorTests
         short ret = EquipmentSelector.ChokiCmp2(50.0, [0.0, 100.0], [60.0, 100.0]);
         Assert.Equal(-1, ret);
     }
+
+    // ── Fysk01_Data_Cmp(THR/MG): 候補選択 ──
+
+    [Fact]
+    public void DataCmp_MGは代表値が小さい今回候補で入れ替え1を返す()
+    {
+        // MG(PC_3): dat1v(50) < dat2v(60) → 即 k=1。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc3Mg, 50.0, [0.0, 100.0], 50.0, "A",
+            [0.0, 100.0], 60.0, "B");
+        Assert.Equal(1, ret);
+    }
+
+    [Fact]
+    public void DataCmp_MGは代表値が大きい今回候補では入れ替えず0を返す()
+    {
+        // MG: dat1v(60) > dat2v(50)、差>TOL → k=0。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc3Mg, 50.0, [0.0, 100.0], 60.0, "A",
+            [0.0, 100.0], 50.0, "B");
+        Assert.Equal(0, ret);
+    }
+
+    [Fact]
+    public void DataCmp_MGは代表値同値かつ幅一致で定格値キーが小さければ1を返す()
+    {
+        // dat1v==dat2v、幅一致、kteichi "A" < "B" → k=1。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc3Mg, 50.0, [0.0, 100.0], 50.0, "A",
+            [0.0, 100.0], 50.0, "B");
+        Assert.Equal(1, ret);
+    }
+
+    [Fact]
+    public void DataCmp_MGは代表値同値でも幅不一致なら0を返す()
+    {
+        // 幅が異なる(|dat1a[1]-dat2a[1]|=100 > TOL) → 幅一致条件を満たさず k=0。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc3Mg, 50.0, [0.0, 100.0], 50.0, "B",
+            [0.0, 200.0], 50.0, "A");
+        Assert.Equal(0, ret);
+    }
+
+    [Fact]
+    public void DataCmp_MGは代表値同値_幅一致_キー大_均等度同点なら0を返す()
+    {
+        // 幅一致([0,100]==[0,100])、kteichi "B">"A" → Cmp1。両幅同一で偏り等しく Cmp1=0 → k=0。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc3Mg, 50.0, [0.0, 100.0], 50.0, "B",
+            [0.0, 100.0], 50.0, "A");
+        Assert.Equal(0, ret);
+    }
+
+    [Fact]
+    public void DataCmp_THRは幅一致でキーが小さければ1を返す()
+    {
+        // THR(PC_1): 代表値比較なし。幅一致、kteichi "A"<"B" → k=1。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc1Thr, 50.0, [0.0, 100.0], 999.0, "A",
+            [0.0, 100.0], 111.0, "B");
+        Assert.Equal(1, ret);
+    }
+
+    [Fact]
+    public void DataCmp_THRは幅不一致なら0を返す()
+    {
+        // 幅が異なる([0,100] vs [0,200]) → 幅一致条件を満たさず k=0。
+        short ret = EquipmentSelector.DataCmp(
+            EquipmentSelector.Pc1Thr, 50.0, [0.0, 100.0], 0.0, "A",
+            [0.0, 200.0], 0.0, "B");
+        Assert.Equal(0, ret);
+    }
+
+    [Fact]
+    public void DataCmp_対象外の処理番号は常に0を返す()
+    {
+        short ret = EquipmentSelector.DataCmp(
+            99, 50.0, [0.0, 100.0], 50.0, "A",
+            [0.0, 100.0], 60.0, "B");
+        Assert.Equal(0, ret);
+    }
 }
