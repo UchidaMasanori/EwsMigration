@@ -15,15 +15,20 @@ namespace Ews.Tests;
 /// C 版の出力(dt.kpa*)を再現することを検証する。
 ///
 /// 【手順】
-///   1. 実 FYDF806 の各レコードから入力側フィールド(ep[0]/yoyaku/ksyubetu/kiryoso/oyatno)を抽出。
+///   1. 実 FYDF806 の各レコードから入力側フィールド(ep[0]/fp/yoyaku/ksyubetu/kiryoso/oyatno)を抽出。
 ///      datano は syukairo 構造体には無く FYRT800 レベル(位置由来)のため index+1 を "%03d" で採番する
-///      (実データで各行の oyatno が親行の index+1 を指すことを確認済み)。
+///      (実データで各行の oyatno が親行の index+1 を指すことを確認済み)。fp(付属パラメータ)は
+///      子回路の負荷電圧(200/100V)から回路電圧を確定するため必須。
 ///   2. 生成前に実 kpa*(期待値)を退避。
 ///   3. <see cref="UpperParameterBuilder.GenerateUpperParameters"/> を実行して kpa* を計算。
 ///   4. 計算 kpa* と実 kpa* を突合し、入線(P)・非入線別に一致率を集計する。
 ///
+/// 【現状の突合結果(547 案件)】入線(P)=789/789 完全一致。非入線=14808/15004(98.7%)一致。
+/// 残存不一致は SetParam_ep2 の例外要素 kpa* 再設定(未移植)のみ: RTR→024V・WL→005V(電圧のみ差異)。
+///
 /// 【C原典・レイアウト(FYDF806 RL=1219, key(12)+syukairo)】
-///   ksyubetu@+21 / yoyaku[8]@+38 / ep[0](eparmg 253)@+114 / kiryoso@+1031 / oyatno[3]@+1032 /
+///   ksyubetu@+21 / yoyaku[8]@+38 / ep[0](eparmg 253)@+114 / fp(fparmg 157)@+873 /
+///   kiryoso@+1031 / oyatno[3]@+1032 /
 ///   kpaph@+1135 / kpawr@+1136 / kpahz[2]@+1137 / kpap@+1139 / kpav[3][3]@+1140 / kpavkbn@+1149。
 ///   (syukairo 内オフセット: ep[0]@102, kpaph@1123 … に key(12) を加算。ep[0]@+114・fp@+873 は
 ///    <see cref="GoldenComparisonHarnessTests"/> の既知アンカーと整合。)
@@ -37,6 +42,7 @@ public sealed class GoldenKpaComparisonTests
     private const int Yoyaku806 = 38;
     private const int Yoyaku806Len = 8;
     private const int Ep0806 = 114;
+    private const int Fp806 = 873;
     private const int Kiryoso806 = 1031;
     private const int Oyatno806 = 1032;
     private const int Kpaph806 = 1135;
@@ -90,12 +96,14 @@ public sealed class GoldenKpaComparisonTests
             {
                 int o = r * Rl806;
                 var ep0 = EparmgCodec.Deserialize(b.AsSpan(o + Ep0806, EparmgCodec.RecordLength));
+                var fp = FparmgCodec.Deserialize(b.AsSpan(o + Fp806, FparmgCodec.RecordLength));
                 var data = MainCircuitData.Create();
                 data.SystemKind = (char)b[o + Ksyubetu806];
                 data.ReservedWord = Cp932.GetString(b, o + Yoyaku806, Yoyaku806Len).TrimEnd(' ', '\0');
                 data.CircuitElement = (char)b[o + Kiryoso806];
                 data.ParentSequenceNumber = Cp932.GetString(b, o + Oyatno806, 3);
                 data.ElectricalParameterSlots[0] = ep0;
+                data.AttachedParameter = fp;
 
                 records.Add(new MainCircuitResult
                 {
@@ -213,6 +221,18 @@ public sealed class GoldenKpaComparisonTests
             matchP == totalP,
             $"入線(P)の kpa* が {totalP - matchP}/{totalP} 件で実 FYDF806 と不一致でした。\n" +
             string.Join("\n", samples.Where(s => s.Contains("[P]"))));
+
+        // 非入線の残存不一致は SetParam_ep2 の例外要素 kpa* 再設定(未移植)に限られる:
+        //   ・RTR(継電器用変成器 2次)→ 電圧 024V 固定
+        //   ・WL (漏電警報)          → 電圧 005V 固定
+        // 相・線式・極数は一致し電圧のみ差異。これら以外の予約語で不一致が出た場合は
+        // コア(Kairo_Parm_Set/Find_Parent 等)の回帰とみなして失敗させる。
+        var knownExceptions = new HashSet<string>(StringComparer.Ordinal) { "RTR", "WL" };
+        List<string> unexpected = mismatchByYoyaku.Keys.Where(k => !knownExceptions.Contains(k)).ToList();
+        Assert.True(
+            unexpected.Count == 0,
+            $"SetParam_ep2 例外(RTR/WL)以外の予約語で kpa* が不一致でした: [{string.Join(",", unexpected)}]\n" +
+            string.Join("\n", samples.Where(s => unexpected.Any(u => s.Contains($"[{u}]")))));
     }
 
     private readonly record struct Expected(
