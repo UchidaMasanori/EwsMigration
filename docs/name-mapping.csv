@@ -294,3 +294,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Kairo_Init_Take,UpperParameterBuilder.TakeIncomingParameter,toku/sekkei/src/Fyss14.c,入線(P)のep[0](epaph2/epawr2/epap/epav2kbn/epav2)から主回路パラメータMCPRMSを取り出す。Right_Volt/Pole_Gen/Left_Volt適用+105V単相2線の極数1特例。Make_UpperParmのP系統ループで使用
 関数,Kairo_End_Set,UpperParameterBuilder.SetCircuitInfo,toku/sekkei/src/Fyss14.c,主回路パラメータMCPRMSから回路電気値kpa*(kpaph/kpawr/kpahz/kpap/kpavkbn/kpav)を設定。電圧は左詰め3桁。DCは相/線式/周波数0・極数2に再設定。改訂<14>VM(親Fuse相対参照)は本体配線時TODO
 関数,Set_I,UpperParameterBuilder.SetI,toku/sekkei/src/Fyss14.c,SHORT値をC書式(%0Nd)で整形しstrncpyで先頭length文字を返す(sprintf+strncpy)
+関数,Find_Parent,UpperParameterBuilder.FindParent,toku/sekkei/src/Fyss14.c,親データ追番(dt.oyatno)と一致するデータ追番(datano)を手前へ遡って探し親の回路電気値kpa*を主回路パラメータMCPRMSへ取り出す(右詰め)。予約語がVT/F以外で回路要素=='4'なら電圧110/0/0に上書き。見つかればtrue
+構造体,dt.oyatno(親データ追番),MainCircuitData.ParentSequenceNumber,toku/include/common/fydf806.h,親機器のdatano。Find_Parentの親検索キー(3桁)

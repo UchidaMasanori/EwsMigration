@@ -128,4 +128,74 @@ public sealed class UpperParameterBuilderTests
         Assert.Equal("105", data.CircuitVoltage[1]);
         Assert.Equal("000", data.CircuitVoltage[2]);
     }
+
+    // ---- Find_Parent ---------------------------------------------------------
+
+    /// <summary>datano/oyatno/kpa* を持つ主回路レコードを組み立てる。</summary>
+    private static MainCircuitResult Rec(
+        string datano, string oyatno, char ph, char wr, char p, char vkbn,
+        string v0, string v1, string v2, string yoyaku, char kiryoso = '1')
+        => new()
+        {
+            SequenceNumber = datano,
+            Data = new MainCircuitData
+            {
+                ParentSequenceNumber = oyatno,
+                CircuitPhaseCount = ph,
+                CircuitWireType = wr,
+                CircuitPoleCount = p,
+                CircuitVoltageKind = vkbn,
+                CircuitVoltage = [v0, v1, v2],
+                ReservedWord = yoyaku,
+                CircuitElement = kiryoso,
+            },
+        };
+
+    [Fact]
+    public void FindParent_親のkpaを取り出して右詰めする()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec("001", "000", '1', '3', '3', 'A', "210", "105", "000", "P"),
+            Rec("002", "001", '0', '0', '0', 'A', "000", "000", "000", "MCB"),
+        };
+        var output = new MainCircuitParameter();
+
+        bool found = UpperParameterBuilder.FindParent(records, 1, output);
+
+        Assert.True(found);
+        Assert.Equal(1, output.Phase);
+        Assert.Equal(3, output.WireType);
+        Assert.Equal(3, output.Pole);
+        Assert.Equal(0, output.AcDcKind);
+        Assert.Equal(new short[] { 0, 210, 105 }, output.Voltage);
+    }
+
+    [Fact]
+    public void FindParent_親追番が一致しなければfalse()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec("001", "000", '1', '3', '3', 'A', "210", "105", "000", "P"),
+            Rec("002", "999", '0', '0', '0', 'A', "000", "000", "000", "MCB"),
+        };
+        var output = new MainCircuitParameter();
+
+        Assert.False(UpperParameterBuilder.FindParent(records, 1, output));
+    }
+
+    [Fact]
+    public void FindParent_VTでもFでもなく回路要素4なら電圧110()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec("001", "000", '3', '3', '3', 'A', "210", "000", "000", "P"),
+            Rec("002", "001", '0', '0', '0', 'A', "000", "000", "000", "AM", '4'),
+        };
+        var output = new MainCircuitParameter();
+
+        Assert.True(UpperParameterBuilder.FindParent(records, 1, output));
+        Assert.Equal(new short[] { 0, 0, 110 }, output.Voltage); // 110/0/0 → 右詰め
+    }
 }
+

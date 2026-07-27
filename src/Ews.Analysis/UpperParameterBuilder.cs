@@ -110,7 +110,74 @@ public static class UpperParameterBuilder
     }
 
     /// <summary>
+    /// eƒf[ƒ^(e‹@Ší)‚ğ‘k‚Á‚ÄŒŸõ‚µA‚»‚Ì‰ñ˜H“d‹C’l(kpa*)‚ğå‰ñ˜Hƒpƒ‰ƒ[ƒ^‚Öæ‚èo‚·B
+    /// yCŒ´“TzFind_Parent(Fyss14.c:1249)B
+    /// Œ»‹@Ší‚Ìeƒf[ƒ^’Ç”Ô(<c>dt.oyatno</c>)‚Æˆê’v‚·‚éƒf[ƒ^’Ç”Ô(<c>datano</c>)‚ğA
+    /// è‘O(<paramref name="index"/>-1 c0)‚Ö‘k‚Á‚Ä’T‚·BŒ©‚Â‚©‚ê‚Îe‚Ì kpa* ‚ğ
+    /// <paramref name="output"/> ‚Öİ’è‚µ‰E‹l‚ß‚·‚éB
+    /// —\–ñŒê‚ª VT/F ˆÈŠO‚Å‰ñ˜H—v‘f‚ª '4'(ŒvŠí—p‰ñ˜H VT •t)‚Ìê‡‚Í“dˆ³‚ğ 110/0/0 ‚Éã‘‚«‚·‚éB
+    /// </summary>
+    /// <param name="records">å‰ñ˜HƒŒƒR[ƒh—ñ(FYRT800 ”z—ñ‘Š“–)B</param>
+    /// <param name="index">Œ»‹@Ší‚ÌƒCƒ“ƒfƒbƒNƒXB</param>
+    /// <param name="output">e‚Ì‰ñ˜Hî•ñ‚ÌŠi”[æ(Œ©‚Â‚©‚Á‚½‚Æ‚«‚Ì‚İXV)B</param>
+    /// <returns>e‚ªŒ©‚Â‚©‚ê‚Î trueAŒ©‚Â‚©‚ç‚È‚¯‚ê‚Î falseB</returns>
+    public static bool FindParent(IReadOnlyList<MainCircuitResult> records, int index, MainCircuitParameter output)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(output);
+
+        MainCircuitResult current = records[index];
+        string oyatno = current.Data.ParentSequenceNumber; // yCŒ´“TzSmaina->dt.oyatno
+
+        // yCŒ´“Tzfor( j=1 ; j<=indx ; j++ )Fè‘O‚Ö‘k‚éB
+        for (int j = 1; j <= index; j++)
+        {
+            MainCircuitResult candidate = records[index - j];
+
+            // yCŒ´“Tzmemcmp(Smaina->dt.oyatno, (Smaina-j)->datano, 3)==0B
+            if (!Match3(oyatno, candidate.SequenceNumber))
+            {
+                continue;
+            }
+
+            MainCircuitData p = candidate.Data;
+            output.Phase = (short)AtoiC(p.CircuitPhaseCount.ToString());    // yCŒ´“Tzatoi(kpaph)
+            output.WireType = (short)AtoiC(p.CircuitWireType.ToString());  // yCŒ´“Tzatoi(kpawr)
+            output.Pole = (short)AtoiC(p.CircuitPoleCount.ToString());     // yCŒ´“Tzatoi(kpap)
+            output.AcDcKind = p.CircuitVoltageKind == 'A' ? (short)0 : (short)1; // yCŒ´“Tzkpavkbn=='A'¨0
+            output.Voltage[0] = (short)AtoiC(p.CircuitVoltage[0]);         // yCŒ´“Tzatoi(kpav[0])
+            output.Voltage[1] = (short)AtoiC(p.CircuitVoltage[1]);
+            output.Voltage[2] = (short)AtoiC(p.CircuitVoltage[2]);
+            VoltageInheritance.RightAlignVoltage(output.Voltage);          // yCŒ´“TzRight_Volt
+
+            // yCŒ´“Tz940830/950512: —\–ñŒê‚ª VT ‚Å‚à F ‚Å‚à‚È‚­‰ñ˜H—v‘f=='4' ‚È‚ç“dˆ³110/0/0B
+            if (current.Data.ReservedWord != "VT"
+                && current.Data.ReservedWord != "F"
+                && current.Data.CircuitElement == '4')
+            {
+                output.Voltage[0] = 110;
+                output.Voltage[1] = 0;
+                output.Voltage[2] = 0;
+                VoltageInheritance.RightAlignVoltage(output.Voltage);
+            }
+
+            return true; // yCŒ´“Tzreturn(TRUE)
+        }
+
+        return false; // yCŒ´“Tzreturn(FALSE)
+    }
+
+    /// <summary>ŒÅ’è 3 ƒoƒCƒgˆê’v(æ“ª 3 •¶š)ByCŒ´“Tzmemcmp(a, b, 3)==0B</summary>
+    private static bool Match3(string a, string b)
+    {
+        string a3 = a.Length >= 3 ? a[..3] : a.PadRight(3, '\0');
+        string b3 = b.Length >= 3 ? b[..3] : b.PadRight(3, '\0');
+        return string.CompareOrdinal(a3, b3) == 0;
+    }
+
+    /// <summary>
     /// SHORT ’l‚ğ C ‚Ì‘®(%0Nd)‚Å®Œ`‚µæ“ª <paramref name="length"/> •¶š‚ğ•Ô‚·B
+
     /// yCŒ´“TzSet_I(Fyss14.c:1177): sprintf(buff, format, from); strncpy(to, buff, to_length)B
     /// </summary>
     private static string SetI(int value, int length, string cFormat)

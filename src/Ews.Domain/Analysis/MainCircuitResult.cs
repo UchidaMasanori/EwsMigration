@@ -103,6 +103,9 @@ public sealed class MainCircuitData
     /// <summary>‰ñ˜H—v‘fByCŒ´“Tzkiryoso("C")B</summary>
     public char CircuitElement { get; set; } = ' ';
 
+    /// <summary>eƒf[ƒ^’Ç”Ô(e‹@Ší‚Ì datano)ByCŒ´“Tzoyatno[3]("9")BFind_Parent ‚ÌeŒŸõƒL[B</summary>
+    public string ParentSequenceNumber { get; set; } = "000";
+
     /// <summary>•‰‰×”­¶Œ³‹æ•ªByCŒ´“Tzahassei("C")B</summary>
     public char LoadSourceKind { get; set; } = ' ';
 
