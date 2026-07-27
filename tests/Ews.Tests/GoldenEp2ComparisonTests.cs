@@ -57,7 +57,7 @@ public sealed class GoldenEp2ComparisonTests
         "MCB", "ELB", "MMCB", "ELMB", "RMCB", "RELB", "RMMCB", "RELMB",
         "SB", "THR", "MG", "SC", "NT", "RRY", "MCDT", "F", "CP",
         "HM", "ZCT", "CKS", "CSDT", "SSW", "TSW", "FL", "LSW", "DSW",
-        "LA", "CON",
+        "LA", "CON", "HPSB", "HSB",
     };
 
     private static readonly Encoding Cp932 = FixedFieldCodec.ShiftJis;

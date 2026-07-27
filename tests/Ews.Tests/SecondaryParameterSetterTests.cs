@@ -341,6 +341,25 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000600.0", data.ElectricalParameterSlots[2].V1[0]);
     }
 
+    [Theory]
+    [InlineData("HPSB")]
+    [InlineData("HSB")]
+    public void SetParam_ep2_HPSB_HSBは極数と電圧を設定する(string yoyaku)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = yoyaku;
+        data.CircuitPoleCount = '3';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("003", ep2.P);          // SetMcbPole: kpap='3' → 3桁目 '3'
+        Assert.Equal("000210.0", ep2.V2[0]); // MCB_V2: 回路電圧最大値
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
     [Fact]
     public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
     {

@@ -259,8 +259,8 @@ public static class SecondaryParameterSetter
     /// 【C原典】SetParam_ep2(Fyss14.c:2872)の予約語分岐のうち、単一レコードで完結し
     /// 移植済みリーフのみで表せる自己完結ケースを収録する。
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
-    /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/
-    ///       SSW/TSW/FL/LSW/DSW/VS/AS/VM/LA/CON。
+    /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/HPSB/HSB/CKS/
+    ///       CSDT/SSW/TSW/FL/LSW/DSW/VS/AS/VM/LA/CON。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
@@ -370,6 +370,13 @@ public static class SecondaryParameterSetter
                 break;
 
             case "ZCT":
+                SetMcbVoltage2(data);
+                break;
+
+            case "HPSB":
+            case "HSB":
+                // 【C原典】case y_HPSB / y_HSB: SetParam_ep2_MCB_P + SetParam_ep2_MCB_V2。
+                SetMcbPole(data);
                 SetMcbVoltage2(data);
                 break;
 
