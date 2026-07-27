@@ -75,8 +75,10 @@ public static class UpperParameterBuilder
                     (short)frequency, parentParam, ownParam, records, i, records.Count - i);
                 SetCircuitInfo(data, ownParam, frequency);
 
-                // 【C原典】SetParam_ep2(ep[2]生成+例外要素のkpa*再設定)/SetParam_Kubun(負荷種類)は
+                // 【C原典】SetParam_ep2: 例外要素(RTR/WL 系)の回路電気値(kpa*)を再設定する。
+                //   ep[2](システム生成電気パラメータ)の生成と SetParam_Kubun(負荷種類)は
                 //   後続増分(TODO)。
+                ApplyExceptionCircuitParameters(records, i);
             }
         }
 
@@ -226,6 +228,73 @@ public static class UpperParameterBuilder
         return false; // 【C原典】return(FALSE)
     }
 
+    /// <summary>
+    /// 例外要素の回路電気値(kpa*)を再設定する。
+    /// 【C原典】SetParam_ep2(Fyss14.c:2872)のうち<b>回路電気値を再設定する</b>分岐のうち RTR を移植:
+    ///   ・RTR … Parm_Set_RTR(相/線式/極数/AC・DC/周波数は親から、電圧は自身の ep[0] 定格から)。
+    /// 以下は後続増分(TODO):
+    ///   ・WL/GL/RL/OL/BL の 005V 再設定 … 主に Type_Set(Fyss14.c:5844, 941121)の後段パスが
+    ///     物件施策区分(sshiykbn)・盤種類(epabn)・datatype 伝播に基づいて行う
+    ///     (SetParam_ep2 の case y_WL は前段 F+datatype[0]="TR" 時のみ発火し実データでは稀)。
+    ///   ・PLTR(y_PLTR)の下流 005V 再設定、その他予約語の ep[2] 生成。
+    /// </summary>
+    /// <param name="records">主回路レコード列。破壊的に kpa* を更新する。</param>
+    /// <param name="index">対象機器のインデックス。</param>
+    public static void ApplyExceptionCircuitParameters(IReadOnlyList<MainCircuitResult> records, int index)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitData dt = records[index].Data;
+
+        switch (dt.ReservedWord)
+        {
+            case "RTR":
+                // 【C原典】case y_RTR: Parm_Set_RTR(Fyss14.c:859)。
+                ApplyRtrCircuitParameters(records, index);
+                break;
+
+                // 【C原典】case y_WL/y_GL/y_RL/y_OL/y_BL(Fyss14.c:3455)の 005V 再設定と
+                //   Type_Set(5844)の後段パスは bukken/ep[2]/datatype 依存のため後続増分(TODO)。
+        }
+    }
+
+    /// <summary>
+    /// RTR(計器用変成器 2次)の回路電気値を再設定する。
+    /// 【C原典】Parm_Set_RTR(Fyss14.c:859)の回路情報設定部。
+    /// 相/線式/極数/AC・DC/周波数は親データ(oyatno 直接参照)から、電圧は自身の ep[0] 定格から取る。
+    /// </summary>
+    private static void ApplyRtrCircuitParameters(IReadOnlyList<MainCircuitResult> records, int index)
+    {
+        MainCircuitData dt = records[index].Data;
+        ElectricalParameters ep0 = dt.ElectricalParameterSlots[0];
+
+        // 【C原典】定格電圧: ep[0].epav2[i] を先頭6文字 atoi → "%.3d"。
+        //   epav2 は "NNNNNN.N" 形式のため atoi は小数点で停止し整数部を得る。
+        string v0 = SetI(AtoiC(ep0.V2[0]), 3, "%03d");
+        string v1 = SetI(AtoiC(ep0.V2[1]), 3, "%03d");
+        string v2 = SetI(AtoiC(ep0.V2[2]), 3, "%03d");
+
+        // 【C原典】親データ p = maina[atoi(oyatno)-1](datano=index+1 の位置直接参照)。
+        int parentIndex = AtoiC(dt.ParentSequenceNumber) - 1;
+        if (parentIndex < 0 || parentIndex >= records.Count)
+        {
+            return; // 親不明時は再設定しない(C は配列外参照だが安全側に倒す)。
+        }
+
+        MainCircuitData parent = records[parentIndex].Data;
+
+        // 【C原典】回路情報: 相/線式/AC・DC/極数/周波数は親から、電圧は自身の定格から。
+        dt.CircuitPhaseCount = parent.CircuitPhaseCount;
+        dt.CircuitWireType = parent.CircuitWireType;
+        dt.CircuitVoltage[0] = v0;
+        dt.CircuitVoltage[1] = v1;
+        dt.CircuitVoltage[2] = v2;
+        dt.CircuitVoltageKind = parent.CircuitVoltageKind;
+        dt.CircuitPoleCount = parent.CircuitPoleCount;
+        dt.CircuitFrequency = parent.CircuitFrequency;
+
+        // 【C原典】SetParam_ep2_RTR_V1 / SetParam_ep2_TR_V2(ep[2]生成)は後続増分(TODO)。
+    }
+
     /// <summary>固定 3 バイト一致(先頭 3 文字)。【C原典】memcmp(a, b, 3)==0。</summary>
     private static bool Match3(string a, string b)
     {
@@ -236,7 +305,6 @@ public static class UpperParameterBuilder
 
     /// <summary>
     /// SHORT 値を C の書式(%0Nd)で整形し先頭 <paramref name="length"/> 文字を返す。
-
     /// 【C原典】Set_I(Fyss14.c:1177): sprintf(buff, format, from); strncpy(to, buff, to_length)。
     /// </summary>
     private static string SetI(int value, int length, string cFormat)

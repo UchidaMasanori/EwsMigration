@@ -252,6 +252,44 @@ public sealed class UpperParameterBuilderTests
         Assert.Equal('0', rec.Data.CircuitPhaseCount); // 未処理(既定のまま)
         Assert.Equal("00", rec.Data.CircuitFrequency);
     }
+
+    // ---- SetParam_ep2 例外要素(RTR) -----------------------------------------
+
+    [Fact]
+    public void GenerateUpperParameters_RTRは自身のep0電圧と親の相線式極数を取る()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "RTR", MakeEp("1", "2", "002", 'A', 24, 0, 0)),
+        };
+
+        UpperParameterBuilder.GenerateUpperParameters(records, UpperParameterBuilder.Hz1);
+
+        // 【C原典】Parm_Set_RTR: 相/線式/極数/AC・DC/周波数は親、電圧は自身の ep[0] 定格。
+        MainCircuitData rtr = records[1].Data;
+        Assert.Equal('1', rtr.CircuitPhaseCount);   // 親 1P
+        Assert.Equal('3', rtr.CircuitWireType);     // 親 3W
+        Assert.Equal('3', rtr.CircuitPoleCount);    // 親 3P
+        Assert.Equal('A', rtr.CircuitVoltageKind);  // 親 AC
+        Assert.Equal("50", rtr.CircuitFrequency);   // 親 50Hz
+        Assert.Equal("024", rtr.CircuitVoltage[0]); // 自身 ep[0]=24V
+        Assert.Equal("000", rtr.CircuitVoltage[1]);
+        Assert.Equal("000", rtr.CircuitVoltage[2]);
+    }
+
+    [Fact]
+    public void ApplyExceptionCircuitParameters_親不明のRTRは再設定しない()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "RTR", MakeEp("1", "2", "002", 'A', 24, 0, 0)),
+        };
+        // 親 oyatno="000" → parentIndex=-1 のため何もしない(既定のまま)。
+        UpperParameterBuilder.ApplyExceptionCircuitParameters(records, 0);
+
+        Assert.Equal("000", records[0].Data.CircuitVoltage[0]);
+    }
 }
 
 
