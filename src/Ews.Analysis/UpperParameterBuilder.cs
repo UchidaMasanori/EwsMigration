@@ -81,9 +81,10 @@ public static class UpperParameterBuilder
                 //   続いて ep[2](システム側生成値)を予約語別に生成する。C では 1 関数だが本移行では
                 //   kpa* 再設定部(ApplyExceptionCircuitParameters)と ep[2] 生成部
                 //   (SecondaryParameterSetter.SetParam_ep2)に分割している。
-                //   ※ep[2].epap/epae は回路極数 kpap 依存だが、105V→極数1 の特例が本移行では
-                //     Kairo_Parm_Set 内で先に適用されるため、C が SetParam_ep2 後に適用する場合の
-                //     中間 kpap とは一致しないことがある(電圧 V2 は kpap 非依存で一致)。
+                //   ※ep[2].epap/epae は回路極数 kpap からの暗定値だが、最終 FYDF806 の ep[2] は
+                //     後段の機器選定(eparm_set 相当)が選定機器の実極数・実エレメントで上書きする
+                //     (105V単相2線では SetParam_ep2 は epae='1' だが実機は 2 極のため ep[2].E='2')。
+                //     電圧 V2 は回路電圧そのもので上書きされず実 FYDF806 と一致する。
                 ApplyExceptionCircuitParameters(records, i);
                 SecondaryParameterSetter.SetParam_ep2(data);
 

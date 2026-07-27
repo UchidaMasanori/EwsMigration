@@ -14,11 +14,15 @@ namespace Ews.Tests;
 /// <see cref="SecondaryParameterSetter.SetParam_ep2"/> ディスパッチャ(自己完結ケース)が
 /// C 版の出力(ep[2])を再現することを、ep[2] の電圧フィールド(V2[0..2]/V2区分)で検証する。
 ///
-/// 【重要・P/E を検証しない理由】ep[2] の極数(epap)・エレメント(epae)は回路極数 kpap に
-/// 依存するが、C は 105V・単相2線→極数1 の特例を SetParam_ep2 よりも後のパスで適用するため、
-/// SetParam_ep2 時点の kpap(中間値='2')と最終 FYDF806 の kpap(='1')が異なる。本ハーネスは
-/// 最終 kpap を入力とするため P/E は検証できない(ディスパッチャの P/E は単体テストで検証)。
-/// 電圧 V2 は kpap 非依存(回路電圧は不変)のため実データで堂々と突合できる。
+/// 【重要・P/E を検証しない理由】ep[2] の極数(epap)・エレメント(epae)は Make_UpperParm の
+/// SetParam_ep2 が回路極数 kpap から生成する暫定値だが、最終 FYDF806 の ep[2] はその後の
+/// 機器選定(eparm_set 相当)が選定機器の実極数・実エレメント数で上書きする。実データ計測でも
+/// ep[2].epae は SetParam_ep2 の算出値より ep[0].epae(=入力機器のエレメント数)に一致する
+/// 割合が高い(MCB/ELB 標本で ep[2].E==ep[0].E が約 97%、==SetParam_ep2_MCB_E は約 52%)。
+/// 特に 105V・単相2線(kpap=1)で SetParam_ep2 は epae='1' とするが、実機は 2 極のため ep[2].E='2'。
+/// このため P/E は最終 FYDF806 では SetParam_ep2 の出力を反映せず突合できない
+/// (ディスパッチャの P/E ロジックは C 原典に忠実で単体テストで検証)。
+/// 電圧 V2 は回路電圧そのもので機器選定後も不変のため実データで堂々と突合できる。
 ///
 /// 【C原典・レイアウト(FYDF806 RL=1219, key(12)+syukairo)】
 ///   yoyaku[8]@+38 / ep[0](eparmg 253)@+114 / ep[2](eparmg 253)@+620(=114+253×2) /
@@ -121,8 +125,8 @@ public sealed class GoldenEp2ComparisonTests
 
                 total++;
                 var diffs = new List<string>();
-                // 電圧 V2(kpap 非依存)のみ突合する。P/E は 105V→極数1 の適用順序のため
-                // 最終 kpa* では検証できない(クラス doc 参照)。
+                // 電圧 V2 のみ突合する。P/E は機器選定が実機値で上書きするため
+                // 最終 FYDF806 では SetParam_ep2 の出力を反映しない(クラス doc 参照)。
                 CheckField(diffs, "V2_0", actual.V2[0], expected.V2[0]);
                 CheckField(diffs, "V2_1", actual.V2[1], expected.V2[1]);
                 CheckField(diffs, "V2_2", actual.V2[2], expected.V2[2]);
