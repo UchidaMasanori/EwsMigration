@@ -320,3 +320,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数(分岐),SetParam_ep2 case y_MGSD/y_MGFRSD,SecondaryParameterSetter.SetParam_ep2 case MGSD/MGFRSD,toku/sekkei/src/Fyss14.c,MGSD/MGFRSDのep[2]生成。MG_E+MG_V2
 関数(分岐),SetParam_ep2 case y_DCSIR/y_DCNI,SecondaryParameterSetter.SetParam_ep2 case DCSIR/DCNI,toku/sekkei/src/Fyss14.c,直流機器のep[2]生成。MCB_V2後に電圧2区分を直流Dへ上書き
 関数(分岐),SetParam_ep2 case y_TSU/SSWU/PBSU/COSU/2COSU/OLU,SecondaryParameterSetter.SetParam_ep2 case TSU系,toku/sekkei/src/Fyss14.c,タイムスイッチ用途系のep[2]生成。TS_V2+TS_VC
+関数,Fysk01_Choki_Cmp1,EquipmentSelector.ChokiCmp1,toku/sekkei/src/Fysk01.c,機器選定候補比較(THR/MG/XERY)。基準値の幅内正規化位置の偏り差で優劣判定
+関数,Fysk01_Choki_Cmp2,EquipmentSelector.ChokiCmp2,toku/sekkei/src/Fysk01.c,機器選定候補比較(THSW/TM)。基準値と幅中点の距離で優劣判定
