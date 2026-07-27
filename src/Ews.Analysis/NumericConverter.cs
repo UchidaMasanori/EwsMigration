@@ -38,4 +38,88 @@ public static class NumericConverter
 
         return raw / Math.Pow(10, implicitDecimals);
     }
+
+    /// <summary>
+    /// 10 の <paramref name="keta"/> 乗を返す(桁合わせ係数)。
+    /// 【C原典】Ketaawase(Fysk09.c:41)。<c>a=1; for(k=0;k&lt;abs(keta);k++) a*=10; if(keta&lt;0) a=1/a;</c>。
+    /// 負値は 10 の負乗(1/10^|keta|)。
+    /// </summary>
+    /// <param name="keta">桁数(負値可)。</param>
+    public static double Ketaawase(short keta)
+    {
+        double a = 1.0;
+        int n = Math.Abs((int)keta);
+        for (int k = 0; k < n; k++)
+        {
+            a *= 10.0;
+        }
+
+        if (keta < 0)
+        {
+            a = 1.0 / a;
+        }
+
+        return a;
+    }
+
+    /// <summary>
+    /// 切り上げ(正の無限大方向)。
+    /// 【C原典】Kiriage(Fysk09.c:27)。<c>i=(INT)f; if(f-(DOUBLE)i&gt;0.0) i=i+1;</c>。
+    /// 整数部(ゼロ方向切り捨て)に対し、小数部が正なら +1 する(数学的な天井関数と一致)。
+    /// </summary>
+    /// <param name="f">対象値。</param>
+    public static double Kiriage(double f)
+    {
+        double i = Math.Truncate(f);
+        if (f - i > 0.0)
+        {
+            i += 1;
+        }
+
+        return i;
+    }
+
+    /// <summary>
+    /// 切り捨て(ゼロ方向)。【C原典】Kirisute(Fysk09.c:34)。<c>return (INT)f;</c>。
+    /// </summary>
+    /// <param name="f">対象値。</param>
+    public static double Kirisute(double f) => Math.Truncate(f);
+
+    /// <summary>
+    /// 数値文字列の小数点以下の余分な末尾ゼロ(と、それにより不要となる小数点)を除去する。
+    /// 【C原典】Chousei(Fysk09.c:52)。例 "12.300"→"12.3" / "12.000"→"12" / "12.0"→"12"。
+    /// C は '.' を含む前提(strchr の戻りを無条件参照)のため、'.' が無い場合は原文をそのまま返す。
+    /// </summary>
+    /// <param name="str">数値文字列。</param>
+    public static string Chousei(string str)
+    {
+        ArgumentNullException.ThrowIfNull(str);
+
+        if (!str.Contains('.', StringComparison.Ordinal))
+        {
+            return str;
+        }
+
+        int size = str.Length;
+        int cut = size;
+        for (int i = 0; i < size; i++)
+        {
+            char c = str[size - 1 - i];
+            if (c == '0')
+            {
+                cut = size - 1 - i;
+            }
+            else if (c == '.' && cut == size - i)
+            {
+                cut = size - 1 - i;
+                break;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return str[..cut];
+    }
 }

@@ -323,3 +323,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk01_Choki_Cmp1,EquipmentSelector.ChokiCmp1,toku/sekkei/src/Fysk01.c,機器選定候補比較(THR/MG/XERY)。基準値の幅内正規化位置の偏り差で優劣判定
 関数,Fysk01_Choki_Cmp2,EquipmentSelector.ChokiCmp2,toku/sekkei/src/Fysk01.c,機器選定候補比較(THSW/TM)。基準値と幅中点の距離で優劣判定
 関数,Fysk01_Data_Cmp,EquipmentSelector.DataCmp,toku/sekkei/src/Fysk01.c,機器選定候補選択(THR/MG)。代表値・幅一致・定格値キー辞書順・均等度で今回候補入替を判定
+関数,Ketaawase,NumericConverter.Ketaawase,toku/sekkei/src/Fysk09.c,10 の指定桁乗を返す桁合わせ係数(負値は 10 の負乗)
+関数,Kiriage,NumericConverter.Kiriage,toku/sekkei/src/Fysk09.c,小数部が正なら +1 する切り上げ(天井関数)
+関数,Kirisute,NumericConverter.Kirisute,toku/sekkei/src/Fysk09.c,ゼロ方向へ切り捨てる
+関数,Chousei,NumericConverter.Chousei,toku/sekkei/src/Fysk09.c,小数点以下の余分な末尾ゼロと不要な小数点を除去する
