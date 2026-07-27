@@ -289,3 +289,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,SetParam_ep2_TS_BC,SecondaryParameterSetter.SetTsContactB,toku/sekkei/src/Fyss14.c,ep[2]b接点数(BC)を常に00(941130)
 構造体,dt.kpa*(回路電気値),MainCircuitData(CircuitPhaseCount/CircuitWireType/CircuitFrequency/CircuitPoleCount/CircuitVoltage/CircuitVoltageKind/MeterPrimaryVoltage/MeterPrimaryVoltageKind),toku/include/common/fydf806.h,FYRT800 dt の回路電気値(kpaph/kpawr/kpahz/kpap/kpav[3][3]/kpavkbn/kpakv1/kpakv1kb)。上流パラメータ生成が設定しSetParam_ep2_*が参照する
 関数,Fyss11_Check_SEP,CircuitStringChecker.CheckSeparator,toku/sekkei/src/Fyss11.c,明示的なSEP行種(gyosyu="SEP")を機器化。回路が空(ENDのみ)でなければFY-610E/空ならkikitable_set+kikitable_add("1"/"SEP")でSEP機器を生成(入力=yoyakkbn既定)。系統ブレーク自動生成(Kikitable_SEP_Make)とは別経路
+関数,Check_KikimeiC(kikitable_add"1"引数分離),CircuitStringChecker.ExtractReservedDesignation,toku/sekkei/src/Fyss1c.c,予約語番号(ysno)抽出用に電気パラメータ/数量/明示電パラを除いた予約語部を取り出す。MCB3P100A→MCBのように分離しFindBangouが電気パラメータ内数字をysnoと誤認するのを防ぐ(FY-682E誤検出の修正)
+関数,Fyss11_Check_P(入線行souden補正),CircuitStringChecker.CheckIncoming,toku/sekkei/src/Fyss11.c,入線行(P)のsoudenを電源解析で確定した系統相へ更新。TableSetは電源解析前にsoudenを設定するため入線行が前系統相を持つoff-by-oneを補正し系統ブレークSEP判定を正す

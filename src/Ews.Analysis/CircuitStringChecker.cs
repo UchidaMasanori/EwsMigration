@@ -615,6 +615,25 @@ public sealed partial class CircuitStringChecker
             return;
         }
 
+        // 入線行(P)自身の souden を、確定した系統の相電圧で更新する。
+        // TableSet(gyosyu_table_set 相当)は電源解析より前に souden=直前の相で設定するため、
+        // 入線行は「前系統の相」を持ってしまう。系統ブレーク時の SEP 判定は前系統の先頭機器
+        // (=入線行)の souden を参照するため、入線行の souden を当該系統の相へ揃える必要がある。
+        // 【C原典】gyosyu_table_set は souden[0]=KAIROSOU。KAIROSOU は当該入線の電源記述で確定する値。
+        if (result.LineTypes.Count > 0)
+        {
+            LineTypeTableEntry incomingLineType = result.LineTypes[^1];
+            var souden = new StringBuilder();
+            souden.Append(result.CircuitPhase);
+            if (result.CircuitPhase == '3')
+            {
+                souden.Append(result.CircuitVoltageDigit);
+            }
+
+            incomingLineType.PhaseVoltage = souden.ToString();
+            incomingLineType.PhaseWires = result.CircuitPhaseWires;
+        }
+
         string command = string.Empty; // 【C原典】cmdat
         if (outcome == PowerParseOutcome.Command && !ProcessCommand(cursor, lineNumber, out command, result))
         {
@@ -1254,7 +1273,10 @@ public sealed partial class CircuitStringChecker
             return;
         }
 
-        ApplyReservedWord(kiki, kikimeisyou);
+        // 【C原典】kikitable_add("1", yoyakugo)(Fyss1c.c:307): 予約語番号(ysno)は電気パラメータ
+        // (electron)を除いた予約語部から抽出する。全体(例 "MCB3P100A")を渡すと電気パラメータ
+        // "3P100A" の '3' を予約語番号(ysno=03)と誤認し、後段 Yoyakugo_Check で重複(FY-682E)扱いになる。
+        ApplyReservedWord(kiki, ExtractReservedDesignation(kikimeisyou));
 
         string yoyaku = SplitReservedToken(kikimeisyou);
         bool resolvedOk = ResolveReservedWord(yoyaku, out string resolved);
@@ -1371,6 +1393,34 @@ public sealed partial class CircuitStringChecker
         }
 
         return electron;
+    }
+
+    /// <summary>
+    /// 予約語番号(ysno)抽出用の予約語部を取り出す。
+    /// 【C原典】Check_KikimeiC(Fyss1c.c): kikitable_add("1", yoyakugo) に渡す yoyakugo。
+    /// 電気パラメータ(electron)・数量('*')・明示電パラ('=')を除いた予約語(+吸収された数値番号)。
+    /// 例: "MCB3P100A"→"MCB" / "MCB1"→"MCB1" / "2ERY100AF"→"2ERY" / "MCB=3P100A"→"MCB"。
+    /// </summary>
+    private static string ExtractReservedDesignation(string kikimeisyou)
+    {
+        // 【C原典】'*'(数量)より前を対象(ExtractElectricalParameter と同じ head)。
+        int starCut = kikimeisyou.IndexOf('*');
+        string head = starCut >= 0 ? kikimeisyou[..starCut] : kikimeisyou;
+
+        // 【C原典】sym_EQUAL 分岐: '=' の前が予約語(alphanum)。
+        int eq = head.IndexOf('=');
+        if (eq >= 0)
+        {
+            return head[..eq];
+        }
+
+        // 【C原典】else 分岐: electron を除いた残りが yoyakugo。
+        // 数値のみの electron は CheckNumeric で予約語番号側へ吸収済(electron 空)のため、
+        // その桁は head 側に残り Find_Bangou で ysno になる(例 "MCB1")。
+        string electron = ExtractElectricalParameter(kikimeisyou);
+        return electron.Length > 0 && head.EndsWith(electron, StringComparison.Ordinal)
+            ? head[..(head.Length - electron.Length)]
+            : head;
     }
 
     // C-origin: Find_Delimetor (Fyss1c.c). Reserved token = text before '=' (electrical param) or '*' (quantity).
