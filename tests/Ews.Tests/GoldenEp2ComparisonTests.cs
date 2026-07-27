@@ -28,8 +28,10 @@ namespace Ews.Tests;
 ///   yoyaku[8]@+38 / ep[0](eparmg 253)@+114 / ep[2](eparmg 253)@+620(=114+253×2) /
 ///   kpahz@+1137 / kpav[3][3]@+1140 / kpavkbn@+1149。
 ///
-/// 記録列/物件/未移植リーフ依存の予約語(MC/RTR/WH/VM/VT/TR/TB/WL/LGR/ELR/TS/DCPW/CON/NHMB/LA 等)は
+/// 記録列/物件/未移植リーフ依存の予約語(RTR/WH/VM/VT/TR/TB/WL/LGR/ELR/TS/DCPW/NHMB 等)は
 /// ディスパッチャ未収録のため突合対象外。電圧を設定しない LGT(極数のみ)も対象外。
+/// MC はディスパッチャ収録済(V2=MCB_V2/AC/BC)だが、ep[2].V2 も後段の機器選定が 2 次側(子機器)の
+/// 実電圧で上書きするため突合対象外(実測: MC の記録側 kpav=105 に対し ep[2].V2=220)。
 /// 基準データ未配置の環境ではスキップする。
 /// </summary>
 public sealed class GoldenEp2ComparisonTests

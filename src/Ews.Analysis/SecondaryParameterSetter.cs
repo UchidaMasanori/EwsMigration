@@ -120,6 +120,29 @@ public static class SecondaryParameterSetter
     /// <summary>MC 用 電圧２の設定。【C原典】SetParam_ep2_MC_V2 = SetParam_ep2_MCB_V2。</summary>
     public static void SetMcVoltage2(MainCircuitData data) => SetMcbVoltage2(data);
 
+    /// <summary>
+    /// MC 用 ａ接点数(ＡＣ)の設定。【C原典】SetParam_ep2_MC_AC(改訂&lt;37&gt;)。
+    /// INVBP の MC(dt.tokkbn=='7')は負荷容量(fp.fpalw2)が 2.2KW 以下なら "01"、超なら "02"、
+    /// それ以外(非 INVBP)は "00"。特注区分 tokkbn が未モデルのため非 INVBP 経路 "00" を採る
+    /// (INVBP の負荷容量分岐は tokkbn/fp.fpalw2 導入時の後続増分)。
+    /// </summary>
+    public static void SetMcContactA(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        data.ElectricalParameterSlots[2].Ac = "00";
+    }
+
+    /// <summary>
+    /// MC 用 ｂ接点数(ＢＣ)の設定。【C原典】SetParam_ep2_MC_BC(改訂&lt;37&gt;)。
+    /// INVBP の MC(dt.tokkbn=='7')は負荷容量(fp.fpalw2)が 2.2KW 以下なら "01"、超なら "02"、
+    /// それ以外(非 INVBP)は "00"。特注区分 tokkbn が未モデルのため非 INVBP 経路 "00" を採る。
+    /// </summary>
+    public static void SetMcContactB(MainCircuitData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        data.ElectricalParameterSlots[2].Bc = "00";
+    }
+
     /// <summary>MG 用 エレメント数(Ｅ)の設定。【C原典】SetParam_ep2_MG_E。常に '2'。</summary>
     public static void SetMgElement(MainCircuitData data)
     {
@@ -179,12 +202,13 @@ public static class SecondaryParameterSetter
     /// 【C原典】SetParam_ep2(Fyss14.c:2872)の予約語分岐のうち、単一レコードで完結し
     /// 移植済みリーフのみで表せる自己完結ケースを収録する。
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
-    /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/
+    /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/CKS/CSDT/
     ///       SSW/TSW/FL/LSW/DSW/VS/AS/LA/CON。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
-    ///   ・記録列参照 MC(2次側検出)/WH/VM/VT/TR/TB/LGR/ELR。
+    ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
+    ///   ・記録列参照 WH/VM/VT/TR/TB/LGR/ELR。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ TS(CC)/DCPW/NHMB(計算)。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
@@ -213,6 +237,16 @@ public static class SecondaryParameterSetter
                 SetMcbPole(data);
                 SetMcbElement(data);
                 SetMcbVoltage2(data);
+                break;
+
+            case "MC":
+                // 【C原典】case y_MC。epap(極数)は 2 次側検出(全レコード配列 maina の走査で同一 ysno の
+                //   MC 数を数える等)・SetParam_ep2_epap2P・PropMcChildElement に依存し、単一レコードの
+                //   ディスパッチャでは決定できない。かつ ep[2].epap は最終 FYDF806 で機器選定が実極数に
+                //   上書きするため golden 非検証。C のディスパッチャ末尾で必ず呼ばれる V2/AC/BC のみ設定する。
+                SetMcVoltage2(data);
+                SetMcContactA(data);
+                SetMcContactB(data);
                 break;
 
             case "SB":

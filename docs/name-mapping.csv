@@ -305,3 +305,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Check_Haifunn,CircuitStringChecker.CheckHaifunn,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,予約語文末尾の分岐配置(-SP/-C)・数量(*N)を取り込み検証。区分'S'でkikitable_addタグ"4"(数量)/"5"(-C)/"9"(-SP)相当を機器属性quantity/control/spへ格納。goto(END_ASTER/CONTROL/SPACE)を状態ループで表現。これにより+(型式)*数量の*数量が消費されFY-613Eを回避
 関数,Find_Haifunn/nexthaifunn,CircuitStringChecker.FindHaifunn/NextHaifunn,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,-SP(3文字)/-C(2文字)/*(1文字)区切りまで文字を取り込みシンボル(Space/Control/Aster/End/Other)を返す
 関数,Check_ASTER/Check_CONTROL,CircuitStringChecker.CheckAster/CheckControl,toku/qrespo/sekkei/qre_sekkei/src/Fyss1b.c,数量(*N)・分岐配置(-C)の妥当性。空は許容・数値は1?99。両者同一判定(CheckHaifunnNumeric)
+関数,SetParam_ep2_MC_V2,SecondaryParameterSetter.SetMcVoltage2,toku/sekkei/src/Fyss14.c,MC用電圧2(=MCB_V2 回路電圧最大値をep[2].V2へ)
+関数,SetParam_ep2_MC_AC,SecondaryParameterSetter.SetMcContactA,toku/sekkei/src/Fyss14.c,MC用a接点数(非INVBP経路"00"・INVBP負荷容量分岐は後続増分)
+関数,SetParam_ep2_MC_BC,SecondaryParameterSetter.SetMcContactB,toku/sekkei/src/Fyss14.c,MC用b接点数(非INVBP経路"00"・INVBP負荷容量分岐は後続増分)
+関数(分岐),SetParam_ep2 case y_MC,SecondaryParameterSetter.SetParam_ep2 case MC,toku/sekkei/src/Fyss14.c,MC予約語のep[2]生成(V2/AC/BC収録・極数2次側検出は記録列依存で未収録)

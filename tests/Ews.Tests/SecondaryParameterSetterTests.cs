@@ -268,6 +268,27 @@ public sealed class SecondaryParameterSetterTests
     }
 
     [Fact]
+    public void SetParam_ep2_MCは電圧2と接点AC_BCを設定し極数は初期化のまま()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "MC";
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        // 【C原典】MC_V2=MCB_V2(回路電圧最大値)。AC/BC は非INVBP経路 "00"。
+        Assert.Equal("000210.0", ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V2[1]);
+        Assert.Equal('A', ep2.V2Kbn);
+        Assert.Equal("00", ep2.Ac);
+        Assert.Equal("00", ep2.Bc);
+        // epap(2次側検出)は記録列依存でディスパッチャ未設定 → 初期化のまま。
+        Assert.Equal("000", ep2.P);
+    }
+
+    [Fact]
     public void SetParam_ep2_SCは相2桁_周波数_電圧を設定し極数は初期化のまま()
     {
         MainCircuitData data = NewData();
