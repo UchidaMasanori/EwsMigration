@@ -395,3 +395,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk00_Set_Datachi,CircuitAreaRewriter.SetDatachi,toku/sekkei/src/Fysk00.c,回路側項目番号(8af/9at/11a2/16-18ma/28am)のeparmgフィールドへ整形済み文字列をmemcpy相当で格納
 構造体,WK_STRUCT3,AreaRewriteFlags,toku/include/sekkei/fyrt814.h,回路書き戻し指示フラグ(at/a2/af/ma/am 各[2]=上位/下位機器)
 構造体,KAIRO_T,CircuitAreaRewriter.CircuitFieldMap,toku/include/sekkei/fyrt817.h,回路書き戻し項目定義(symb/ln桁数/dln小数桁/kno回路側項目番号)
+関数,Fysk00_ph,IncomingPhaseResolver.Resolve,toku/sekkei/src/Fysk00.c,主回路レコード列を上流へ遡り最初の入線(P)の相数を取得(三相四線なら自機器の回路相数kpaph・入線無しは単相1)
