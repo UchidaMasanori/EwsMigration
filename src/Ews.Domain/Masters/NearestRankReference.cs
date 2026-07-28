@@ -183,4 +183,36 @@ public sealed class NearestRankReference : IIsamRecord
             ControlVoltageKinds = [(char)record[kvc + 3], (char)record[kvc + 7], (char)record[kvc + 11]],
         };
     }
+
+    /// <summary>KEY 部の合計バイト長(前方一致の基準位置)。【C原典】kteichi 開始オフセット = 62。</summary>
+    public const int KeyPrefixLength = 62;
+
+    /// <summary>
+    /// 前方一致検索用の比較キー(KEY 部 62 バイト + 定格値キー 50 バイト = 112 文字)を組み立てる。
+    /// 【C原典】<c>memcmp(data, &amp;tmp, siz)</c>(Fysk01.c)。C 原典は固定長バイト列を直接比較するため、
+    /// 各フィールドを元の固定幅に空白右詰め(超過分は切り捨て)して等価なバイト列を再現する。
+    /// レイアウト: yoyaku[8] + mkcd[3] + ptype[7][7]=49 + sadkbn[1] + cadkbn[1] + kteichi[50]。
+    /// </summary>
+    public string BuildComparisonKey()
+    {
+        var buffer = new System.Text.StringBuilder(KeyPrefixLength + 50);
+        buffer.Append(Fit(ReservedWord, 8));
+        buffer.Append(Fit(MakerCode, 3));
+        for (int i = 0; i < ParameterTypeSlotCount; i++)
+        {
+            string type = i < ParameterTypes.Count ? ParameterTypes[i] : string.Empty;
+            buffer.Append(Fit(type, ParameterTypeSize));
+        }
+        buffer.Append(MainPowerAcDc);
+        buffer.Append(ControlPowerAcDc);
+        buffer.Append(Fit(RatingKey, 50));
+        return buffer.ToString();
+    }
+
+    /// <summary>文字列を空白で固定幅に右詰めし、超過分は切り捨てる(固定長フィールド相当)。</summary>
+    private static string Fit(string value, int width)
+    {
+        string source = value ?? string.Empty;
+        return source.Length >= width ? source[..width] : source.PadRight(width);
+    }
 }

@@ -372,3 +372,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk02_Check_Teichi_Part,RatingValueChecker.CheckPart,toku/sekkei/src/Fysk02.c,各項目の定格値チェック(直近上下位値と電気パラメータ値を比較・CMP退避・ma処理)
 関数,GLE_Check,RatingValueChecker.GateCheck,toku/sekkei/src/Fysk02.c,比較記号判定(1=一致/2=以上/3=以下)
 関数,Fysk01_Check_Hinmei,ProductNameChecker.Check,toku/sekkei/src/Fysk01.c,品名一致チェック(未指定時は絞り込みなし/指定時は25桁一致判定)
+関数,Fysk01_Chokkin_Read_Check,NearestRankSearch.Search,toku/sekkei/src/Fysk01.c,直近上下位参照ファイル検索の入口(TM/THSW専用検索とその他へ分岐)
+関数,Fysk01_Chokkin_Read_Check_ALL,NearestRankSearch.SearchFirstMatch,toku/sekkei/src/Fysk01.c,主/複/制御回路用の候補抽出(前方一致した最初の適合候補を採用)
+関数,Fysk01_Chokkin_Read_Check_TMS,NearestRankSearch.SearchClosestByMidpoint,toku/sekkei/src/Fysk01.c,TM/THSW専用の候補抽出(幅を持つ候補は中点距離で最良1件選択)
+関数,Fysk0a_CmpMojisu_Get,NearestRankSearch.ComputeCompareSize,toku/sekkei/src/Fysk0a.c,定格値比較文字数の作成(入力ありかつ選択区分-3/-1でない項目の幅を積上げ)
+構造体,TCHI_TBL,RatingCheckTable,toku/include/sekkei/fyrt814.h,予約語別の定格値チェック情報(proc_no/cpsize/flag/seten/展開情報)

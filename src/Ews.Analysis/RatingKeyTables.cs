@@ -199,4 +199,44 @@ public static class RatingKeyTables
         Row(3, 0, 23, Ge, 0, 0, 0, 0),   // v
         End,
     };
+
+    // 【C原典】プロセス番号(fyrt808.h:37-44): PC_0=10 / PC_1=11 / PC_2=12 / PC_3=13 / PC_7=17。
+    private const short Pc0 = 10;
+    private const short Pc1 = 11;
+    private const short Pc2 = 12;
+    private const short Pc3 = 13;
+    private const short Pc7 = 17;
+
+    /// <summary>
+    /// 予約語別の定格値チェック情報(TCHI_TBL)。【C原典】<c>tchi_tbl[]</c>(fyrt817.h:777)。
+    /// 並びは <c>{yoyaku, proc_no, cpsize, flag, seten, tchi_t}</c>。本移植では遮断器・
+    /// 電磁接触器系(MCB?NT)を先行整備する。<c>Fysk01_Chokkin_Read_Check</c> が参照する。
+    /// </summary>
+    public static readonly RatingCheckTable McbTable = new("MCB", Pc7, 0, 0, 0, Mcb);
+    /// <summary>ELB(漏電遮断器)。【C原典】tchi_tbl "ELB"(fyrt817.h:779)。cpsize=3。</summary>
+    public static readonly RatingCheckTable ElbTable = new("ELB", Pc7, 3, 0, 0, Elb);
+    /// <summary>MMCB(モータ用遮断器)。【C原典】tchi_tbl "MMCB"(fyrt817.h:780)。</summary>
+    public static readonly RatingCheckTable MmcbTable = new("MMCB", Pc7, 0, 0, 0, Mmcb);
+    /// <summary>ELMB(モータ用漏電遮断器)。【C原典】tchi_tbl "ELMB"(fyrt817.h:781)。cpsize=3。</summary>
+    public static readonly RatingCheckTable ElmbTable = new("ELMB", Pc7, 3, 0, 0, Elmb);
+    /// <summary>SB(サーキットブレーカ)。【C原典】tchi_tbl "SB"(fyrt817.h:782)。</summary>
+    public static readonly RatingCheckTable SbTable = new("SB", Pc7, 0, 0, 0, Sb);
+    /// <summary>RMCB。【C原典】tchi_tbl "RMCB"(fyrt817.h:783)。</summary>
+    public static readonly RatingCheckTable RmcbTable = new("RMCB", Pc7, 0, 0, 0, Rmcb);
+    /// <summary>RELB。【C原典】tchi_tbl "RELB"(fyrt817.h:784)。cpsize=3。</summary>
+    public static readonly RatingCheckTable RelbTable = new("RELB", Pc7, 3, 0, 0, Relb);
+    /// <summary>RMMCB。【C原典】tchi_tbl "RMMCB"(fyrt817.h:785)。</summary>
+    public static readonly RatingCheckTable RmmcbTable = new("RMMCB", Pc7, 0, 0, 0, Rmmcb);
+    /// <summary>RELMB。【C原典】tchi_tbl "RELMB"(fyrt817.h:786)。cpsize=3。</summary>
+    public static readonly RatingCheckTable RelmbTable = new("RELMB", Pc7, 3, 0, 0, Relmb);
+    /// <summary>MC(電磁接触器)。【C原典】tchi_tbl "MC"(fyrt817.h:787)。proc_no=PC_2。</summary>
+    public static readonly RatingCheckTable McTable = new("MC", Pc2, 0, 0, 0, Mc);
+    /// <summary>THR(サーマルリレー)。【C原典】tchi_tbl "THR"(fyrt817.h:788)。proc_no=PC_1。</summary>
+    public static readonly RatingCheckTable ThrTable = new("THR", Pc1, 0, 0, 0, Thr);
+    /// <summary>MG(電磁開閉器)。【C原典】tchi_tbl "MG"(fyrt817.h:789)。proc_no=PC_3。</summary>
+    public static readonly RatingCheckTable MgTable = new("MG", Pc3, 0, 0, 0, Mg);
+    /// <summary>SC(進相コンデンサ)。【C原典】tchi_tbl "SC"(fyrt817.h:790)。cpsize=2, flag=1(特殊)。</summary>
+    public static readonly RatingCheckTable ScTable = new("SC", Pc0, 2, 1, 0, Sc);
+    /// <summary>NT(中性線切替開閉器)。【C原典】tchi_tbl "NT"(fyrt817.h:791)。proc_no=PC_0。</summary>
+    public static readonly RatingCheckTable NtTable = new("NT", Pc0, 0, 0, 0, Nt);
 }
