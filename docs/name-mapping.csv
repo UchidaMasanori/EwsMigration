@@ -345,3 +345,11 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体/モデル,FYDF810,ReservedWordMaster,toku/include/common/fydf810.h,予約語マスタ(タイプ使用有無チェック用)
 フィールド,tg[].ksenkbn,ReservedWordMaster.SelectionElementKinds,toku/include/common/fydf810.h,タイプ枠ごとの機器選定要素区分
 関数,Fysk08_Get_YoyakugoFile,ReservedWordMasterLoader.ParseReservedWordMaster,toku/sekkei/src/Fysk08.c,予約語ファイル固定長テキストの読込
+関数,Fysk01_Type_Check,ShapeTypeSelector.Select,toku/sekkei/src/Fysk01.c,タイプチェック本体/ハンドルロック・使用有無・変換形状を統合
+関数,Fysk01_HandleRock_Check,ShapeTypeSelector.CheckHandleLock,toku/sekkei/src/Fysk01.c,ハンドルロック区分の対象位置を予約語表引きで判定
+関数,Fysk08_Usetype_Check,ShapeTypeSelector.ApplyUseTypeMask,toku/sekkei/src/Fysk08.c,予約語マスタで未使用タイプ枠をクリア
+関数,Fysk01_Keijyoutype_Check,ShapeTypeSelector.BuildConvertedShapeTypes,toku/sekkei/src/Fysk01.c,盤条件から選択番号を求め変換形状タイプ一覧を作成
+構造体/モデル,Type_T,SelectionShapeVariant,toku/sekkei/src/fyrt819.h,選択番号ごとの形状タイプ列
+構造体/モデル,Type_TBL,SelectionShapeTableEntry,toku/sekkei/src/fyrt819.h,予約語・位置・ハンドルロック位置・形状タイプ表
+構造体/モデル,type_tbl,ShapeTypeTablesForSelection.ConversionTable,toku/sekkei/src/fyrt819.h,予約語→変換形状タイプ表の集合
+構造体/モデル,,ShapeTypeCheckResult,toku/sekkei/src/Fysk01.c,タイプチェック結果(データ/変換タイプ・数・位置・ハンドルロック)
