@@ -69,6 +69,20 @@ public static class ShapeTypeTables
         new("   ", 3, new[] { "BT ", "RT ", "LTG " }),
     };
 
+    /// <summary>【C原典】type_t3_pbs(fyrt819.h:30)。PBS の接点タイプ展開(最大4タイプ)。</summary>
+    private static readonly ShapeTypeVariant[] Pbs =
+    {
+        new("1A   ", 4, new[] { "1A   ", "2A   ", "3A   ", "4A   " }),
+        new("2A   ", 3, new[] { "2A   ", "3A   ", "4A   " }),
+        new("3A   ", 2, new[] { "3A   ", "4A   " }),
+        new("1B   ", 4, new[] { "1B   ", "2B   ", "3B   ", "4B   " }),
+        new("2B   ", 3, new[] { "2B   ", "3B   ", "4B   " }),
+        new("3B   ", 2, new[] { "3B   ", "4B   " }),
+        new("1A1B ", 4, new[] { "1A1B ", "2A1B ", "1A2B ", "2A2B " }),
+        new("2A1B ", 2, new[] { "2A1B ", "2A2B " }),
+        new("1A2B ", 2, new[] { "1A2B ", "2A2B " }),
+    };
+
     /// <summary>
     /// 予約語別の形状タイプ変換テーブル本体。【C原典】<c>type_tbl2[]</c>。
     /// 宣言順(照合は先頭一致・最初にヒットした予約語を採用)を保持する。
@@ -95,5 +109,14 @@ public static class ShapeTypeTables
         new ShapeTypeTableEntry("4ERY ", 3, Contact1A1B),
         new ShapeTypeTableEntry("CT  ",  1, Ct),
         new ShapeTypeTableEntry("TB  ",  1, Tb),
+    };
+
+    /// <summary>
+    /// PBS 専用の形状タイプ変換テーブル。【C原典】<c>type_tbl3[]</c>(fyrt819.h:42)。
+    /// <see cref="ShapeTypeChecker.ResolveShapeTypesForPbs"/>(=Fysk01_Type_Check3)が参照する。
+    /// </summary>
+    public static readonly IReadOnlyList<ShapeTypeTableEntry> PbsConversionTable = new[]
+    {
+        new ShapeTypeTableEntry("PBS ", 3, Pbs),
     };
 }

@@ -27,13 +27,46 @@ public static class ShapeTypeChecker
         ArgumentNullException.ThrowIfNull(reservedWord);
         ArgumentNullException.ThrowIfNull(dataTypes);
 
-        // *ti = 1 ; *tsu = 1 ; memset(wtype[0], ' ', 21) ;
+        ShapeTypeResult core = ResolveCore(reservedWord, dataTypes, ShapeTypeTables.ConversionTable);
+
+        // STM 特別処理(1996.12.19 add): 接点タイプの読み直し順に並べ替える。
+        List<string> types = ApplyStmReorder(reservedWord, new List<string>(core.Types));
+
+        return new ShapeTypeResult(types, core.Position);
+    }
+
+    /// <summary>
+    /// PBS 専用の形状タイプ変換一覧を作成する。【C原典】Fysk01_Type_Check3(Fysk01.c:3325)。
+    /// 構造は <see cref="ResolveShapeTypes"/> と同一だが、参照テーブルが PBS 専用で STM 並べ替えを行わない。
+    /// </summary>
+    /// <param name="reservedWord">指定予約語。【C原典】yo。</param>
+    /// <param name="dataTypes">データタイプ一覧(各要素は最大 7 文字の固定枠)。【C原典】ktype[][7]。</param>
+    /// <returns>変換形状タイプ一覧(各 7 文字)とタイプ位置。</returns>
+    public static ShapeTypeResult ResolveShapeTypesForPbs(string reservedWord, IReadOnlyList<string> dataTypes)
+    {
+        ArgumentNullException.ThrowIfNull(reservedWord);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+
+        return ResolveCore(reservedWord, dataTypes, ShapeTypeTables.PbsConversionTable);
+    }
+
+    /// <summary>
+    /// Fysk01_Type_Check2 / Fysk01_Type_Check3 で共通の、予約語照合→シンボル展開の本体。
+    /// 予約語を <paramref name="table"/> と先頭一致で照合し、一致時はその位置のデータタイプを
+    /// シンボル照合して展開形状タイプへ変換する。未ヒットは当該位置のデータタイプをそのまま採用する。
+    /// </summary>
+    private static ShapeTypeResult ResolveCore(
+        string reservedWord,
+        IReadOnlyList<string> dataTypes,
+        IReadOnlyList<ShapeTypeTableEntry> table)
+    {
+        // *ti = 1 ; *tsu = 1 ;
         int position = 1;
         List<string> types = new();
 
         // 予約語をテーブルと先頭一致で照合(最初にヒットしたものを採用)。
         ShapeTypeTableEntry? matched = null;
-        foreach (ShapeTypeTableEntry entry in ShapeTypeTables.ConversionTable)
+        foreach (ShapeTypeTableEntry entry in table)
         {
             if (MatchesPrefix(reservedWord, entry.ReservedWord))
             {
@@ -77,9 +110,6 @@ public static class ShapeTypeChecker
                 }
             }
         }
-
-        // STM 特別処理(1996.12.19 add): 接点タイプの読み直し順に並べ替える。
-        types = ApplyStmReorder(reservedWord, types);
 
         return new ShapeTypeResult(types, position);
     }

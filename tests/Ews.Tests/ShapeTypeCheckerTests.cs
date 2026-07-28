@@ -129,4 +129,50 @@ public sealed class ShapeTypeCheckerTests
 
         Assert.Equal(new[] { "2C     ", "FC     ", "1C     " }, r.Types);
     }
+
+    [Fact]
+    public void PBSの1Aは4タイプへ展開され位置3を参照する()
+    {
+        // type_tbl3: PBS の ichi=3。
+        ShapeTypeResult r = ShapeTypeChecker.ResolveShapeTypesForPbs("PBS ", DataTypes((3, "1A   ")));
+
+        Assert.Equal(3, r.Position);
+        Assert.Equal(new[] { "1A     ", "2A     ", "3A     ", "4A     " }, r.Types);
+    }
+
+    [Fact]
+    public void PBSの3Aは2タイプへ展開される()
+    {
+        ShapeTypeResult r = ShapeTypeChecker.ResolveShapeTypesForPbs("PBS ", DataTypes((3, "3A   ")));
+
+        Assert.Equal(3, r.Position);
+        Assert.Equal(new[] { "3A     ", "4A     " }, r.Types);
+    }
+
+    [Fact]
+    public void PBSの1A1Bは4タイプへ展開される()
+    {
+        ShapeTypeResult r = ShapeTypeChecker.ResolveShapeTypesForPbs("PBS ", DataTypes((3, "1A1B ")));
+
+        Assert.Equal(3, r.Position);
+        Assert.Equal(new[] { "1A1B   ", "2A1B   ", "1A2B   ", "2A2B   " }, r.Types);
+    }
+
+    [Fact]
+    public void PBSのシンボル未ヒットは当該データタイプをそのまま採用する()
+    {
+        ShapeTypeResult r = ShapeTypeChecker.ResolveShapeTypesForPbs("PBS ", DataTypes((3, "9Z   ")));
+
+        Assert.Equal(3, r.Position);
+        Assert.Equal(new[] { "9Z     " }, r.Types);
+    }
+
+    [Fact]
+    public void PBS以外の予約語は位置1のデータタイプをそのまま採用する()
+    {
+        ShapeTypeResult r = ShapeTypeChecker.ResolveShapeTypesForPbs("MCB ", DataTypes((1, "ET")));
+
+        Assert.Equal(1, r.Position);
+        Assert.Equal(new[] { "ET     " }, r.Types);
+    }
 }

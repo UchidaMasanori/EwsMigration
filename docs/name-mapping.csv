@@ -339,3 +339,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,Type_T2,ShapeTypeVariant,usr/include/toku/sekkei/fyrt819.h,形状タイプ変換の1シンボル分設定(sym/su/typ)
 構造体,Type_Tbl2,ShapeTypeTableEntry,usr/include/toku/sekkei/fyrt819.h,予約語1件分の形状タイプ変換テーブル(yoyaku/ichi/type_t2)
 テーブル,type_tbl2,ShapeTypeTables.ConversionTable,usr/include/toku/sekkei/fyrt819.h,予約語別の形状タイプ変換テーブル本体
+関数,Fysk01_Type_Check3,ShapeTypeChecker.ResolveShapeTypesForPbs,toku/sekkei/src/Fysk01.c,PBS専用の形状タイプ変換一覧作成(type_tbl3展開)/Type_Check2と同型でSTM並べ替えなし
+構造体,Type_T3,ShapeTypeVariant,usr/include/toku/sekkei/fyrt819.h,PBS形状タイプ変換の1シンボル分設定(sym/su/typ[4])/Type_T2と共用
+テーブル,type_tbl3,ShapeTypeTables.PbsConversionTable,usr/include/toku/sekkei/fyrt819.h,PBS専用の形状タイプ変換テーブル本体
