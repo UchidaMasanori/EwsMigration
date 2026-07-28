@@ -390,3 +390,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk02_Check_Teichi_BEL,RatingValueChecker.CheckBel,toku/sekkei/src/Fysk02.c,予約語BEL(ベル)の定格値チェック(区分Aで判定項目を切替)
 関数,Fysk02_Check_Teichi_MV,RatingValueChecker.CheckMv,toku/sekkei/src/Fysk02.c,予約語MV(電磁弁)の定格値チェック(区分Aで判定項目を切替)
 関数,Fysk02_Check_Teichi_THSW,RatingValueChecker.CheckThsw,toku/sekkei/src/Fysk02.c,予約語THSW(サーマルスイッチ)の定格値チェック(TMと同型/時間単位判定は戻り値無視)
+関数,Fysk00_Area_Rewrite,CircuitAreaRewriter.Rewrite,toku/sekkei/src/Fysk00.c,上位/下位機器の数値電気パラメータを回路側へ書き戻す統括(WK_STRUCT3フラグでAT/A/AF/MA/AM選択)
+関数,Fysk00_Set_Kairo,CircuitAreaRewriter.SetKairo,toku/sekkei/src/Fysk00.c,シンボルに対応する回路側項目へGet_Datachi値を動的書式(%0ln.dlnf)で整形し格納
+関数,Fysk00_Set_Datachi,CircuitAreaRewriter.SetDatachi,toku/sekkei/src/Fysk00.c,回路側項目番号(8af/9at/11a2/16-18ma/28am)のeparmgフィールドへ整形済み文字列をmemcpy相当で格納
+構造体,WK_STRUCT3,AreaRewriteFlags,toku/include/sekkei/fyrt814.h,回路書き戻し指示フラグ(at/a2/af/ma/am 各[2]=上位/下位機器)
+構造体,KAIRO_T,CircuitAreaRewriter.CircuitFieldMap,toku/include/sekkei/fyrt817.h,回路書き戻し項目定義(symb/ln桁数/dln小数桁/kno回路側項目番号)

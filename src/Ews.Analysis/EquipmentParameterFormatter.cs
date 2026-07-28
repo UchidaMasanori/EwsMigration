@@ -999,7 +999,7 @@ public sealed class EquipmentParameterFormatter
     /// C の <c>sprintf(buff, "%[0]W.Df", value)</c> 相当。ゼロ埋め('0' フラグ)/空白埋めの
     /// 最小幅 W・小数桁 D の固定小数点書式を再現する。
     /// </summary>
-    private static string SprintfF(string cFormat, double value)
+    internal static string SprintfF(string cFormat, double value)
     {
         Match m = FloatFormat.Match(cFormat);
         if (!m.Success)
