@@ -125,7 +125,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-27 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 631 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 637 テスト成功 / 0 スキップ / 0 失敗**。
 
 ### 2026-07-27 セッション追加分（サマリ）
 
@@ -135,7 +135,8 @@ EwsMigration/
 - **機器選定 候補比較（新クラス `EquipmentSelector`）**: `Fysk01.c` の直近上下位検索から、マスタ・記録列非依存の純粋数値比較を移植。`CompareByRangeCentering`（=`Fysk01_Choki_Cmp1`, THR/MG/XERY 用・基準値の幅内均等度で優劣）／`CompareByMidpointDistance`（=`Fysk01_Choki_Cmp2`, THSW/TM 用・幅中点との距離）／`CompareCandidate`（=`Fysk01_Data_Cmp`, THR/MG の候補選択）。返値 1(入替)/0(GOOD)/-1(SYS_ERR)。定数は `fyrt808.h`（GOOD/SYS_ERR/TOL/PC_1=THR/PC_3=MG）。`FYDF812` は定格値キー `kteichi`（50 バイト）のみ参照するため当該文字列を渡す自己完結シグネチャ（`string.CompareOrdinal` で `memcmp` 再現）。
 - **数値ヘルパ（`NumericConverter` へ集約）**: `Fysk09.c` の純粋数値ヘルパを移植。`PowerOfTen`（=`Ketaawase`, 10^keta 桁合わせ係数）／`Ceiling`（=`Kiriage`, 切り上げ）／`Truncate`（=`Kirisute`, ゼロ方向切り捨て）／`TrimTrailingZeros`（=`Chousei`, 小数末尾ゼロ除去）。`Make_Teikakuchi`（定格値キー生成）の前提として先行整備。
 - **命名規約の是正**: 上記の機器選定・数値ヘルパは当初 romaji（`Ketaawase`/`ChokiCmp1` 等）で命名していたが、本プロジェクトの「現代英語命名」方針に合わせ上記の英語名へ改名（元 C 名は `【C原典】` コメントと name-mapping.csv に保持）。以後の移植も現代英語命名を徹底する。
-- **定格値キー生成（`Fysk04_Make_Teikakuchi`）**: 機器選定のマスタ照合キー（kteichi 50バイト）生成を移植。`NumericElectricalParameters`（=`eparmg_s` 数値版 double）・`RatingKeyTableEntry`（=`TCHI_T`）・`RatingKeyBuilder.MakeRatingKey`（=`Fysk04_Make_Teikakuchi`）/`GetDataValue`（=`Fysk00_Get_Datachi` 項番1～53）を新設。テーブル `RatingKeyTables`（=`tt_xxx`, fyrt817.h）は遮断器・接触器系14種（MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/MC/THR/MG/SC/NT）を先行収録。エンジンは s_toku（-3打切/-2スキップ/-1区分読取/0・n採用）分岐と `"%0<len>.0f"` ゼロ埋め整形を忠実再現。**入力 `eparmg_s` の生成器（`Fysk0c_Edit_Epara`）が未移植のためパイプライン未結線のリーフ（EquipmentSelector と同様）。計器・変成器系テーブル綄約85種と Get_Datachi 項番61～87（kyoyojg_s）は後続**。
+- **定格値キー生成（`Fysk04_Make_Teikakuchi`）**: 機器選定のマスタ照合キー（kteichi 50バイト）生成を移植。`NumericElectricalParameters`（=`eparmg_s` 数値版 double）・`RatingKeyTableEntry`（=`TCHI_T`）・`RatingKeyBuilder.MakeRatingKey`（=`Fysk04_Make_Teikakuchi`）/`GetDataValue`（=`Fysk00_Get_Datachi` 項番1～53）を新設。テーブル `RatingKeyTables`（=`tt_xxx`, fyrt817.h）は遮断器・接触器系14種（MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/MC/THR/MG/SC/NT）を先行収録。エンジンは s_toku（-3打切/-2スキップ/-1区分読取/0・n採用）分岐と `"%0<len>.0f"` ゼロ埋め整形を忠実再現。**入力 `eparmg_s` の生成器（char→double 変換）が未移植のためパイプライン未結線のリーフ（EquipmentSelector と同様）。計器・変成器系テーブル綄約85種と Get_Datachi 項番61～87（kyoyojg_s）は後続**。
+- **電気パラメータのマージ（`Fysk0c_Edit_Epara`）**: 特注機器の電気パラメータ文字列生成の前段で、上流(2次側) ep[2] をベースに機器自身 ep[0] の入力済みフィールド（数値>TOL・区分文字≠空白）だけを上書きしたマージパラメータを生成する純粋関数（`ElectricalParameterMerger.Merge`）。`NumericElectricalParameters.Clone`（=memcpy相当）も追加。`epaqty`/`epabn` はマージ対象外。**※ `Fysk0c_Edit_Epara` は char→double 変換器ではなく、既に数値化済み `eparmg_s` のマージである点に注意**。
 
 ### 2026-07-24 セッション追加分（サマリ）
 
