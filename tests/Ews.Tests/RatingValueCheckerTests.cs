@@ -245,13 +245,227 @@ public class RatingValueCheckerTests
     }
 
     [Fact]
-    public void Check_特殊予約語フラグは未対応で例外を投げる()
+    public void Check_未知のフラグは例外を投げる()
     {
         RatingKeyTableEntry[] table = { new(-1, -1, -1, -1, -1, -1, -1, -1) };
         var p = new NumericElectricalParameters();
         var cmp = new RatingComparisonState();
 
         Assert.Throws<NotSupportedException>(() =>
-            RatingValueChecker.Check(2, table, p, NoInput(), string.Empty, EmptyShared(), 1, cmp));
+            RatingValueChecker.Check(99, table, p, NoInput(), string.Empty, EmptyShared(), 1, cmp));
+    }
+
+    // ---- 特殊予約語(flag 1～13)----
+
+    /// <summary>入力有無ありの sfg(index0=有効, 指定項番=1)。</summary>
+    private static int[] Input(params int[] itemNos)
+    {
+        var sfg = new int[90];
+        sfg[0] = 1;
+        foreach (int no in itemNos)
+        {
+            sfg[no] = 1;
+        }
+
+        return sfg;
+    }
+
+    private static RatingKeyTableEntry Trivial(short itemNo = 1)
+        => new(0, 0, itemNo, 0, 0, 0, 0, 0);
+
+    [Fact]
+    public void Check_SC_容量が候補以上ならOK候補未満ならNG()
+    {
+        // flag1 SC: 先頭3項目(通常)→ 4項目目でコンデンサ容量(項番14 Kvar)を大小判定。
+        RatingKeyTableEntry[] table =
+        {
+            Trivial(1), Trivial(2), Trivial(3),
+            new(3, 0, 14, 0, 0, 0, 0, 0),  // kvar(aak>TOL 経路)
+            new(3, 0, 15, 0, 0, 0, 0, 0),  // uf(aak<=TOL 経路の候補)
+        };
+        var p = new NumericElectricalParameters { Kvar = 100 };
+        var cmp = new RatingComparisonState();
+
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(1, table, p, NoInput(), "150", EmptyShared(), 1, cmp));
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(1, table, p, NoInput(), "050", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_WH_一次側なし経路で二次側を大小判定()
+    {
+        // flag2 WH: 先頭5項目(通常)→ 6項目目(項番9 At)で fg 決定 → 7項目目(項番10 A1)。
+        RatingKeyTableEntry[] table =
+        {
+            Trivial(1), Trivial(2), Trivial(3), Trivial(4), Trivial(5),
+            new(3, 0, 9, 0, 0, 0, 0, 0),   // At(fg 決定)
+            new(3, 0, 10, 0, 0, 0, 0, 0),  // A1
+        };
+        var pNoCt = new NumericElectricalParameters { At = 0, A1 = 200 };  // fg=1
+        var cmp = new RatingComparisonState();
+
+        // fg=1・ch=0: 二次側 aac>=aak なら OK。
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(2, table, pNoCt, NoInput(), "000250", EmptyShared(), 1, cmp));
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(2, table, pNoCt, NoInput(), "000150", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_VM_区分Aは完全一致_区分A以外は比較スキップ()
+    {
+        // flag3 VM: 項番27(epav2kbn)が 'A' のときのみ 1項目目を判定(dangling-else)。
+        RatingKeyTableEntry[] table =
+        {
+            new(3, 0, 9, 0, 0, 0, 0, 0),   // At
+            Trivial(1),                     // 2項目目(通常)
+        };
+        var cmp = new RatingComparisonState();
+
+        var pA = new NumericElectricalParameters { V2Kbn = 'A', At = 100 };
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(3, table, pA, NoInput(), "100", EmptyShared(), 1, cmp));
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(3, table, pA, NoInput(), "050", EmptyShared(), 1, cmp));
+
+        // 区分が 'A' 以外: dangling-else により 1項目目の比較は一切行われず OK。
+        var pBlank = new NumericElectricalParameters { V2Kbn = ' ', At = 100 };
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(3, table, pBlank, NoInput(), "050", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_AM_CT無しは二次側を大小判定()
+    {
+        // flag4 AM: 1項目目(項番9 At)で CT有無(fg)決定 → 2項目目(項番10 A1)。
+        RatingKeyTableEntry[] table =
+        {
+            new(3, 0, 9, 0, 0, 0, 0, 0),
+            new(3, 0, 10, 0, 0, 0, 0, 0),
+        };
+        var p = new NumericElectricalParameters { At = 0, A1 = 200 };  // fg=1(CT無し)
+        var cmp = new RatingComparisonState();
+
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(4, table, p, NoInput(), "000250", EmptyShared(), 1, cmp));
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(4, table, p, NoInput(), "000150", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_CR_接点計算不要のとき後半項目も判定する()
+    {
+        // flag6 CR: 前半4項目→ stn==-1 のとき後半3項目。5項目目(項番9 At)を E で不一致に。
+        RatingKeyTableEntry[] table =
+        {
+            Trivial(1), Trivial(2), Trivial(3), Trivial(4),
+            new(3, 0, 9, 1, 0, 0, 0, 0),   // At の E チェック(不一致で NG)
+            Trivial(10), Trivial(11),
+        };
+        var p = new NumericElectricalParameters { At = 100 };
+        var cmp = new RatingComparisonState();
+
+        // stn=-1: 後半も判定 → 候補 050 は At 100 と不一致で NG。
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(6, table, p, NoInput(), "050", EmptyShared(), 1, cmp, -1));
+        // stn=0: 前半のみ判定 → OK。
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(6, table, p, NoInput(), "050", EmptyShared(), 1, cmp, 0));
+    }
+
+    [Fact]
+    public void Check_TM_先頭の時間単位判定は結果に影響しない()
+    {
+        // flag7 TM: 先頭(項番9 At の E)は判定するが戻り値を無視。候補が At と不一致でも OK。
+        RatingKeyTableEntry[] table =
+        {
+            new(3, 0, 9, 1, 0, 0, 0, 0),   // 時間単位(戻り値無視)
+            Trivial(1), Trivial(2),         // chkflg==0→2 で比較スキップ
+            Trivial(3), Trivial(4), Trivial(5), Trivial(6),
+        };
+        var p = new NumericElectricalParameters { At = 100 };
+        var cmp = new RatingComparisonState();
+
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(7, table, p, NoInput(), "050", EmptyShared(), 1, cmp, 0));
+    }
+
+    [Fact]
+    public void Check_BZ_区分で判定項目を切り替える()
+    {
+        // flag9 BZ: 項番27(区分)が 'A' なら項目[3]、それ以外は項目[4]。
+        RatingKeyTableEntry[] table =
+        {
+            Trivial(1), Trivial(2),
+            new(0, 0, 27, 0, 0, 0, 0, 0),  // 区分読取用(kouno=27)
+            Trivial(10),                    // 'A' 経路(通常 OK)
+            new(3, 0, 9, 1, 0, 0, 0, 0),   // 非'A' 経路(At の E)
+        };
+        var cmp = new RatingComparisonState();
+
+        var pA = new NumericElectricalParameters { V2Kbn = 'A', At = 100 };
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(9, table, pA, NoInput(), "050", EmptyShared(), 1, cmp));
+
+        var pBlank = new NumericElectricalParameters { V2Kbn = ' ', At = 100 };
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(9, table, pBlank, NoInput(), "050", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_MV_区分で判定項目を切り替える()
+    {
+        // flag11 MV: 1項目目(通常)→ 項番27(区分)が 'A' なら項目[2]、それ以外は項目[3]。
+        RatingKeyTableEntry[] table =
+        {
+            Trivial(1),
+            new(0, 0, 27, 0, 0, 0, 0, 0),  // 区分読取用
+            Trivial(10),                    // 'A' 経路
+            new(3, 0, 9, 1, 0, 0, 0, 0),   // 非'A' 経路(At の E)
+        };
+        var cmp = new RatingComparisonState();
+
+        var pA = new NumericElectricalParameters { V2Kbn = 'A', At = 100 };
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(11, table, pA, NoInput(), "050", EmptyShared(), 1, cmp));
+
+        var pBlank = new NumericElectricalParameters { V2Kbn = ' ', At = 100 };
+        Assert.Equal(RatingValueChecker.NoGood,
+            RatingValueChecker.Check(11, table, pBlank, NoInput(), "050", EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_TR_全項目がゼロなら通過する()
+    {
+        // flag5 TR: 先頭12項目→ 項番[12]の Key Value がゼロなら 13～15 をスキップ→ 項目[16]。
+        var entries = new RatingKeyTableEntry[17];
+        for (int i = 0; i < 17; i++)
+        {
+            entries[i] = Trivial(1);
+        }
+
+        var p = new NumericElectricalParameters();
+        var cmp = new RatingComparisonState();
+
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(5, entries, p, NoInput(), string.Empty, EmptyShared(), 1, cmp));
+    }
+
+    [Fact]
+    public void Check_THSW_基本経路を通過する()
+    {
+        // flag13 THSW: 先頭(戻り値無視)→ 項目1～2(chkflg 2 で比較スキップ)→ 項目3～4。
+        RatingKeyTableEntry[] table =
+        {
+            new(3, 0, 9, 1, 0, 0, 0, 0),   // 先頭(戻り値無視)
+            Trivial(1), Trivial(2),
+            Trivial(3), Trivial(4),
+        };
+        var p = new NumericElectricalParameters { At = 100 };
+        var cmp = new RatingComparisonState();
+
+        Assert.Equal(RatingValueChecker.Good,
+            RatingValueChecker.Check(13, table, p, NoInput(), "050", EmptyShared(), 1, cmp));
     }
 }

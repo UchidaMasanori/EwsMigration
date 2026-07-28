@@ -147,14 +147,16 @@ public sealed class NearestRankSearchTests
     [Fact]
     public void Search_特殊予約語のflagは定格値チェックへ伝播する()
     {
-        // SC は flag=1(特殊)。前方一致した候補で RatingValueChecker が未対応例外を投げる。
+        // SC は flag=1(特殊)。移植済みの RatingValueChecker へ委譲され例外を投げずに判定される。
         NearestRankReference query = Candidate("SC", "A", '1', ' ', "0030");
         var candidates = new List<NearestRankReference>
         {
             Candidate("SC", "A", '1', ' ', "0030"),
         };
 
-        Assert.Throws<NotSupportedException>(() => NearestRankSearch.Search(
-            RatingKeyTables.ScTable, query, candidates, string.Empty, -1, new NumericElectricalParameters(), NoInput(), -1));
+        NearestRankSearchResult result = NearestRankSearch.Search(
+            RatingKeyTables.ScTable, query, candidates, string.Empty, -1, new NumericElectricalParameters(), NoInput(), -1);
+
+        Assert.Contains(result.Status, new[] { NearestRankSearch.Good, NearestRankSearch.NoGood });
     }
 }

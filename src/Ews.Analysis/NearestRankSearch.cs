@@ -112,7 +112,7 @@ public static class NearestRankSearch
             {
                 NumericSharedInfo scd = SharedInfoConverter.Convert(candidate);
                 int ret = RatingValueChecker.Check(
-                    table.Flag, table.Entries, parameters, inputFlags, candidate.RatingKey, scd, times, comparison);
+                    table.Flag, table.Entries, parameters, inputFlags, candidate.RatingKey, scd, times, comparison, contactCalculationFlag);
 
                 if (ret == Repeat)
                 {
@@ -192,7 +192,7 @@ public static class NearestRankSearch
             {
                 NumericSharedInfo scd = SharedInfoConverter.Convert(candidate);
                 int ret = RatingValueChecker.Check(
-                    table.Flag, table.Entries, parameters, inputFlags, candidate.RatingKey, scd, times, comparison);
+                    table.Flag, table.Entries, parameters, inputFlags, candidate.RatingKey, scd, times, comparison, contactCalculationFlag);
 
                 if (ret == Repeat)
                 {
