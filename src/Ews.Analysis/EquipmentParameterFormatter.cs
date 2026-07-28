@@ -996,6 +996,17 @@ public sealed class EquipmentParameterFormatter
     }
 
     /// <summary>
+    /// 【C原典】<c>Stoi(CHAR* str, SHORT size)</c>(Fysk09.c:19)。
+    /// str 先頭 size 文字を atoi した値を返す。null は "" 扱い。
+    /// </summary>
+    public static int Stoi(string? str, int size)
+    {
+        string src = str ?? string.Empty;
+        string work = src.Length > size ? src[..size] : src;
+        return AtoiC(work);
+    }
+
+    /// <summary>
     /// C の <c>sprintf(buff, "%[0]W.Df", value)</c> 相当。ゼロ埋め('0' フラグ)/空白埋めの
     /// 最小幅 W・小数桁 D の固定小数点書式を再現する。
     /// </summary>
@@ -1232,5 +1243,18 @@ public sealed class EquipmentParameterFormatter
 
         string num = s[start..i];
         return double.TryParse(num, NumberStyles.Float, CultureInfo.InvariantCulture, out double f) ? f : 0.0;
+    }
+
+    /// <summary>C の <c>atoi</c> 相当。先頭空白を読み飛ばし、符号+数字列を整数化(非数値は 0)。</summary>
+    private static int AtoiC(string s)
+    {
+        int i = 0;
+        while (i < s.Length && (s[i] == ' ' || s[i] == '\t')) i++;
+        int start = i;
+        if (i < s.Length && (s[i] == '+' || s[i] == '-')) i++;
+        while (i < s.Length && s[i] >= '0' && s[i] <= '9') i++;
+
+        string num = s[start..i];
+        return int.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 0;
     }
 }

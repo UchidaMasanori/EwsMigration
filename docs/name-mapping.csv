@@ -396,3 +396,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,WK_STRUCT3,AreaRewriteFlags,toku/include/sekkei/fyrt814.h,回路書き戻し指示フラグ(at/a2/af/ma/am 各[2]=上位/下位機器)
 構造体,KAIRO_T,CircuitAreaRewriter.CircuitFieldMap,toku/include/sekkei/fyrt817.h,回路書き戻し項目定義(symb/ln桁数/dln小数桁/kno回路側項目番号)
 関数,Fysk00_ph,IncomingPhaseResolver.Resolve,toku/sekkei/src/Fysk00.c,主回路レコード列を上流へ遡り最初の入線(P)の相数を取得(三相四線なら自機器の回路相数kpaph・入線無しは単相1)
+関数,Fyss35_Select_Karyu_Sub,DownstreamSelector.SelectDownstream,toku/sekkei/src/Fyss35.c,指定データ追番の下流(oyatnoが指定機器より大きく連続する)データ追番一覧を抽出(系統種別1以外/範囲外はnull)
+関数,Stoi,EquipmentParameterFormatter.Stoi,toku/sekkei/src/Fysk09.c,固定長文字列の先頭size文字をatoi(整数化)する補助関数
