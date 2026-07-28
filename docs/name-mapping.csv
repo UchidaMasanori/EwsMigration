@@ -342,3 +342,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk01_Type_Check3,ShapeTypeChecker.ResolveShapeTypesForPbs,toku/sekkei/src/Fysk01.c,PBS専用の形状タイプ変換一覧作成(type_tbl3展開)/Type_Check2と同型でSTM並べ替えなし
 構造体,Type_T3,ShapeTypeVariant,usr/include/toku/sekkei/fyrt819.h,PBS形状タイプ変換の1シンボル分設定(sym/su/typ[4])/Type_T2と共用
 テーブル,type_tbl3,ShapeTypeTables.PbsConversionTable,usr/include/toku/sekkei/fyrt819.h,PBS専用の形状タイプ変換テーブル本体
+構造体/モデル,FYDF810,ReservedWordMaster,toku/include/common/fydf810.h,予約語マスタ(タイプ使用有無チェック用)
+フィールド,tg[].ksenkbn,ReservedWordMaster.SelectionElementKinds,toku/include/common/fydf810.h,タイプ枠ごとの機器選定要素区分
+関数,Fysk08_Get_YoyakugoFile,ReservedWordMasterLoader.ParseReservedWordMaster,toku/sekkei/src/Fysk08.c,予約語ファイル固定長テキストの読込
