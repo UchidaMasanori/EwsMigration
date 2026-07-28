@@ -333,3 +333,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk04_Make_Teikakuchi,RatingKeyBuilder.MakeRatingKey,toku/sekkei/src/Fysk04.c,定格値キー(kteichi 50バイト)を生成する
 関数,Fysk00_Get_Datachi,RatingKeyBuilder.GetDataValue,toku/sekkei/src/Fysk00.c,項番に対応する電気パラメータ値を取得する(項番1～53)
 共用体,IFC/SUCHI,RatingKeyBuilder.DataValue,toku/include/sekkei/fyrt814.h,1項目分の数値または区分文字の受渡し値
+関数,Fysk0c_Edit_Epara,ElectricalParameterMerger.Merge,toku/sekkei/src/Fysk0c.c,ep[2]をベースにep[0]の入力済みフィールドで上書きマージする

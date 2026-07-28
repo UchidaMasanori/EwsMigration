@@ -74,8 +74,8 @@ public sealed class NumericElectricalParameters
     /// <summary>ƒ^ƒbƒv“dˆ³g—pƒCƒ“ƒfƒbƒNƒX(’èŠi“dˆ³2)ByCŒ´“Tzepav2idxB€”Ô 26 ‚Å”’l‚Æ‚µ‚ÄQÆ‚³‚ê‚éB</summary>
     public char V2Idx { get; set; }
 
-    /// <summary>’èŠi“dˆ³2 ‚`‚b^‚c‚b‹æ•ª 'A':AC 'D':DCByCŒ´“Tzepav2kbnB</summary>
-    public char V2Kbn { get; set; }
+    /// <summary>’èŠi“dˆ³2 ‚`‚b^‚c‚b‹æ•ª 'A':AC 'D':DCByCŒ´“Tzepav2kbnB“ü—Í‚È‚µ‚Í‹ó”’B</summary>
+    public char V2Kbn { get; set; } = ' ';
 
     /// <summary>ƒ[ƒ^[’èŠi(‚`‚l)ByCŒ´“TzepaamB</summary>
     public double Am { get; set; }
@@ -83,8 +83,8 @@ public sealed class NumericElectricalParameters
     /// <summary>§Œä“dˆ³(‚u‚b)ByCŒ´“TzepavcB</summary>
     public double Vc { get; set; }
 
-    /// <summary>§Œä“dˆ³ ‚`‚b^‚c‚b‹æ•ª 'A':AC 'D':DCByCŒ´“TzepavckbnB</summary>
-    public char VcKbn { get; set; }
+    /// <summary>§Œä“dˆ³ ‚`‚b^‚c‚b‹æ•ª 'A':AC 'D':DCByCŒ´“TzepavckbnB“ü—Í‚È‚µ‚Í‹ó”’B</summary>
+    public char VcKbn { get; set; } = ' ';
 
     /// <summary>ƒZƒbƒgŠÔ(‚r‚r‚d‚s)ByCŒ´“TzepassetB</summary>
     public double Sset { get; set; }
@@ -113,8 +113,8 @@ public sealed class NumericElectricalParameters
     /// <summary>è”z”—Ê(‚p‚s‚x)ByCŒ´“TzepaqtyBVT/F/CT ‚Ég—pB</summary>
     public double Qty { get; set; }
 
-    /// <summary>”Õí—Ş(‚a‚m)ByCŒ´“TzepabnB</summary>
-    public char Bn { get; set; }
+    /// <summary>”Õí—Ş(‚a‚m)ByCŒ´“TzepabnB“ü—Í‚È‚µ‚Í‹ó”’B</summary>
+    public char Bn { get; set; } = ' ';
 
     /// <summary>“düƒTƒCƒY(‚r‚p)ByCŒ´“TzepasqB</summary>
     public double Sq { get; set; }
@@ -148,4 +148,60 @@ public sealed class NumericElectricalParameters
 
     /// <summary>İ’è”ÍˆÍ‰·“x(‚b)ByCŒ´“Tzepac2B</summary>
     public double C2 { get; set; }
+
+    /// <summary>
+    /// ‘SƒtƒB[ƒ‹ƒh‚ğ•¡»‚µ‚½“Æ—§ƒCƒ“ƒXƒ^ƒ“ƒX‚ğ•Ô‚·B”z—ñƒtƒB[ƒ‹ƒh‚à—v‘f‚ğƒRƒs[‚·‚éB
+    /// yCŒ´“Tz<c>memcpy(wep,&amp;sep[2],sizeof(struct eparmg_s))</c>(\‘¢‘Ì‘S‘Ì‚Ì’lƒRƒs[)‚É‘Š“–B
+    /// </summary>
+    public NumericElectricalParameters Clone()
+    {
+        return new NumericElectricalParameters
+        {
+            Ph1 = Ph1,
+            Ph2 = (double[])Ph2.Clone(),
+            Wr1 = Wr1,
+            Wr2 = (double[])Wr2.Clone(),
+            Hz = Hz,
+            P = P,
+            E = E,
+            Af = Af,
+            At = At,
+            A1 = A1,
+            A2 = A2,
+            W1 = W1,
+            Va = Va,
+            Kvar = Kvar,
+            Uf = Uf,
+            Ma = (double[])Ma.Clone(),
+            V1 = (double[])V1.Clone(),
+            V1Idx = V1Idx,
+            V2 = (double[])V2.Clone(),
+            V2Idx = V2Idx,
+            V2Kbn = V2Kbn,
+            Am = Am,
+            Vc = Vc,
+            VcKbn = VcKbn,
+            Sset = Sset,
+            Ss = Ss,
+            S = S,
+            Ac = Ac,
+            Bc = Bc,
+            Cc = Cc,
+            T = T,
+            K = K,
+            Qty = Qty,
+            Bn = Bn,
+            Sq = Sq,
+            Esq = Esq,
+            C = C,
+            Ksu = Ksu,
+            Mah = Mah,
+            O = O,
+            W2 = W2,
+            Ksize = Ksize,
+            Cset = Cset,
+            C1 = C1,
+            C2 = C2,
+        };
+    }
 }
