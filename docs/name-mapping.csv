@@ -335,3 +335,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 共用体,IFC/SUCHI,RatingKeyBuilder.DataValue,toku/include/sekkei/fyrt814.h,1項目分の数値または区分文字の受渡し値
 関数,Fysk0c_Edit_Epara,ElectricalParameterMerger.Merge,toku/sekkei/src/Fysk0c.c,ep[2]をベースにep[0]の入力済みフィールドで上書きマージする
 関数,Fysk01_Change_Epara,ElectricalParameterConverter.Convert,toku/sekkei/src/Fysk01.c,電気パラメータ char(eparmg)→数値(eparmg_s)変換/各フィールドを Stof で数値化・区分文字は複写
+関数,Fysk01_Type_Check2,ShapeTypeChecker.ResolveShapeTypes,toku/sekkei/src/Fysk01.c,予約語別の形状タイプ変換一覧作成(type_tbl2展開)/STM接点タイプ並べ替え含む
+構造体,Type_T2,ShapeTypeVariant,usr/include/toku/sekkei/fyrt819.h,形状タイプ変換の1シンボル分設定(sym/su/typ)
+構造体,Type_Tbl2,ShapeTypeTableEntry,usr/include/toku/sekkei/fyrt819.h,予約語1件分の形状タイプ変換テーブル(yoyaku/ichi/type_t2)
+テーブル,type_tbl2,ShapeTypeTables.ConversionTable,usr/include/toku/sekkei/fyrt819.h,予約語別の形状タイプ変換テーブル本体
