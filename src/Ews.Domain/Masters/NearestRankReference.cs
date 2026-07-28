@@ -57,6 +57,14 @@ public sealed class NearestRankReference : IIsamRecord
     /// <summary>データ追番。【C原典】key.datano[4]。</summary>
     public string DataSequence { get; set; } = string.Empty;
 
+    // ---- 共用情報部(struct kyoyojg jg) ----
+
+    /// <summary>
+    /// 共用情報部(主/制御電源共用区分・感度電流・一次/二次定格電圧・制御電圧)。
+    /// 【C原典】jg。数値化は <c>Fysk01_Change_Chokin</c> で行う。
+    /// </summary>
+    public NearestRankSharedInfo SharedInfo { get; set; } = new();
+
     // ---- 外側フィールド(struct FYDF812) ----
 
     /// <summary>ハンドルロック区分('H'=ハンドルロック有)。【C原典】hlkbn。</summary>
@@ -83,7 +91,14 @@ public sealed class NearestRankReference : IIsamRecord
     private const int OffsetControlPowerAcDc = 61;       // key.cadkbn
     private const int OffsetRatingKey = 62;              // key.kteichi[50]
     private const int OffsetDataSequence = 112;          // key.datano[4]
-    // 共用情報部 jg[59] = 116..174(ksadkbn/kcadkbn/kyoma[16]/kv1[11]/kv2[15]/kvc[15]) → 後続増分
+    // 共用情報部 jg[59] = 116..174(ksadkbn/kcadkbn/kyoma[16]/kv1[11]/kv2[15]/kvc[15])
+    private const int OffsetSharedMainPowerAcDc = 116;   // jg.ksadkbn
+    private const int OffsetSharedControlPowerAcDc = 117; // jg.kcadkbn
+    private const int OffsetSensitivityCurrents = 118;   // jg.km.kyomad[4][4]
+    private const int SensitivityCurrentSize = 4;        // kyomad[i][4]
+    private const int OffsetPrimaryVoltage = 134;        // jg.kv1(d1[3]/k1/d2[3]/k2/d3[3] = 11)
+    private const int OffsetSecondaryVoltage = 145;      // jg.kv2(d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3] = 15)
+    private const int OffsetControlVoltage = 160;        // jg.kvc(d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3] = 15)
     private const int OffsetHandleLockKind = 175;        // hlkbn
     private const int OffsetEquipmentMasterRatingKey = 176; // teikkey[80]
     private const int OffsetProductName = 256;           // hinmei[25]
@@ -113,11 +128,59 @@ public sealed class NearestRankReference : IIsamRecord
             ControlPowerAcDc = (char)record[OffsetControlPowerAcDc],
             RatingKey = FixedFieldCodec.ReadText(record, OffsetRatingKey, 50),
             DataSequence = FixedFieldCodec.ReadText(record, OffsetDataSequence, 4),
+            SharedInfo = ReadSharedInfo(record),
             HandleLockKind = (char)record[OffsetHandleLockKind],
             EquipmentMasterRatingKey = FixedFieldCodec.ReadText(record, OffsetEquipmentMasterRatingKey, 80),
             ProductName = FixedFieldCodec.ReadText(record, OffsetProductName, 25),
             ControlVoltageRangeFrom = FixedFieldCodec.ReadText(record, OffsetControlVoltageRangeFrom, 3),
             ControlVoltageRangeTo = FixedFieldCodec.ReadText(record, OffsetControlVoltageRangeTo, 3),
+        };
+    }
+
+    /// <summary>共用情報部(jg)を固定長レコードから読み取る。【C原典】struct kyoyojg。</summary>
+    private static NearestRankSharedInfo ReadSharedInfo(ReadOnlySpan<byte> record)
+    {
+        var sensitivity = new string[NearestRankSharedInfo.SensitivityCurrentCount];
+        for (int i = 0; i < sensitivity.Length; i++)
+        {
+            sensitivity[i] = FixedFieldCodec.ReadText(record, OffsetSensitivityCurrents + (i * SensitivityCurrentSize), SensitivityCurrentSize);
+        }
+
+        // kv1: d1[3]/k1/d2[3]/k2/d3[3]
+        int kv1 = OffsetPrimaryVoltage;
+        // kv2: d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3]
+        int kv2 = OffsetSecondaryVoltage;
+        // kvc: d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3]
+        int kvc = OffsetControlVoltage;
+
+        return new NearestRankSharedInfo
+        {
+            MainPowerSharedAcDc = (char)record[OffsetSharedMainPowerAcDc],
+            ControlPowerSharedAcDc = (char)record[OffsetSharedControlPowerAcDc],
+            SensitivityCurrents = sensitivity,
+            PrimaryVoltageValues =
+            [
+                FixedFieldCodec.ReadText(record, kv1, 3),
+                FixedFieldCodec.ReadText(record, kv1 + 4, 3),
+                FixedFieldCodec.ReadText(record, kv1 + 8, 3),
+            ],
+            PrimaryVoltageKinds = [(char)record[kv1 + 3], (char)record[kv1 + 7]],
+            SecondaryVoltageValues =
+            [
+                FixedFieldCodec.ReadText(record, kv2, 3),
+                FixedFieldCodec.ReadText(record, kv2 + 4, 3),
+                FixedFieldCodec.ReadText(record, kv2 + 8, 3),
+                FixedFieldCodec.ReadText(record, kv2 + 12, 3),
+            ],
+            SecondaryVoltageKinds = [(char)record[kv2 + 3], (char)record[kv2 + 7], (char)record[kv2 + 11]],
+            ControlVoltageValues =
+            [
+                FixedFieldCodec.ReadText(record, kvc, 3),
+                FixedFieldCodec.ReadText(record, kvc + 4, 3),
+                FixedFieldCodec.ReadText(record, kvc + 8, 3),
+                FixedFieldCodec.ReadText(record, kvc + 12, 3),
+            ],
+            ControlVoltageKinds = [(char)record[kvc + 3], (char)record[kvc + 7], (char)record[kvc + 11]],
         };
     }
 }

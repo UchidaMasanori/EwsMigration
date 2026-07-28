@@ -357,3 +357,12 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,key.tjg.ptype[7][7],NearestRankReference.ParameterTypes,toku/include/common/fydf812.h,パラメータタイプ7枠(検索キーの一部)
 フィールド,teikkey[80],NearestRankReference.EquipmentMasterRatingKey,toku/include/common/fydf812.h,選定結果として機器マスタ検索に渡す定格キー
 関数,FyIsamGStartR/FyIsamGNextR(直近上下位走査),NearestRankReferenceLoader.ParseNearestRankReference,toku/sekkei/src/Fysk01.c,FYDF812固定長テキストを全レコード読込みメモリ常駐化
+構造体/モデル,kyoyojg,NearestRankSharedInfo,toku/include/common/fydf812.h,共用情報部(電源区分・感度電流・一次二次制御電圧の生値)
+構造体/モデル,kyoyojg_s,NumericSharedInfo,toku/sekkei/src/Fysk01.c,共用情報の数値化結果(電圧値をdouble化・区分をコピー)
+関数,Fysk01_Change_Chokin,SharedInfoConverter.Convert,toku/sekkei/src/Fysk01.c,共用情報の生値を数値化(原典のコピー仕様と感度電流3枠を忠実再現)
+フィールド,jg.ksadkbn,NearestRankSharedInfo.MainPowerSharedAcDc,toku/include/common/fydf812.h,主回路電源の交流直流区分(共用)
+フィールド,jg.kcadkbn,NearestRankSharedInfo.ControlPowerSharedAcDc,toku/include/common/fydf812.h,制御電源の交流直流区分(共用)
+フィールド,jg.km.kyomad[4],NearestRankSharedInfo.SensitivityCurrents,toku/include/common/fydf812.h,感度電流4枠(生値・数値化時は3枠のみ保持)
+フィールド,jg.kv1,NearestRankSharedInfo.PrimaryVoltageValues,toku/include/common/fydf812.h,一次電圧値3枠と区分2枠
+フィールド,jg.kv2,NearestRankSharedInfo.SecondaryVoltageValues,toku/include/common/fydf812.h,二次電圧値4枠と区分3枠
+フィールド,jg.kvc,NearestRankSharedInfo.ControlVoltageValues,toku/include/common/fydf812.h,制御電圧値4枠と区分3枠

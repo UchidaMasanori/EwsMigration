@@ -35,6 +35,12 @@ public sealed class NearestRankReferenceLoaderTests
     private const int OffsetProductName = 256;
     private const int OffsetControlVoltageRangeFrom = 281;
     private const int OffsetControlVoltageRangeTo = 284;
+    private const int OffsetSharedMainPowerAcDc = 116;
+    private const int OffsetSharedControlPowerAcDc = 117;
+    private const int OffsetSensitivityCurrents = 118;
+    private const int OffsetPrimaryVoltage = 134;
+    private const int OffsetSecondaryVoltage = 145;
+    private const int OffsetControlVoltage = 160;
 
     /// <summary>
     /// 合成した 300 バイトレコードから KEY 部と外側フィールドを正しく抽出できる。
@@ -71,6 +77,59 @@ public sealed class NearestRankReferenceLoaderTests
         Assert.Equal("BE-C06", r.ProductName);
         Assert.Equal("085", r.ControlVoltageRangeFrom);
         Assert.Equal("110", r.ControlVoltageRangeTo);
+    }
+
+    /// <summary>
+    /// 共用情報部(jg)を検証済オフセットで読み取れる。
+    /// 【C原典】struct kyoyojg (ksadkbn/kcadkbn/km/kv1/kv2/kvc)。
+    /// </summary>
+    [Fact]
+    public void 合成レコード_共用情報部を検証済オフセットで読む()
+    {
+        var record = new byte[RecordLength];
+        record.AsSpan().Fill((byte)' ');
+        PutText(record, OffsetReservedWord, 8, "ELB");
+        PutText(record, OffsetDataSequence, 4, "0001");
+
+        record[OffsetSharedMainPowerAcDc] = (byte)'A';
+        record[OffsetSharedControlPowerAcDc] = (byte)'D';
+        // km.kyomad[4][4]
+        PutText(record, OffsetSensitivityCurrents + 0, 4, "0200");
+        PutText(record, OffsetSensitivityCurrents + 4, 4, "0030");
+        PutText(record, OffsetSensitivityCurrents + 8, 4, "0005");
+        PutText(record, OffsetSensitivityCurrents + 12, 4, "0001");
+        // kv1: d1[3]/k1/d2[3]/k2/d3[3]
+        PutText(record, OffsetPrimaryVoltage + 0, 3, "100");
+        record[OffsetPrimaryVoltage + 3] = (byte)'X';
+        PutText(record, OffsetPrimaryVoltage + 4, 3, "200");
+        record[OffsetPrimaryVoltage + 7] = (byte)'Y';
+        PutText(record, OffsetPrimaryVoltage + 8, 3, "300");
+        // kv2: d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3]
+        PutText(record, OffsetSecondaryVoltage + 0, 3, "080");
+        record[OffsetSecondaryVoltage + 3] = (byte)':';
+        PutText(record, OffsetSecondaryVoltage + 4, 3, "484");
+        record[OffsetSecondaryVoltage + 7] = (byte)'P';
+        PutText(record, OffsetSecondaryVoltage + 8, 3, "010");
+        record[OffsetSecondaryVoltage + 11] = (byte)'Q';
+        PutText(record, OffsetSecondaryVoltage + 12, 3, "020");
+        // kvc: d1[3]/k1/d2[3]/k2/d3[3]/k3/d4[3]
+        PutText(record, OffsetControlVoltage + 0, 3, "105");
+        record[OffsetControlVoltage + 3] = (byte)'a';
+        PutText(record, OffsetControlVoltage + 4, 3, "110");
+
+        NearestRankReference r = NearestRankReference.FromFixedRecord(record);
+        NearestRankSharedInfo jg = r.SharedInfo;
+
+        Assert.Equal('A', jg.MainPowerSharedAcDc);
+        Assert.Equal('D', jg.ControlPowerSharedAcDc);
+        Assert.Equal(new[] { "0200", "0030", "0005", "0001" }, jg.SensitivityCurrents);
+        Assert.Equal(new[] { "100", "200", "300" }, jg.PrimaryVoltageValues);
+        Assert.Equal(new[] { 'X', 'Y' }, jg.PrimaryVoltageKinds);
+        Assert.Equal(new[] { "080", "484", "010", "020" }, jg.SecondaryVoltageValues);
+        Assert.Equal(new[] { ':', 'P', 'Q' }, jg.SecondaryVoltageKinds);
+        Assert.Equal("105", jg.ControlVoltageValues[0]);
+        Assert.Equal("110", jg.ControlVoltageValues[1]);
+        Assert.Equal('a', jg.ControlVoltageKinds[0]);
     }
 
     /// <summary>
