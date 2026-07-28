@@ -371,3 +371,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk02_Check_Teichi_ALL,RatingValueChecker.CheckAll,toku/sekkei/src/Fysk02.c,通常予約語の定格値チェック(展開情報を走査し各項目を判定)
 関数,Fysk02_Check_Teichi_Part,RatingValueChecker.CheckPart,toku/sekkei/src/Fysk02.c,各項目の定格値チェック(直近上下位値と電気パラメータ値を比較・CMP退避・ma処理)
 関数,GLE_Check,RatingValueChecker.GateCheck,toku/sekkei/src/Fysk02.c,比較記号判定(1=一致/2=以上/3=以下)
+関数,Fysk01_Check_Hinmei,ProductNameChecker.Check,toku/sekkei/src/Fysk01.c,品名一致チェック(未指定時は絞り込みなし/指定時は25桁一致判定)
