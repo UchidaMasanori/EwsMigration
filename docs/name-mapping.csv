@@ -366,3 +366,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,jg.kv1,NearestRankSharedInfo.PrimaryVoltageValues,toku/include/common/fydf812.h,一次電圧値3枠と区分2枠
 フィールド,jg.kv2,NearestRankSharedInfo.SecondaryVoltageValues,toku/include/common/fydf812.h,二次電圧値4枠と区分3枠
 フィールド,jg.kvc,NearestRankSharedInfo.ControlVoltageValues,toku/include/common/fydf812.h,制御電圧値4枠と区分3枠
+構造体/モデル,CMP_1/CMP_2/CMP_3,RatingComparisonState,toku/sekkei/src/Fysk01.c,定格値チェックが設定する比較用グローバル値(AT系2枠/AT系/電圧)
+関数,Fysk02_Check_Teikakuchi,RatingValueChecker.Check,toku/sekkei/src/Fysk02.c,定格値チェックの入口(予約語種別flagで下請けへ分岐)
+関数,Fysk02_Check_Teichi_ALL,RatingValueChecker.CheckAll,toku/sekkei/src/Fysk02.c,通常予約語の定格値チェック(展開情報を走査し各項目を判定)
+関数,Fysk02_Check_Teichi_Part,RatingValueChecker.CheckPart,toku/sekkei/src/Fysk02.c,各項目の定格値チェック(直近上下位値と電気パラメータ値を比較・CMP退避・ma処理)
+関数,GLE_Check,RatingValueChecker.GateCheck,toku/sekkei/src/Fysk02.c,比較記号判定(1=一致/2=以上/3=以下)

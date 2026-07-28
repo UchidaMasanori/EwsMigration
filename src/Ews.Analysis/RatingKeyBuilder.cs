@@ -126,16 +126,35 @@ public static class RatingKeyBuilder
         return text.Length >= width ? text : text.PadLeft(width, '0');
     }
 
+    /// <summary>共用情報を伴わない場合の既定値。項番 1～53 のみを取得する呼出しで用いる。</summary>
+    private static readonly NumericSharedInfo EmptySharedInfo = new();
+
     /// <summary>
-    /// 電気パラメータから項番に対応する値を取り出す。【C原典】<c>Fysk00_Get_Datachi</c>(Fysk00.c:3562)。
-    /// 本移植は数値パラメータ(eparmg_s)を参照する項番 1～53 のみを対象とする
-    /// (項番 61～87 の直近上下位共用情報 kyoyojg_s は Fysk04 では未使用のため未対応)。
+    /// 電気パラメータから項番に対応する値を取り出す(共用情報なし)。【C原典】<c>Fysk00_Get_Datachi</c>(Fysk00.c:3562)。
+    /// 項番 1～53(数値パラメータ eparmg_s)専用。項番 61～87(直近上下位共用情報 kyoyojg_s)を
+    /// 参照する場合は <see cref="GetDataValue(short, NumericElectricalParameters, NumericSharedInfo)"/> を用いる。
     /// </summary>
     /// <param name="itemNo">データ項番。【C原典】SHORT no。</param>
     /// <param name="p">数値化済み電気パラメータ。【C原典】struct eparmg_s *sep。</param>
     public static DataValue GetDataValue(short itemNo, NumericElectricalParameters p)
+        => GetDataValue(itemNo, p, EmptySharedInfo);
+
+    /// <summary>
+    /// 電気パラメータ・共用情報から項番に対応する値を取り出す。【C原典】<c>Fysk00_Get_Datachi</c>(Fysk00.c:3562)。
+    /// 項番 1～53 は数値パラメータ(eparmg_s)、項番 61～87 は直近上下位共用情報(kyoyojg_s)を参照する。
+    ///
+    /// 【原典の注意(項番 85)】<c>km_s.kyomad</c> は <c>DOUBLE[3]</c> 宣言だが原典は
+    /// <c>scd.km_s.kyomad[3]</c> を読む。この添字外アクセスは構造体上で直後に隣接する
+    /// <c>kv1_s.kyov1d1</c> と同一メモリを指すため、項番 85 は項番 66(一次電圧値1)と
+    /// 常に同じ値になる。この配列外参照挙動を忠実に再現する。
+    /// </summary>
+    /// <param name="itemNo">データ項番。【C原典】SHORT no。</param>
+    /// <param name="p">数値化済み電気パラメータ。【C原典】struct eparmg_s *sep。</param>
+    /// <param name="scd">数値化済み共用情報。【C原典】struct kyoyojg_s scd。</param>
+    public static DataValue GetDataValue(short itemNo, NumericElectricalParameters p, NumericSharedInfo scd)
     {
         ArgumentNullException.ThrowIfNull(p);
+        ArgumentNullException.ThrowIfNull(scd);
 
         return itemNo switch
         {
@@ -192,6 +211,37 @@ public static class RatingKeyBuilder
             51 => Num(p.Ph2[1]),     // 【C原典】epaph2[1]
             52 => Num(p.Wr2[1]),     // 【C原典】epawr2[1]
             53 => Num(p.Ma[3]),      // 【C原典】epama[3]
+
+            // ---- 直近上下位共用情報データ(kyoyojg_s scd) 項番 61～87 ----
+            61 => Chr(scd.MainPowerSharedAcDc),          // 【C原典】scd.ksadkbn
+            62 => Chr(scd.ControlPowerSharedAcDc),       // 【C原典】scd.kcadkbn
+            63 => Num(At(scd.SensitivityCurrents, 0)),   // 【C原典】scd.km_s.kyomad[0]
+            64 => Num(At(scd.SensitivityCurrents, 1)),   // 【C原典】scd.km_s.kyomad[1]
+            65 => Num(At(scd.SensitivityCurrents, 2)),   // 【C原典】scd.km_s.kyomad[2]
+            66 => Num(At(scd.PrimaryVoltageValues, 0)),  // 【C原典】scd.kv1_s.kyov1d1
+            67 => Chr(AtChar(scd.PrimaryVoltageKinds, 0)),   // 【C原典】scd.kv1_s.kyov1k1
+            68 => Num(At(scd.PrimaryVoltageValues, 1)),  // 【C原典】scd.kv1_s.kyov1d2
+            69 => Chr(AtChar(scd.PrimaryVoltageKinds, 1)),   // 【C原典】scd.kv1_s.kyov1k2
+            70 => Num(At(scd.PrimaryVoltageValues, 2)),  // 【C原典】scd.kv1_s.kyov1d3
+            71 => Num(At(scd.SecondaryVoltageValues, 0)),    // 【C原典】scd.kv2_s.kyov2d1
+            72 => Chr(AtChar(scd.SecondaryVoltageKinds, 0)), // 【C原典】scd.kv2_s.kyov2k1
+            73 => Num(At(scd.SecondaryVoltageValues, 1)),    // 【C原典】scd.kv2_s.kyov2d2
+            74 => Chr(AtChar(scd.SecondaryVoltageKinds, 1)), // 【C原典】scd.kv2_s.kyov2k2
+            75 => Num(At(scd.SecondaryVoltageValues, 2)),    // 【C原典】scd.kv2_s.kyov2d3
+            76 => Chr(AtChar(scd.SecondaryVoltageKinds, 2)), // 【C原典】scd.kv2_s.kyov2k3
+            77 => Num(At(scd.SecondaryVoltageValues, 3)),    // 【C原典】scd.kv2_s.kyov2d4
+            78 => Num(At(scd.ControlVoltageValues, 0)),  // 【C原典】scd.kvc_s.kyovcd1
+            79 => Chr(AtChar(scd.ControlVoltageKinds, 0)),   // 【C原典】scd.kvc_s.kyovck1
+            80 => Num(At(scd.ControlVoltageValues, 1)),  // 【C原典】scd.kvc_s.kyovcd2
+            81 => Chr(AtChar(scd.ControlVoltageKinds, 1)),   // 【C原典】scd.kvc_s.kyovck2
+            82 => Num(At(scd.ControlVoltageValues, 2)),  // 【C原典】scd.kvc_s.kyovcd3
+            83 => Chr(AtChar(scd.ControlVoltageKinds, 2)),   // 【C原典】scd.kvc_s.kyovck3
+            84 => Num(At(scd.ControlVoltageValues, 3)),  // 【C原典】scd.kvc_s.kyovcd4
+            // 【C原典】scd.km_s.kyomad[3](配列外参照=kv1_s.kyov1d1 と同一メモリ)。項番 66 と同値。
+            85 => Num(At(scd.PrimaryVoltageValues, 0)),
+            86 => Num(scd.ControlVoltageRangeFrom),      // 【C原典】scd.vcfrom
+            87 => Num(scd.ControlVoltageRangeTo),        // 【C原典】scd.vcto
+
             _ => default,
         };
     }
@@ -199,4 +249,12 @@ public static class RatingKeyBuilder
     private static DataValue Num(double value) => new(value, '\0');
 
     private static DataValue Chr(char value) => new(0.0, value);
+
+    /// <summary>数値リストから範囲内の要素を取り出す(範囲外は 0.0)。</summary>
+    private static double At(IReadOnlyList<double> list, int index)
+        => index >= 0 && index < list.Count ? list[index] : 0.0;
+
+    /// <summary>区分リストから範囲内の要素を取り出す(範囲外は空白)。</summary>
+    private static char AtChar(IReadOnlyList<char> list, int index)
+        => index >= 0 && index < list.Count ? list[index] : ' ';
 }
