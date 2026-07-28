@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-27
+最終更新: 2026-07-28
 
 ---
 
@@ -123,9 +123,21 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-27 時点）
+## 5. 移植の進捗（2026-07-28 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 637 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 717 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-28 セッション追加分（サマリ：機器選定 Fysk00/01/02/04/08/09 系）
+
+機器選定（`toku/sekkei/src` の `Fysk*.c` 系）の決定的スライスを増分移植。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **数値ヘルパ・定格値キー（I〜L）**: `NumericConverter` に `PowerOfTen`/`Ceiling`/`Truncate`/`TrimTrailingZeros`（=`Ketaawase`/`Kiriage`/`Kirisute`/`Chousei`, `Fysk09.c`）を追加。定格値キー生成 `RatingKeyBuilder.MakeRatingKey`（=`Fysk04_Make_Teikakuchi`）/`GetDataValue`（=`Fysk00_Get_Datachi` 項番1〜53）＋ `NumericElectricalParameters`（=`eparmg_s`）/`RatingKeyTableEntry`（=`TCHI_T`）/`RatingKeyTables`（=`tt_xxx`, 遮断器・接触器系14種）を新設。電気パラメータマージ `ElectricalParameterMerger.Merge`（=`Fysk0c_Edit_Epara`, ep[2]ベース+ep[0]上書き）と char→数値変換 `ElectricalParameterConverter.Convert`（=`Fysk01_Change_Epara`, パイプライン結線）。
+- **形状タイプチェック（M〜P）**: `ShapeTypeChecker.ResolveShapeTypes`/`ResolveShapeTypesForPbs`（=`Fysk01_Type_Check2`/`_Check3`, type_tbl2/type_tbl3）。無印 `Fysk01_Type_Check` を `ShapeTypeSelector.Select`（=HandleRock_Check + Fysk08_Usetype_Check + Keijyoutype_Check の連鎖、type_tbl 15予約語＋ビットフラグ選択番号）に統合。**Fysk01 の Type_Check 系（無印/2/3）は全完了**。
+- **固定長テキストマスタ土台（O/Q）**: 予約語マスタ `ReservedWordMaster`（=FYDF810, 134件）と直近上下位参照 `NearestRankReference`（=FYDF812, 21,544件）を FYDM805 と同方式の固定長テキストローダーで供給（`ReservedWordMasterLoader`/`NearestRankReferenceLoader`, `src/Ews.Data/Seeding`）。実データでオフセット不変条件を検証。
+- **共用情報数値化・定格値チェック（R/S）**: `SharedInfoConverter.Convert`（=`Fysk01_Change_Chokin`, kyoyojg→kyoyojg_s）＋ `NumericSharedInfo`/`NearestRankSharedInfo`。`RatingValueChecker`（=`Fysk02_Check_Teikakuchi`）に通常予約語（flag0）の `CheckAll`/`CheckPart`/`GateCheck` を移植。`GetDataValue` に共用情報項番61〜87を追加（**項番85=配列外参照で項番66と同値を忠実再現**）。`RatingComparisonState`（=CMP_1/2/3）追加。**特殊予約語（SC/WH/VM/AM/TR/CR/TM/TS/BZ/BEL/MV/KPRY/THSW=flag1〜13）は未対応で `NotSupportedException`（次増分候補）**。
+- **品名チェック（T, commit 6d3165f）**: `ProductNameChecker.Check`（=`Fysk01_Check_Hinmei`, Fysk01.c:4079）。先頭10桁空白なら未指定=絞り込みなし、指定ありは25桁右詰めで一致判定（固定長 memcmp をバイト等価再現）。
+- **直近上下位検索ループ（U, commit bb7ad59）**: `NearestRankSearch`（=`Fysk01_Chokkin_Read_Check` ディスパッチャ＋`_ALL`/`_TMS`）。前方一致は ISAM 順次読を `IReadOnlyList<NearestRankReference>` 走査に置換し、`NearestRankReference.BuildComparisonKey()`（KEY62+kteichi50=112文字）で先頭 `siz`（=`(sfg[0]==0?cpsize:ComputeCompareSize)+62`）文字一致。`ComputeCompareSize`（=`Fysk0a_CmpMojisu_Get`）。ドメイン `RatingCheckTable`（=`TCHI_TBL`）＋ `RatingKeyTables` に14種の tchi_tbl を追加。**TM/THSW（flag7/13）は Fysk02 特殊予約語未対応のため `_TMS` は構造のみ**。接点計算 `Get_Seten_GoodData`（制御回路のみ）も未対応。
+- **次増分候補**: ①Fysk02 特殊予約語（flag1〜13）→`_TMS` と各特殊機器が実働／②Fysk00 統括（12k行, FYDM805/FYDF816 依存＝準備済）。
 
 ### 2026-07-27 セッション追加分（サマリ）
 
