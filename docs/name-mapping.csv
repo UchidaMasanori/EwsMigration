@@ -408,3 +408,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk0f_GetOyaP,ParentEquipmentLocator.FindParentPRow,toku/sekkei/src/Fysk0f.c:35,親追番を辿り親機器(P行)主回路データを取得
 関数,LibCharToShort,EquipmentParameterFormatter.Stoi,toku/lib/libfycom/cmnchar.c:1625,先頭len文字をatoi(SHORT変換)
 メンバ,denryu,MainCircuitData.EnergizingCurrent,toku/include/common/fydf806.h:97,通電電流値(.99)
+関数,Keiki_Check,MeterCircuitClassifier.TryClassifyMeter,toku/sekkei/src/Fysk00.c:3815,計器回路機器(CT/F/DSW/VT/PLTR)なら計器リストへ追加
+関数,LGR_Check,MeterCircuitClassifier.TryClassifyLeakageGroundRelay,toku/sekkei/src/Fysk00.c:3857,回路数epak>0かつgyocd[1]!=PならLGRリストへ追加
+関数,ZCT_Check,MeterCircuitClassifier.ClassifyZeroCurrentTransformer,toku/sekkei/src/Fysk00.c:3890,ZCT該当レコードを無条件でZCTリストへ追加
