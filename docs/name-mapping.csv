@@ -403,3 +403,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk00_Set_VA_W,StackingCapacityResolver.Resolve,toku/sekkei/src/Fysk00.c,VA積上げBASE機器を判定し定格容量(AC=teiva0/DC=teiw)又は負荷容量VAを回路ワークteiwvaへセット(回路要素1は対象外0)
 フィールド,hojg.teiva[0],EquipmentMaster.RatedCapacityAcVa,toku/include/common/fydm805.h,機器マスタ補助情報の定格容量(AC)VA(offset244幅7)
 フィールド,hojg.teiw,EquipmentMaster.RatedCapacityDcW,toku/include/common/fydm805.h,機器マスタ補助情報の定格容量(DC)W(offset258幅7)
+構造体,WK_STRUCT1,SelectionWorkParameters,toku/include/sekkei/fyrt814.h:47,機器選定検索用ワーク構造体(負荷容量/通電電流/相数/電圧/親P行相数)
+関数,Set_WK1,SelectionWorkParametersBuilder.Build,toku/sekkei/src/Fysk00.c:4174,主回路データ1件からWK_STRUCT1を組み立て
+関数,Fysk0f_GetOyaP,ParentEquipmentLocator.FindParentPRow,toku/sekkei/src/Fysk0f.c:35,親追番を辿り親機器(P行)主回路データを取得
+関数,LibCharToShort,EquipmentParameterFormatter.Stoi,toku/lib/libfycom/cmnchar.c:1625,先頭len文字をatoi(SHORT変換)
+メンバ,denryu,MainCircuitData.EnergizingCurrent,toku/include/common/fydf806.h:97,通電電流値(.99)

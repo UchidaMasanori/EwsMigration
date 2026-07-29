@@ -157,6 +157,9 @@ public sealed class MainCircuitData
     /// <summary>計器１次電圧 AC/DC 区分。【C原典】kpakv1kb(1,"C")。</summary>
     public char MeterPrimaryVoltageKind { get; set; } = ' ';
 
+    /// <summary>通電電流値。【C原典】denryu[8](".99")。</summary>
+    public string EnergizingCurrent { get; set; } = "00000000";
+
     /// <summary>
     /// 電気パラメータ(3 スロット)。【C原典】struct eparmg ep[3](fydf806.h)。
     /// ep[0]=入力値(mainfile_set が eparm_set で設定)、ep[1]=入力値からの生成値、
