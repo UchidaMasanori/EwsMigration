@@ -411,3 +411,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Keiki_Check,MeterCircuitClassifier.TryClassifyMeter,toku/sekkei/src/Fysk00.c:3815,計器回路機器(CT/F/DSW/VT/PLTR)なら計器リストへ追加
 関数,LGR_Check,MeterCircuitClassifier.TryClassifyLeakageGroundRelay,toku/sekkei/src/Fysk00.c:3857,回路数epak>0かつgyocd[1]!=PならLGRリストへ追加
 関数,ZCT_Check,MeterCircuitClassifier.ClassifyZeroCurrentTransformer,toku/sekkei/src/Fysk00.c:3890,ZCT該当レコードを無条件でZCTリストへ追加
+関数,Get_Kyotu_Maker,CommonMakerResolver.ResolveCommonMakers,Fysk00.c,LGRとZCTの共通メーカーコードを抽出/C原典のtmpz添字癖を忠実再現
+構造体,FYDF802,MakerDesignation,fydf802.h,機器メーカー指定(予約語+メーカーコード順位表)
+メンバ,key.yoyaku,MakerDesignation.ReservedWord,fydf802.h,予約語(8桁)
+メンバ,mkcd,MakerDesignation.MakerCodes,fydf802.h,メーカーコード順位表(4件×3桁)
