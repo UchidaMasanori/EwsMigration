@@ -415,3 +415,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体,FYDF802,MakerDesignation,fydf802.h,機器メーカー指定(予約語+メーカーコード順位表)
 メンバ,key.yoyaku,MakerDesignation.ReservedWord,fydf802.h,予約語(8桁)
 メンバ,mkcd,MakerDesignation.MakerCodes,fydf802.h,メーカーコード順位表(4件×3桁)
+関数,PropSetDefLampType,LampDefaultTypeResolver.ResolveDefaultType,Fysk00.c,ランプ機器の既定タイプ判定(+()指定/NP無しはLED・NP有りは現行タイプ据置)
