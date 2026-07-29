@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-28
+最終更新: 2026-07-29
 
 ---
 
@@ -123,9 +123,22 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-28 時点）
+## 5. 移植の進捗（2026-07-29 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 717 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 769 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-29 セッション追加分（サマリ：Fysk00 統括の決定的リーフ群 V〜AB）
+
+機器選定統括 `Fysk00.c`（12,037 行）配下の、ISAM 非依存で決定的な純粋リーフ関数を増分移植。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。テストは 717 → **769** に到達。
+
+- **Fysk02 特殊予約語チェック（V, commit e9d53af, 727）**: `RatingValueChecker.Check` に接点計算フラグを追加し flag1〜13（SC/WH/VM/AM/TR/CR/TM/TS/BZ/BEL/MV/KPRY/THSW）を移植（=`Fysk02_Check_Teichi_*`, Fysk02.c）。VM の dangling-else・TR 項目16固定オフセット・TM/THSW の時間単位判定据置など C の癖を忠実再現。`NearestRankSearch` の 2 箇所へ接点計算フラグを伝播し `_TMS`（TM/THSW）が主/分岐回路で実働。
+- **電気パラメータ回路側書き戻し Area_Rewrite（W, commit f877af3, 734）**: `CircuitAreaRewriter`（=`Fysk00_Area_Rewrite`/`Set_Kairo`/`Set_Datachi`, Fysk00.c:3685〜）。WK_STRUCT3 フラグ（`AreaRewriteFlags`=at/a2/af/ma/am 各[2]）が立つ項目を数値 sep から `GetDataValue` で取得→動的書式整形→回路側 eparmg へ書戻し。`kairo_t`（fyrt817.h）忠実転記。**SET 元 `Fysk01_Kikisearch_S1` が未移植のため未結線リーフ**。`SprintfF` を private→internal 化。
+- **入線相数取得 Fysk00_ph（X, commit bca7504, 740）**: `IncomingPhaseResolver.Resolve`（Fysk00.c:4413）。主回路レコード列を上流へ遡り最初の入線（予約語 "P"）の相数を返す。入線が三相四線なら自機器 kpaph（No1196）。memcmp を 8 文字空白パディング＋`CompareOrdinal` で忠実再現。
+- **下流機器選択 Fyss35_Select_Karyu_Sub（Y, commit 180cd89, 746）**: `DownstreamSelector.SelectDownstream`（Fyss35.c:69, 15 ファイルで使用）。指定機器の直後から親追番が連続する下流レコードの datano を収集。`Stoi`（=Fysk09.c atoi 相当）を `EquipmentParameterFormatter` に public 追加。
+- **計器回路 VA/W 設定 Fysk00_Make_Keiki（Z, commit df526c3, 755）**: `MeterCircuitBuilder.AssignCapacities`（Fysk00.c:3974）。計器回路機器（PLTR/VT/CT/F/DSW 前方一致）を予約語順に走査し `DownstreamSelector` で下流 teiwva を積上げ。PLTR の 5.5V/15V 分岐・CT 特殊（同一機器認識番号）を移植。`MeterCircuitEntry`（=WK_Keiki）新規。
+- **積上げ BASE 機器の VA/W 設定 Fysk00_Set_VA_W（AA, commit 8c91e97, 761）**: `StackingCapacityResolver.Resolve`（Fysk00.c:4108）。予約語で BASE 機器を判定し定格/負荷容量を teiwva へ。`VA_YO` 末尾 2 件空文字＝未定義予約語の catch-all（フラグ0）を忠実再現。`EquipmentMaster` に hojg.teiva[0]@244/teiw@258（幅7）を展開。
+- **機器選定検索用ワーク構造体 Set_WK1（AB, commit a1b0b89, 769）**: `SelectionWorkParametersBuilder.Build`（Fysk00.c:4174）。主回路 1 件から `SelectionWorkParameters`（=WK_STRUCT1）を組み立て（負荷容量/通電電流/相数/電圧/始動区分/発生区分/負荷種類/親P行相数）。`ParentEquipmentLocator.FindParentPRow`（=`Fysk0f_GetOyaP`, Fysk0f.c:35）新規。`MainCircuitData.EnergizingCurrent`（=denryu）追加。
+- **次増分候補**: `Fysk00_Get_Syorino`（予約語→処理番号 index。完全な tchi_tbl 約50予約語=fyrt817.h:777 依存で保留中）／`Fysk00_Kikisearch_TB`/`_SY` 本体（大型 ISAM 依存、`Fysk01_Kikisearch_S1`/`MakerCode_Check`/`Type_Check` 等の未移植依存で保留）。Fysk00 統括の他リーフ helper を要調査。
 
 ### 2026-07-28 セッション追加分（サマリ：機器選定 Fysk00/01/02/04/08/09 系）
 
