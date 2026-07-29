@@ -416,3 +416,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 メンバ,key.yoyaku,MakerDesignation.ReservedWord,fydf802.h,予約語(8桁)
 メンバ,mkcd,MakerDesignation.MakerCodes,fydf802.h,メーカーコード順位表(4件×3桁)
 関数,PropSetDefLampType,LampDefaultTypeResolver.ResolveDefaultType,Fysk00.c,ランプ機器の既定タイプ判定(+()指定/NP無しはLED・NP有りは現行タイプ据置)
+関数,PropTrimSpace,PropertyStringTrimmer.TrimSpaces,Fysk00.c,文字列前後の半角スペース(0x20)のみを除去(全角スペース・タブは対象外)
