@@ -48,6 +48,14 @@ public sealed class EquipmentMaster : IIsamRecord
     /// <summary>電気パラメータ文字列(タイプパラメータを除く)。【C原典】pstring[64] (CHAR[64])。</summary>
     public string ElectricalParameters { get; set; } = string.Empty;
 
+    // ---- 補助情報(struct hojojg hojg) ----
+
+    /// <summary>定格容量(AC) VA。【C原典】hojg.teiva[0][7] (CHAR[7])。VA 積上げ BASE 値。</summary>
+    public string RatedCapacityAcVa { get; set; } = string.Empty;
+
+    /// <summary>定格容量(DC) W。【C原典】hojg.teiw[7] (CHAR[7])。VA 積上げ BASE 値。</summary>
+    public string RatedCapacityDcW { get; set; } = string.Empty;
+
     /// <summary>未展開領域を含むレコード全体のバイト列(Shift-JIS, 固定長)。</summary>
     public byte[] RawRecord { get; set; } = [];
 
@@ -58,8 +66,11 @@ public sealed class EquipmentMaster : IIsamRecord
     private const int OffsetRatingKey = 60;     // teikkey[80]
     // pkey は 140 バイト(0..139)
     private const int OffsetPartNumber = 140;   // hinban[15]
-    private const int OffsetPartName = 155;     // hinmei[25]
+    private const int OffsetPartName = 155;      // hinmei[25]
     private const int OffsetElectricalParameters = 180; // pstring[64]
+    // hojg(補助情報)は pstring 末尾 244 から開始
+    private const int OffsetRatedCapacityAcVa = 244; // hojg.teiva[0][7]
+    private const int OffsetRatedCapacityDcW = 258;  // hojg.teiw[7](teiva[2][7]=14 バイト後)
 
     /// <summary>
     /// 固定長 Shift-JIS レコードからドメインモデルを生成する。
@@ -76,6 +87,8 @@ public sealed class EquipmentMaster : IIsamRecord
             PartNumber = FixedFieldCodec.ReadText(record, OffsetPartNumber, 15),
             PartName = FixedFieldCodec.ReadText(record, OffsetPartName, 25),
             ElectricalParameters = FixedFieldCodec.ReadText(record, OffsetElectricalParameters, 64),
+            RatedCapacityAcVa = FixedFieldCodec.ReadText(record, OffsetRatedCapacityAcVa, 7),
+            RatedCapacityDcW = FixedFieldCodec.ReadText(record, OffsetRatedCapacityDcW, 7),
             RawRecord = record.ToArray(),
         };
     }

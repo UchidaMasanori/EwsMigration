@@ -400,3 +400,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Stoi,EquipmentParameterFormatter.Stoi,toku/sekkei/src/Fysk09.c,固定長文字列の先頭size文字をatoi(整数化)する補助関数
 関数,Fysk00_Make_Keiki,MeterCircuitBuilder.AssignCapacities,toku/sekkei/src/Fysk00.c,計器回路機器(PLTR/VT/CT/F/DSW)の負荷容量VA・二次電流A2を下流teiwva積上げで主回路電気パラメータに設定
 構造体,WK_Keiki,MeterCircuitEntry,toku/include/sekkei/fyrt814.h,計器回路機器の該当レコード情報(rec:主回路添字/katei:処理状態0未1設定済2サーチ済)
+関数,Fysk00_Set_VA_W,StackingCapacityResolver.Resolve,toku/sekkei/src/Fysk00.c,VA積上げBASE機器を判定し定格容量(AC=teiva0/DC=teiw)又は負荷容量VAを回路ワークteiwvaへセット(回路要素1は対象外0)
+フィールド,hojg.teiva[0],EquipmentMaster.RatedCapacityAcVa,toku/include/common/fydm805.h,機器マスタ補助情報の定格容量(AC)VA(offset244幅7)
+フィールド,hojg.teiw,EquipmentMaster.RatedCapacityDcW,toku/include/common/fydm805.h,機器マスタ補助情報の定格容量(DC)W(offset258幅7)
