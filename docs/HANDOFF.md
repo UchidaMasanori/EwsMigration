@@ -125,7 +125,22 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 959 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1004 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
+
+`Fysk01_Kikisearch_S1`（マスタ検索）の中間層を移植し、前処理（Fysk00）と既存の孤立部品
+（`NearestRankSearch`/`RatingValueChecker`/`EquipmentSelector`/`RatingKeyBuilder`）を結線した。
+機器選定が S1 から end-to-end で疎通（汎用・遮断器・MC/MG/THR・PBS・CT）。テストは 974 → **1004**。
+詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **入力チェック（①, d384a65）**: `ElectricalParameterInputChecker`（=`Fysk0a_EparInput_Check`）。電気パラメータ入力有無 sfg と epno(1/2) を求める。
+- **形状タイプ展開（②a, a0bc506）**: `ShapeTypeExpander.Expand/ExpandSecondary`（=`Fysk01_Type_Check2/Type_Check3`＋type_tbl2/tbl3）。予約語別に代替タイプ列へ展開。
+- **S1/Chokisearch/ALL 結線（②b, 1d8c5b2）**: `NearestRankSelector.SelectMain/Dispatch/SearchGeneral`（=`Fysk01_Kikisearch_S1`/`Chokisearch`/`Chokisearch_ALL`）。epno判定→キー構築→前方一致検索→定格値チェック→戻り値1/2/3/4。
+- **遮断器検索（③, 358a757）**: `SearchBreaker`（=`Chokisearch_BRK`）。二次形状→形状→メーカーの統一順で検索。
+- **MC/MG/THR 検索（④, 3f30de9）**: `NearestRankSearch.SearchMotorGroup`（=`Chokkin_Read_Check_MTG`, proc別best選定）＋`SearchMotorSwitch`（=`Chokisearch_MTG`, `EquipmentSelector.CompareCandidate` でcross-key選定）。
+- **PBS/CT 検索（⑤, 0bac3bc）**: `SearchPushButton`（=`Chokisearch_PBS`, ti3展開込み）＋`SearchCurrentTransformer`（=`Chokisearch_CT`, 定格電流をn倍スケール探索）。
+- **保留（②残）**: SC検索（`Fysk02_Check_Teichi_SC2`/`Chokkin_Read_Check2`/`PropSelChkSc` 未移植）、MC/MG容量選定フィルタ（`PropSelChkMcMg` 系＋cns容量表）、CT/AM/SC の LW 選定パラメータ（`PropSelChk*` cns）、接点計算（`Get_Seten_GoodData`, 制御回路）、`Kikisearch_S2/T/P`。`PropSetSmartType`(①保留)は S1 結線済みで移植可能に。
 
 ### 2026-07-31 セッション④ 追加分（AQ〜AT: マイルストーン①「機器検索前処理」を全移植）
 
