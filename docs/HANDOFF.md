@@ -123,9 +123,19 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-30 時点）
+## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 907 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 959 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-31 セッション④ 追加分（AQ〜AT: マイルストーン①「機器検索前処理」を全移植）
+
+`Fysk00_Kikisearch_SY_Sub`（機器検索）でマスタ検索（`Fysk01_Kikisearch_S1`）より前段に行われる `Prop*` 前処理補正を、依存が揃っている分すべて移植した（マイルストーン①の移植可能分を完了）。テストは 907 → **959**（+52）。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **ブレーカ系タイプ調整（AQ, commit 94d89b7, 920）**: `BreakerTypeAdjuster`（静的）に `PropChgMcbType`（分岐MCBを単相2/3線電源で協約型 KY/KM）/`PropChgOyaMcbType`（1P3Wで3P子分岐の主幹を経済型 ET/KY）/`PropChgPluginType`（プラグイン CH/CHP の接続相 NOTHING→RN）/`PropChgM10AfBreaker`（三菱/協約3PのELB 10AF→50AF）/`PropChgLaClass1Type`（LA CLASS1 のタイプ2 未設定→RS）を集約。
+- **メーカー選定順位上書き（AR, commit bd141ce, 936）**: `EquipmentMakerOverrideAdjuster`（静的）に `PropChgRtrMaker`/`PropChgRmcbMaker`（松下Dに固定）/`PropChgNL63Maker`（KM/TLタイプに KKY 挿入）/`PropChgWHMaker`（QrespoPlus 1P2W210 の WH）/`PropChgINVBPMaker`（INVBPの MC/THR を負荷容量で三菱 MN/MS）/`PropChgGPNMaker`（制御 GP/GPN/APN の OM 直前に OMN 挿入）を集約。新規モデル `MainCircuitData.SpecialReservedWordKind`（=`tokkbn` 特殊予約語区分, '7'=INVBP）。
+- **WH/MC 電気値タイプ補正（AS, commit b27da7d, 946）**: `McWhElectricalAdjuster`（静的）に `PropChgWHType`（WH KMタイプ有時に表示タイプ2をクリア）/`PropChgMcMaker`（大陸TA製MCを三菱固定し3P50A+SKを選定）/`PropChgTAMC_epav2`（大陸TA製MCの定格/制御電圧を強制設定）/`PropWhmFukaDenFromChild`（1P2WのWHMを子のLV200から定格200に設定）を集約。
+- **TS/400V/耐熱ブレーカ補正（AT, commit 未, 959）**: `SpecialBreakerTypeResolver`（`CircuitDescriptionArea`＝KkGet を注入）に `PropChgTsType`（松下製TSでタイプ指定なし時に主回路/制御のタイプ2を MT）/`PropChg400vBreaker`（400V以上ブレーカを経済型 ET と主電源/フレーム容量でメーカー調整・`ko_syuden` フラグ注入）/`PropChgF2Breaker`（耐熱ブレーカ225ATを250AT/250AFで三菱選定）を集約。
+- **保留（依存ブロック）**: `PropSetSmartType`（改訂<35>, `Fysk01_Kikisearch_S1`＝マスタ検索②に依存）/`PropSelNewONWhm`（改訂<64>, `PropChkHibknNum`＝`eigyocd.cns`+`whm_sentei.cns` に依存）。次バッチで cns/マスタ依存を先行移植 or ②本体へ着手。
 
 ### 2026-07-30 セッション③ 追加分（AL〜AP: ヒューズ簡易版・ランプ系プロパティ）
 

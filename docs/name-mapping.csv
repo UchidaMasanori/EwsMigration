@@ -464,3 +464,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChgMcMaker,McWhElectricalAdjuster.AdjustMcMaker,Fysk00.c,大陸TA製MCを三菱固定し3P50A+SKタイプを選定
 関数,PropChgTAMC_epav2,McWhElectricalAdjuster.AdjustTaMcVoltage,Fysk00.c,大陸TA製MCの定格電圧/制御電圧を強制設定
 関数,PropWhmFukaDenFromChild,McWhElectricalAdjuster.AdjustWhmFukaDenFromChild,Fysk00.c,1P2WのWHMを子のLV200から定格電圧200に設定
+関数,PropChgTsType,SpecialBreakerTypeResolver.AdjustTsType,Fysk00.c,松下製TSでタイプ指定なし時に主回路/制御のタイプ2をMTに
+関数,PropChg400vBreaker,SpecialBreakerTypeResolver.Adjust400vBreaker,Fysk00.c,400V以上ブレーカを経済型ETと主電源/フレーム容量でメーカー調整
+関数,PropChgF2Breaker,SpecialBreakerTypeResolver.AdjustF2Breaker,Fysk00.c,耐熱ブレーカ225ATを250AT/250AFで選定(三菱のみ)
