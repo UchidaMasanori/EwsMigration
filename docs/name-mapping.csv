@@ -421,3 +421,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,getenv,IRuntimeParameterProvider.GetValue,共通,実行時パラメータ(旧AIX環境変数)取得をOS非依存の設定ファイル源へ抽象化
 関数,PropChgCTALMaker,CtAlBreakerMakerAdjuster.AdjustMakerCodes,Fysk00.c,暁工場3F(78007)でCT/AL付ハーフサイズブレーカのメーカーを三菱(M)に強制。ゾーンコードはIRuntimeParameterProvider経由
 関数,PropAdjustMakerCode,MakerCodePriorityAdjuster.RemoveUnlistedCodes,Fysk00.c,メーカーコード選定順位から保存値に含まれないコードを除去し前詰め(元々持たないメーカーを除く)
+関数,FyGetFacGrp,InMemoryFacilityAreaResolver.GetFacilityGroup,toku/lib/libfycom/getinterfdt.c,地区コードから地区グループを取得(未定義/情報無しは本社地区5)
+関数,FyGetInterTbl,InterfdtFacilityAreaLoader.Parse,toku/lib/libfycom/getinterfdt.c,interfdt.infを解析し地区コード→地区グループのテーブルを生成(最大100件)
+構造体/モデル,interf[][](地区情報テーブル),FacilityAreaEntry,toku/lib/libfycom/getinterfdt.c,地区情報定義1行(地区コード/地区グループ)
+設定ファイル,interfdt.inf,InterfdtFacilityAreaLoader,TOKUD/interfdt.inf,地区情報定義表(カンマ区切り6項目)
