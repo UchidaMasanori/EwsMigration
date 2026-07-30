@@ -1,7 +1,9 @@
 ﻿using Ews.Analysis;
 using Ews.App.Batch.Jobs;
+using Ews.Data.Configuration;
 using Ews.Data.Seeding;
 using Ews.Data.SqlServer;
+using Ews.Domain.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,7 +28,15 @@ IConfigurationRoot configuration = new ConfigurationBuilder()
 string connectionString = configuration.GetConnectionString("EwsDatabase")
     ?? throw new InvalidOperationException("接続文字列 ConnectionStrings:EwsDatabase が未設定です。");
 
+// 旧 AIX の環境変数(ZONECD 等)は OS ではなく設定ファイルから取得する。
+string parameterFile = Path.Combine(AppContext.BaseDirectory, "runtime-parameters.json");
+IRuntimeParameterProvider runtimeParameters = File.Exists(parameterFile)
+    ? FileRuntimeParameterProvider.LoadFromFile(parameterFile)
+    : new InMemoryRuntimeParameterProvider(new Dictionary<string, string?>());
+
 ServiceProvider services = new ServiceCollection()
+    // 実行時パラメータ(設定ファイル)
+    .AddSingleton(runtimeParameters)
     // データ層(SQL Server)
     .AddSingleton(new SqlConnectionFactory(connectionString))
     .AddSingleton<SqlEquipmentMasterRepository>()

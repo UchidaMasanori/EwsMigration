@@ -1,0 +1,16 @@
+{
+  "RuntimeParameters": {
+    "ZONECD": "",
+    "LHOST": "",
+    "TERMID": "",
+    "SYMID": "",
+    "HCONHOST": "",
+    "AUTO_TEST": "",
+    "INFPATH": "",
+    "DATAFILE": "",
+    "LOGFILE": "",
+    "LOGFLAG": "",
+    "FILEPATH": "",
+    "GNAME": ""
+  }
+}
