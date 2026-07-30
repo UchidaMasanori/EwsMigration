@@ -22,6 +22,9 @@ public sealed class ControlEquipmentInfo
     /// <summary>タイプ(7 種)。【C原典】datatype[7][7]。未設定は空。</summary>
     public string[] DataType { get; set; } = ["", "", "", "", "", "", ""];
 
+    /// <summary>付属パラメータのメーカーコード。【C原典】fp.fpamk[3]。既定 ' '。</summary>
+    public string MakerCode { get; set; } = string.Empty;
+
     /// <summary>電気パラメータ(3 スロット)。【C原典】struct eparmg eg[3]。</summary>
     public ElectricalParameters[] ElectricalParameterSlots { get; set; } = [new(), new(), new()];
 }

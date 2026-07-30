@@ -444,3 +444,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChgSeigyolTypeAndKei,ControlLampDefaultTypeResolver.ApplyTypeAndRadius,toku/sekkei/src/Fysk00.c,制御ランプのデフォルトタイプTR/ANと径サイズ22を設定
 関数,PropChgMALampType,MaruyasuLampRadiusResolver.Resolve,toku/sekkei/src/Fysk00.c,マルヤス製主回路ランプの径入力なしで径サイズを札幌22他25に設定
 関数,PropChgMALampTypeC,MaruyasuLampRadiusResolver.ResolveControl,toku/sekkei/src/Fysk00.c,マルヤス製制御ランプの径入力なしで径サイズを札幌22他25に設定
+構造体/モデル,lamp_seltbl,LampMakerEntry,toku/sekkei/src/Fysk00.c,ランプ機器優先メーカー切替テーブル1行(工場コード/予約語/メーカー4件)
+関数,PropCnsLampRead,LampMakerTableLoader.Parse,toku/sekkei/src/Fysk00.c,sel_LAMP.cnsを解析しランプ優先メーカーテーブルを生成(照合はLampMakerPriorityResolver.ApplyFromTable)
+関数,PropChgWlLampMaker,LampMakerPriorityResolver.Resolve,toku/sekkei/src/Fysk00.c,主回路WLランプの優先メーカーを地区と予約語で設定しsel_LAMPで上書き
+関数,PropChgSeigyoLampMaker,LampMakerPriorityResolver.ResolveControl,toku/sekkei/src/Fysk00.c,制御RL/GL/OL/BLランプの優先メーカーを設定しsel_LAMPで上書き
