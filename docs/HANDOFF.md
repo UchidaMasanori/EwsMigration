@@ -327,4 +327,8 @@ AH で切出した `PropAdjustMakerCode` の親関数 `PropChgFuseType_SY`（ヒ
   - `/memories/repo/ews-migration-roadmap.md`（git 外のローカル補助）は**恒久記録に数えない**。
     規約・落とし穴・フィールド対応表・「現状」ポインタのみを保持し、**新しい知見が出た時だけ**更新する
     （毎増分のフル記録は不要＝上記 git 3 点が担い、PC 故障時も GitHub から復元可能）。
+  - **★メモリ固有情報を作らない（降格のデメリット緩和）**: メモリは git 外＝ワークスペース消失で失われるため、
+    新しい落とし穴・フィールド対応・規約は**メモリだけでなく git にも一言残す**（規約/落とし穴は本ファイル §3、
+    C名⇔C#名の対応は `docs/name-mapping.csv`）。これでメモリは純粋なキャッシュとなり、消えても git から復元できる。
+    また「現状」ポインタは best-effort とし、**唯一の真実は git**（テスト数=`dotnet test`、進捗=MIGRATION_PLAN §0.2）とする。
   - コミット後は `git push origin main` する。
