@@ -107,11 +107,15 @@ public sealed class NearestRankSelectorTests
     }
 
     [Fact]
-    public void Õ’fŠí—\–ñŒê‚Í–¢À‘•‚Å—áŠO‚ğ“Š‚°‚é()
+    public void Õ’fŠí—\–ñŒê‚Íê—pŒŸõ‚ÅŠY“–‚ğ•Ô‚·()
     {
-        Assert.Throws<NotImplementedException>(() =>
-            NearestRankSelector.SelectMain(
-                0, Table("MCB "), Params(new NumericElectricalParameters()), BlankTypes(),
-                [""], 1, ["A  "], string.Empty, -1, []));
+        var candidates = new List<NearestRankReference> { Candidate("MCB", "A", productName: "BRK") };
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, Table("MCB "), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(3, result.Status);
+        Assert.Equal("BRK", result.Result!.ProductName);
     }
 }

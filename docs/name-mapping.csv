@@ -479,3 +479,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk01_Kikisearch_S1,NearestRankSelector.SelectMain,Fysk01.c,主回路/複合回路の機器選定(epno判定→検索→戻り1/2/3/4)
 関数,Fysk01_Chokisearch,NearestRankSelector.Dispatch,Fysk01.c,予約語/proc_noで直近上下位検索方式を分岐
 関数,Fysk01_Chokisearch_ALL,NearestRankSelector.SearchGeneral,Fysk01.c,汎用の直近上下位検索(メーカー/形状の総当たり)
+関数,Fysk01_Chokisearch_BRK,NearestRankSelector.SearchBreaker,Fysk01.c,遮断器専用の直近上下位検索(二次形状/形状/メーカー順)

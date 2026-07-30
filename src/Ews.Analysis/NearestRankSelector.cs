@@ -112,7 +112,8 @@ public static class NearestRankSelector
         }
         if (IsBreaker(yo))
         {
-            throw new NotImplementedException("Fysk01_Chokisearch_BRK は後続バッチで移植予定です。");
+            return SearchBreaker(table, parameters, inputFlags, shapeTypes, shapeTypeIndex,
+                                 dataTypes, makerCodes, productName, handleLockFlag, contactFlag, candidates);
         }
 
         return SearchGeneral(specKind, table, parameters, inputFlags, shapeTypes, shapeTypeIndex,
@@ -203,7 +204,7 @@ public static class NearestRankSelector
                         yo, Slot(makerCodes, j, 3), baseTypes,
                         shapeTypeIndex, Pad(shapeTypes[k]),
                         secondaryIndex, Pad(secondaryShapeTypes[i]),
-                        mainAcDc, controlAcDc, ratingKey);
+                        mainAcDc, controlAcDc, ratingKey, shapeOverridesSecondary: false);
 
                     firstQuery ??= query;
 
@@ -218,6 +219,112 @@ public static class NearestRankSelector
             }
 
             // 【C原典】該当なし。ck は最初に組み立てたキー(wk)。
+            return new NearestRankSearchResult(NoGood, firstQuery);
+        }
+        finally
+        {
+            if (restoreKind == 1)
+            {
+                parameters.P = savedP;
+            }
+            else if (restoreKind == 2)
+            {
+                parameters.Ph2[0] = savedPh2;
+                parameters.Wr2[0] = savedWr2;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 遮断器専用の直近上下位検索。【C原典】Fysk01_Chokisearch_BRK(Fysk01.c:1453)。
+    /// 二次形状→形状→メーカーの順(特注/コンポ共通)で検索キーを組み立て、最初に該当した候補を採用する。
+    /// ALL と異なり WL/COS/WH の特殊タイプ修正は行わず、ti==ti2 のときは形状タイプを優先する。
+    /// </summary>
+    public static NearestRankSearchResult SearchBreaker(
+        RatingCheckTable table,
+        NumericElectricalParameters parameters,
+        IReadOnlyList<int> inputFlags,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        string[] dataTypes,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        int contactFlag,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(shapeTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        ArgumentNullException.ThrowIfNull(makerCodes);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        string yo = table.ReservedWord;
+        char mainAcDc = parameters.V2Kbn;
+        char controlAcDc = parameters.VcKbn;
+
+        // 【C原典】LGT/LA の退避・復元(遮断器予約語では発生しないが C に合わせて保持)。
+        int restoreKind = 0;
+        double savedP = 0.0, savedPh2 = 0.0, savedWr2 = 0.0;
+        if (Matches(yo, "LGT ", 4))
+        {
+            savedP = parameters.P;
+            parameters.P = 1.0;
+            restoreKind = 1;
+        }
+        else if (Matches(yo, "LA ", 3) &&
+                 (Matches(dataTypes[0], "ST ", 3) || Matches(dataTypes[0], "YT ", 3)))
+        {
+            savedPh2 = parameters.Ph2[0];
+            savedWr2 = parameters.Wr2[0];
+            parameters.Ph2[0] = 0.0;
+            parameters.Wr2[0] = 0.0;
+            restoreKind = 2;
+        }
+
+        try
+        {
+            ShapeTypeExpansion expansion = ShapeTypeExpander.Expand(yo, dataTypes);
+            IReadOnlyList<string> secondaryShapeTypes = expansion.ShapeTypes;
+            int secondaryIndex = expansion.TypeIndex;
+            string ratingKey = RatingKeyBuilder.MakeRatingKey(table.Entries, parameters);
+
+            // 【C原典】ptype[0..6] = dtype(遵断器は特殊タイプ修正なし)。
+            string[] baseTypes = new string[NearestRankReference.ParameterTypeSlotCount];
+            for (int n = 0; n < baseTypes.Length; n++)
+            {
+                baseTypes[n] = Pad(n < dataTypes.Length ? dataTypes[n] : string.Empty);
+            }
+
+            NearestRankReference? firstQuery = null;
+
+            // 【C原典】二次形状(i) → 形状(k) → メーカー(j) の順。
+            for (int i = 0; i < secondaryShapeTypes.Count; i++)
+            {
+                for (int k = 0; k < shapeTypes.Count; k++)
+                {
+                    for (int j = 0; j < makerCodes.Count; j++)
+                    {
+                        NearestRankReference query = BuildQuery(
+                            yo, Slot(makerCodes, j, 3), baseTypes,
+                            shapeTypeIndex, Pad(shapeTypes[k]),
+                            secondaryIndex, Pad(secondaryShapeTypes[i]),
+                            mainAcDc, controlAcDc, ratingKey, shapeOverridesSecondary: true);
+
+                        firstQuery ??= query;
+
+                        NearestRankSearchResult r = NearestRankSearch.Search(
+                            table, query, candidates, productName, handleLockFlag, parameters, inputFlags, contactFlag);
+
+                        if (r.Status == Good)
+                        {
+                            return r;
+                        }
+                    }
+                }
+            }
+
             return new NearestRankSearchResult(NoGood, firstQuery);
         }
         finally
@@ -299,16 +406,20 @@ public static class NearestRankSelector
     private static NearestRankReference BuildQuery(
         string reservedWord, string makerCode, string[] baseTypes,
         int shapeIndex, string shapeType, int secondaryIndex, string secondaryType,
-        char mainAcDc, char controlAcDc, string ratingKey)
+        char mainAcDc, char controlAcDc, string ratingKey, bool shapeOverridesSecondary)
     {
         string[] types = (string[])baseTypes.Clone();
-        if (shapeIndex >= 0 && shapeIndex < types.Length)
+
+        // 【C原典】ptype[ti]/ptype[ti2] の上書き順。ti==ti2 のとき後に適用した方が残る。
+        if (shapeOverridesSecondary)
         {
-            types[shapeIndex] = shapeType;
+            Assign(types, secondaryIndex, secondaryType);
+            Assign(types, shapeIndex, shapeType);
         }
-        if (secondaryIndex >= 0 && secondaryIndex < types.Length)
+        else
         {
-            types[secondaryIndex] = secondaryType;
+            Assign(types, shapeIndex, shapeType);
+            Assign(types, secondaryIndex, secondaryType);
         }
 
         return new NearestRankReference
@@ -327,6 +438,14 @@ public static class NearestRankSelector
         Matches(yo, "ELB ", 4) || Matches(yo, "MCB ", 4) || Matches(yo, "MMCB ", 5) ||
         Matches(yo, "ELMB ", 5) || Matches(yo, "RMCB ", 5) || Matches(yo, "RELB ", 5) ||
         Matches(yo, "RMMCB ", 6) || Matches(yo, "RELMB ", 6);
+
+    private static void Assign(string[] types, int index, string value)
+    {
+        if (index >= 0 && index < types.Length)
+        {
+            types[index] = value;
+        }
+    }
 
     private static string Slot(IReadOnlyList<string> list, int index, int width)
     {
