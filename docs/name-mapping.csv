@@ -448,3 +448,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropCnsLampRead,LampMakerTableLoader.Parse,toku/sekkei/src/Fysk00.c,sel_LAMP.cnsを解析しランプ優先メーカーテーブルを生成(照合はLampMakerPriorityResolver.ApplyFromTable)
 関数,PropChgWlLampMaker,LampMakerPriorityResolver.Resolve,toku/sekkei/src/Fysk00.c,主回路WLランプの優先メーカーを地区と予約語で設定しsel_LAMPで上書き
 関数,PropChgSeigyoLampMaker,LampMakerPriorityResolver.ResolveControl,toku/sekkei/src/Fysk00.c,制御RL/GL/OL/BLランプの優先メーカーを設定しsel_LAMPで上書き
+関数,PropChgMcbType,BreakerTypeAdjuster.AdjustBranchMcbType,Fysk00.c,分岐MCBを単相2/3線電源で協約型KY/KMに変更
+関数,PropChgOyaMcbType,BreakerTypeAdjuster.AdjustParentMcbType,Fysk00.c,1P3Wで3P子分岐を持つ主幹を経済型ET/KYに変更
+関数,PropChgPluginType,BreakerTypeAdjuster.AdjustPluginType,Fysk00.c,プラグインCH/CHPの接続相NOTHINGをRNに変更
+関数,PropChgM10AfBreaker,BreakerTypeAdjuster.AdjustM10AfBreaker,Fysk00.c,三菱/協約3PのELB10AFを50AFとして選定
+関数,PropChgLaClass1Type,BreakerTypeAdjuster.AdjustLaClass1Type,Fysk00.c,LA CLASS1のタイプ2未設定時にRSを設定
