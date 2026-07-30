@@ -125,7 +125,15 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-30 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 826 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 871 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-30 セッション② 追加分（AI〜AK: `PropChgFuseType_SY` 依存チェーンを下から結線）
+
+上記「`PropChgFuseType_SY` 本体は保留」の依存を leaf から順に移植し、本体まで結線した。テストは 826 → **871**。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **地区グループ取得（AI, commit eb6391f, 834）**: `IFacilityAreaResolver`/`InMemoryFacilityAreaResolver`/`FacilityAreaEntry`（Ews.Domain/Configuration）＋ `InterfdtFacilityAreaLoader`（Ews.Data/Configuration, =`FyGetInterTbl`）。`interfdt.inf`（地区情報定義表）を解析し地区コード→地区グループを引く（=`FyGetFacGrp`, getinterfdt.c）。未定義は本社地区(5)。実行時パラメータ基盤と同じ trio パターン。
+- **回路設計エリアから行桁で回路内容記述取得（AJ, commit 0c4ed1b, 850）**: `CircuitDescriptionArea`（Ews.Analysis, =`Fysk11_FYDF805_KkGet`/`_Mae`/`_Ato`, Fysk11.c）。桁(keta)はバイト位置のため CP932 固定長 200 バイト＋NUL に復元し `strchr`/`strstr`/添字をバイト単位で忠実再現。改訂<2>（1桁手前 colm-1 から取得）・改訂<4>（削除行スキップは KkGet のみ）・桁 200 超の行折返しを再現。`LibCharToShort`=既存 `Stoi` 流用。
+- **PropChgFuseType_SY 連鎖（AK, commit d4f15bb, 871）**: 4 件一括。(1) **スターデルタ MC/THR 容量選定**: `StarDeltaCapacityEntry`（=`mcthr_seltbl`）＋ `StarDeltaCapacityTableLoader`（=`PropGetMcThrTblCnst`, sel_mgsd.cns）＋ `StarDeltaCapacitySelector.ApplyHeaterCapacity`（=`PropSelChkMgsd`, 容量・電圧一致行の MC/THR ヒータ呼び容量を A2/AT へ設定）。(2) **品番情報リポジトリ(.clh)**: `IPartNumberInfoRepository`＋`FilePartNumberInfoRepository`（=`FyCpHbHbnInfFileR`, `<WORK>/<依頼明細番号>/<依頼明細番号>.clh` を解決し既存 `PartNumberInfoLoader.ReadFromFile` へ委譲）。(3) **WL 回路電圧変更**: `WlCircuitVoltageAdjuster.Adjust`（=`PropChangeWlKpav` 改訂<110>, F の子 WL の回路電圧を河村製は "005"・他は F の電圧へ）。(4) **ヒューズ既定機器タイプ設定本体**: `FuseDefaultTypeResolver.Resolve`（=`PropChgFuseType_SY` 改訂<73>〜）。`IFacilityAreaResolver`/`CircuitDescriptionArea`/`IPartNumberInfoRepository`/`MakerCodePriorityAdjuster`（=`PropAdjustMakerCode`）/`WlCircuitVoltageAdjuster` を結線し、回路記述・地区グループ・ヒューズ個数・品番(GWL/GJWL/PEKOB)・後続ランプ径から機器タイプ GT・メーカー FT を調整し子 WL 電圧を変更する。
 
 ### 2026-07-30 セッション追加分（サマリ：計器・メーカー分類リーフ AC〜AH ＋ 実行時パラメータ基盤）
 
