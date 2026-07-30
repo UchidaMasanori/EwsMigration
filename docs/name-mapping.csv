@@ -467,3 +467,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChgTsType,SpecialBreakerTypeResolver.AdjustTsType,Fysk00.c,松下製TSでタイプ指定なし時に主回路/制御のタイプ2をMTに
 関数,PropChg400vBreaker,SpecialBreakerTypeResolver.Adjust400vBreaker,Fysk00.c,400V以上ブレーカを経済型ETと主電源/フレーム容量でメーカー調整
 関数,PropChgF2Breaker,SpecialBreakerTypeResolver.AdjustF2Breaker,Fysk00.c,耐熱ブレーカ225ATを250AT/250AFで選定(三菱のみ)
+コンスタント,eigyocd.cns,EigyocdTableLoader,eigyocd.cns,営業所コード識別テーブルを解析(PropChkHibknNum読込部)
+コンスタント,whm_sentei.cns,WhmSenteiTableLoader,whm_sentei.cns,三菱製WH優先営業所テーブルを解析(現行は全行コメントで空)
+構造体/モデル,eigyocd.cns行,NonPropertyOfficeEntry,eigyocd.cns,非物件コードと営業所コード一覧の1行
+関数,PropChkHibknNum,MitsubishiWhmPriorityChecker.Check,Fysk00.c,営業所コードから非物件コード経由で三菱製WH優先営業所か判定
+関数,PropTrimSpace,EigyocdTableLoader内Trim,Fysk00.c,文字列前後の空白除去(ローダ内Trimに吸収)
+関数,PropSelNewONWhm,OhsakiWhmMakerResolver.Resolve,Fysk00.c,非優先営業所の50HzWHを大崎製ON/Oに変更しKE型設定
