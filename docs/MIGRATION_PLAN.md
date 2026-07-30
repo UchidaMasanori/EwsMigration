@@ -26,6 +26,24 @@
 
 ---
 
+## 0.1 関連ライブラリ（libfysek.a の外部依存）
+
+`Fysk10_Main` は libfysek.a 単体では完結せず、リンク時に複数の外部ライブラリを必要とする
+（libfysek.a ソースからの実際の関数呼出し実態）。
+**完全な設計出力の再現には制御設計 `libfysgy.a` の移植が必須**。
+
+| ライブラリ | 役割 | libfysek.a からの呼出 | 移行上の扱い |
+|---|---|---|---|
+| **libfysgy.a**（`toku/seigyo/src`, 52 ソース / 約 67,000 行） | 制御回路設計 `Fysc20_Sekkei_Control` ほか Fysc2*（制御機器サーチ Mc/Coil/Rry/Switch, MCtype_Change 等） | 15 箱所 | ★**要移植**（制御回路/論理回路出力を生成。M4/M5 の実体） |
+| libisam.a / svisam | ISAM エンジン `FyIsam*` | 129 箱所 | インフラ。`IIsamTable`→SQL/固定長で抽象化済 |
+| libfycom.a | 共通ユーティリティ `FyGet*`/`Lib*`（LibCharToDouble/CpyNullStop 等） | 273 箱所 | 必要分を移植（Stof/Stoi/地区/パス は済） |
+| libclhbn.a | 品番 ISAM `ClIsam*`/`FyCpHbHbnInfFileR` | 約 6 箱所 | 品番情報は一部移植済（PartNumberInfoLoader） |
+| libfysin.a / kairozu | 作図/回路図連携 | 0（ヘッダの構造体・定数参照のみ） | ロジック移植不要 |
+
+**総スコープ（設計エンジン一式）**: libfysek.a(~110k) + libfysgy.a(~67k) ≒ **約 177,000 行**。
+
+---
+
 ## 1. ターゲット・アーキテクチャ
 
 ```
@@ -123,7 +141,13 @@ graph LR
 ### フェーズ 5 — 制御回路（Fyss13/1k/1l, 約 7,600 行）
 | ファイル(行) | 役割 | 状況 |
 |---|---|---|
-| Fyss13(212), **Fyss1k(3767)**, **Fyss1l(3617)** | 制御回路エリア作成/制御仕様テーブル | ❌ |
+| Fyss13(212), **Fyss1k(3767)**, **Fyss1l(3617)** | 制御回路エリア作成/制御仕様テーブル（sekkei 側） | ❌ |
+
+### フェーズ 5b — 制御回路設計 libfysgy.a（Fysc20 系, 別ライブラリ, 52 ソース / 約 67,000 行）
+`Fysk10_Main` が主回路設計の後段で呼ぶ制御回路/論理回路の生成本体（`toku/seigyo/src`）。
+| ファイル(行) | 役割 | 状況 |
+|---|---|---|
+| **Fysc23(6364)**, **Fysc22(5759)**, **Fysc2M(3815)**, **Fysc2TSU(3756)**, Fysc20/21/27/2C/2K/2L ほか全 52 ソース | Fysc20_Sekkei_Control 本体 + 制御機器サーチ（Mc/Coil/Rry/Switch）/ 論理回路展開 | ❌ |
 
 ### フェーズ 6 — 制御電源・スマート（Fyss19/1p/U0, 約 1,000 行）
 | ファイル(行) | 役割 | 状況 |
@@ -158,7 +182,7 @@ graph LR
 | **M1** | 機器サーチ完全化（SC + MC/MG 容量 + 接点計算 + S2/T/P） | フェーズ4残 |
 | **M2** | **Fyss15_Make_LowerParm 結線**（機器サーチを実パイプラインへ） | M1, フェーズ3 |
 | **M3** | 入力 → 主回路 → 上流 → 下流の縦断疎通（Fysk10 最小パイプライン） | フェーズ1-3 + M2 |
-| **M4** | 制御回路（Fyss13/1k/1l + Kikisearch_S2） | フェーズ5 |
+| **M4** | 制御回路（Fyss13/1k/1l + Kikisearch_S2）と **制御設計 libfysgy.a（Fysc20 系, ~67k 行）** | フェーズ5/5b |
 | **M5** | 制御電源・検証 Prop 群・複合展開 | フェーズ6-7 |
 | **M6** | 線番付与・回路設計出力（Fyss3*） | フェーズ8 |
 | **M7** | Fysk10_Main 完全結線 + ゴールデンマスタ全通過 | 全部 |

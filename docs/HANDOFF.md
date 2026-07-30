@@ -129,11 +129,14 @@ EwsMigration/
 回路解析（`toku/sekkei` 系）を先行移植中。**全 1004 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
+なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
+移植も必須（`Fysk10_Main` が `Fysc20_Sekkei_Control` ほか Fysc2* を呼ぶ）。総スコープ ≒ 約 177,000 行。
 
 **フェーズ別状況（MIGRATION_PLAN.md と対応）**:
-- ✅ 機器サーチ中核: Fysk00 前処理① / Fysk01 マスタ検索②(SC 除く) / Fysk02 / Fysk04 / Fysk11
+- ✅ 機器サーチ中核: Fysk00 前処理①/Fysk01 マスタ検索②(SC 除く)/Fysk02/Fysk04/Fysk11
 - 🟡 入力解析 Fyss11 / 主回路 Fyss12 / 上流 Fyss14（部分）
 - ❌ 制御回路 Fyss13/1k/1l・下流結線 Fyss15・制御電源 Fyss19/1p/U0・検証 Prop 群・線番 Fyss3*・Fysk10_Main 本体結線
+- ❌ 制御設計 libfysgy.a（Fysc20_Sekkei_Control 系, 別ライブラリ）… 完全移植に必須
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 
