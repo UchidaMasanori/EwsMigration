@@ -264,4 +264,6 @@ AH で切出した `PropAdjustMakerCode` の親関数 `PropChgFuseType_SY`（ヒ
   push 済みなら PC が壊れても GitHub に残る。
 - 恒久的な文脈（本ファイル・README・name-mapping.csv・migration-policy）はすべてリポジトリ内に置く
   ＝ GitHub に残る。ローカルの `/memories/` は補助であり、失われても本ファイル群から復元できる状態を保つ。
-- 節目ごとに本ファイルの「5. 進捗」を更新してコミットすること。
+- **更新の粒度**:
+  - **各増分（1 関数移植）ごとに** `docs/name-mapping.csv` とロードマップメモリ（`/memories/repo/ews-migration-roadmap.md`）を更新してコミットする。
+  - **セッションの節目ごとに** 本ファイルの「5. 進捗」へまとめて反映し、コミット・`git push origin main` する。
