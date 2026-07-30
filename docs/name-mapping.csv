@@ -425,3 +425,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,FyGetInterTbl,InterfdtFacilityAreaLoader.Parse,toku/lib/libfycom/getinterfdt.c,interfdt.infを解析し地区コード→地区グループのテーブルを生成(最大100件)
 構造体/モデル,interf[][](地区情報テーブル),FacilityAreaEntry,toku/lib/libfycom/getinterfdt.c,地区情報定義1行(地区コード/地区グループ)
 設定ファイル,interfdt.inf,InterfdtFacilityAreaLoader,TOKUD/interfdt.inf,地区情報定義表(カンマ区切り6項目)
+関数,Fysk11_FYDF805_Keep,CircuitDescriptionArea(コンストラクタ),toku/sekkei/src/Fysk11.c,回路設計エリア(FYDF805)を保持(calloc/freeはGCに委譲)
+関数,Fysk11_FYDF805_KkGet,CircuitDescriptionArea.GetDescriptionAt,toku/sekkei/src/Fysk11.c,行桁から対象機器の回路内容記述を取得(改訂2:1桁手前から/改訂4:削除行skip)
+関数,Fysk11_FYDF805_KkGet_Mae,CircuitDescriptionArea.GetPrecedingDescription,toku/sekkei/src/Fysk11.c,対象機器の1個前の回路内容記述を取得(区切りカンマまたは--)
+関数,Fysk11_FYDF805_KkGet_Ato,CircuitDescriptionArea.GetFollowingDescription,toku/sekkei/src/Fysk11.c,対象機器の1個後の回路内容記述を取得(区切りカンマまたは--)
