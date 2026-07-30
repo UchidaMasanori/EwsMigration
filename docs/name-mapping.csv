@@ -442,3 +442,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 構造体/モデル,kikijg,ControlEquipmentInfo,toku/include/common/fydf808.h,機器情報(制御仕様情報)の最小サブセット(予約語/記述行桁/タイプ/電気パラメータ)
 関数,PropChgLampType,ControlLampDefaultTypeResolver.Resolve,toku/sekkei/src/Fysk00.c,イズミ製制御ランプの既定機器タイプ(RE/TR/AN/LED)と径サイズを設定
 関数,PropChgSeigyolTypeAndKei,ControlLampDefaultTypeResolver.ApplyTypeAndRadius,toku/sekkei/src/Fysk00.c,制御ランプのデフォルトタイプTR/ANと径サイズ22を設定
+関数,PropChgMALampType,MaruyasuLampRadiusResolver.Resolve,toku/sekkei/src/Fysk00.c,マルヤス製主回路ランプの径入力なしで径サイズを札幌22他25に設定
+関数,PropChgMALampTypeC,MaruyasuLampRadiusResolver.ResolveControl,toku/sekkei/src/Fysk00.c,マルヤス製制御ランプの径入力なしで径サイズを札幌22他25に設定
