@@ -42,6 +42,13 @@
 
 **総スコープ（設計エンジン一式）**: libfysek.a(~110k) + libfysgy.a(~67k) ≒ **約 177,000 行**。
 
+> **相互依存（重要）**: `libfysgy.a`（制御設計）は逆に `libfysek.a` を呼び返す。特に機器サーチ
+> `Fysk00_Kikisearch_SY` / `Fysk01_Kikisearch_S1`（24 箇所）を利用するため、**移植済みの機器サーチ①②は
+> 主回路・制御回路の両設計が共用する基盤**となる（＝ libfysek.a ↔ libfysgy.a は双方向依存）。
+> libfysgy.a のその他外部依存は libfysek.a とほぼ同一（libisam `FyIsam*` 34 / libfycom `Lib*`236・`FyGet*`23 /
+> libclhbn `ClIsam*`）＋ 少量の kairozu(`CrCtlCns015Get` 4)・libfysin(`FySinCmpHbnRead` 2)。
+> Motif(`Xm`/`Xt`)・compo(`cmplogtr`/`cmpsmart`) はヘッダ参照のみ（0 呼出）でロジック移植不要。
+
 ---
 
 ## 1. ターゲット・アーキテクチャ
