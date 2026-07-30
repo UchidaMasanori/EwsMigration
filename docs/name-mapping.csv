@@ -473,3 +473,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChkHibknNum,MitsubishiWhmPriorityChecker.Check,Fysk00.c,営業所コードから非物件コード経由で三菱製WH優先営業所か判定
 関数,PropTrimSpace,EigyocdTableLoader内Trim,Fysk00.c,文字列前後の空白除去(ローダ内Trimに吸収)
 関数,PropSelNewONWhm,OhsakiWhmMakerResolver.Resolve,Fysk00.c,非優先営業所の50HzWHを大崎製ON/Oに変更しKE型設定
+関数,Fysk0a_EparInput_Check,ElectricalParameterInputChecker.Check,Fysk0a.c,電気パラメータ入力有無をsfgに立てepno(1/2)を返す
