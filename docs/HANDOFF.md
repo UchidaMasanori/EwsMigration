@@ -125,7 +125,17 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-30 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 871 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 907 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-30 セッション③ 追加分（AL〜AP: ヒューズ簡易版・ランプ系プロパティ）
+
+`PropChgFuseType_SY` の姉妹関数を継続移植。ランプ（既定タイプ・径サイズ・優先メーカー）を主回路・制御回路両方で揃えた。テストは 871 → **907**。LAMP22 は本番定義（`toku/sekkei/src/makefile -DLAMP22`）のためランプ系は LAMP22 版を移植。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **ヒューズ既定タイプ簡易版（AL, commit dbeb429, 877）**: `SimpleFuseDefaultTypeResolver`（=`PropChgFuseType_SY2`, Fysk00.c:6959, LAMP22 無効時の簡易版）。`+(` 無し・特注(cpf=0)で機器タイプ GT、`MK=` 無しでメーカー FT。`CircuitDescriptionArea`（KkGet）のみ依存。
+- **イズミ製 WL ランプタイプ（AM, commit b82c1ce, 884）**: `WlLampDefaultTypeResolver`（=`PropChgWlLampType`/`PropChgWlTypeAndKei`/`PropChkHbnPEKOB`）。IZ/MAN(水俣)指定 WL で PM/B 行のみ。水俣=AN→RE、他=径サイズ・前段記述(KkGet_Mae)・ヒューズ個数・PEKOB 品番・電源相線から TR/WP タイプ・径 22/25・電圧 110/220 を設定。依存（FyGetFacGrp/KkGet/KkGet_Mae/PropSetDefLampType/品番リポジトリ）を結線。
+- **イズミ製制御ランプタイプ（AN, commit 6f9f9c1, 890）**: `ControlLampDefaultTypeResolver`（=`PropChgLampType`/`PropChgSeigyolTypeAndKei`）＋ `ControlEquipmentInfo`（=`kikijg` 最小サブセット）。制御回路 RL/GL/OL/BL の TR/AN/RE/LED タイプ・径 22 を設定。
+- **マルヤス製ランプ径サイズ（AO, commit f6e129b, 899）**: `MaruyasuLampRadiusResolver`（=`PropChgMALampType`/`PropChgMALampTypeC`）。MA/MAN 指定で径入力(`P`)無しのとき径サイズを札幌工場=22mm・他=25mm に設定。主回路（WL/RL/GL/OL/BL）＋制御（RL/GL/OL/BL）。
+- **ランプ優先メーカー変更（AP, commit 02aafce, 907）**: `LampMakerPriorityResolver`（=`PropChgWlLampMaker`/`PropChgSeigyoLampMaker`）＋ `LampMakerEntry`（=`lamp_seltbl`）＋ `LampMakerTableLoader`（=`PropCnsLampRead` の sel_LAMP.cns 読込部）。メーカー未指定のランプで地区グループ・予約語からメーカー順位を設定し、`sel_LAMP.cns` の一致行で上書きする（水俣=マルヤス優先・他=イズミ優先）。
 
 ### 2026-07-30 セッション② 追加分（AI〜AK: `PropChgFuseType_SY` 依存チェーンを下から結線）
 
