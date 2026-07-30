@@ -460,3 +460,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChgINVBPMaker,EquipmentMakerOverrideAdjuster.AdjustInvbpMaker,Fysk00.c,INVBPのMC/THRを負荷容量で三菱MN/MSに固定
 関数,PropChgGPNMaker,EquipmentMakerOverrideAdjuster.AdjustGpnMaker,Fysk00.c,制御GP/GPN/APNのOM直前にOMNを挿入
 フィールド,tokkbn,MainCircuitData.SpecialReservedWordKind,fydf806.h,特殊予約語区分(7=INVBP等)を主回路データに追加
+関数,PropChgWHType,McWhElectricalAdjuster.AdjustWhType,Fysk00.c,WHでKMタイプ有時に表示タイプ2をクリア
+関数,PropChgMcMaker,McWhElectricalAdjuster.AdjustMcMaker,Fysk00.c,大陸TA製MCを三菱固定し3P50A+SKタイプを選定
+関数,PropChgTAMC_epav2,McWhElectricalAdjuster.AdjustTaMcVoltage,Fysk00.c,大陸TA製MCの定格電圧/制御電圧を強制設定
+関数,PropWhmFukaDenFromChild,McWhElectricalAdjuster.AdjustWhmFukaDenFromChild,Fysk00.c,1P2WのWHMを子のLV200から定格電圧200に設定
