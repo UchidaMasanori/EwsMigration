@@ -5,7 +5,7 @@
 > 作業を再開する人（人間・AI 問わず）は、まずこのファイルと [README.md](../README.md)、
 > [docs/name-mapping.csv](name-mapping.csv) を読んでください。
 
-最終更新: 2026-07-29
+最終更新: 2026-07-30
 
 ---
 
@@ -123,9 +123,36 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-29 時点）
+## 5. 移植の進捗（2026-07-30 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 769 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 826 テスト成功 / 0 スキップ / 0 失敗**。
+
+### 2026-07-30 セッション追加分（サマリ：計器・メーカー分類リーフ AC〜AH ＋ 実行時パラメータ基盤）
+
+`Fysk00.c` 配下のリーフ群を継続移植しつつ、**OS 環境変数依存を設定ファイル経由に置き換える基盤**を新設。テストは 769 → **826**。詳細は [docs/name-mapping.csv](name-mapping.csv) と `/memories/repo/ews-migration-roadmap.md`。
+
+- **計器・LGR・ZCT 機器の分類収集（AC, commit 77f13a2, 783）**: `MeterCircuitClassifier`（=`Keiki_Check`/`LGR_Check`/`ZCT_Check`, Fysk00.c:3815/3857/3890）。主回路走査ループがレコード毎に呼び、計器/LGR/ZCT の 3 リスト（`MeterCircuitEntry`=WK_Keiki）を構築。`TryClassifyMeter`（予約語先頭4文字 CT/F/DSW/VT/PLTR memcmp）、`TryClassifyLeakageGroundRelay`（`Stoi(ep[2].epak,3)>0` かつ `gyocd[1]!='P'`）、`ClassifyZeroCurrentTransformer`（無条件追加）。static k+malloc/realloc 単一リスト→`IList` 追記に置換。
+- **LGR/ZCT 共通メーカーコード抽出（AD, commit 9a7902c, 789）**: `CommonMakerResolver.ResolveCommonMakers`（=`Get_Kyotu_Maker`, Fysk00.c:3915）。メーカー指定域（`MakerDesignation`=FYDF802 最小サブセット）から LGR/ZCT のメーカー順位表（咄4件×3桁）を取込み、両者共通の 3 桁コードを収集。**C原典の添字癖（内側 break 条件が `tmpz[i]`＝外側 i の添字）を専用テストで忠実再現**。
+- **ランプ既定機器タイプ判定（AE, commit 29ef37a, 796）**: `LampDefaultTypeResolver.ResolveDefaultType`（=`PropSetDefLampType`, Fysk00.c:5290 改訂<65>）。回路内容記述に `+(` 無し→`LED    `(7桁)。有り→`)` で切詰め後に `NP` 無し→`LED    `、有り→現行タイプ据置。C原典の `)` NUL切詰め副作用を忠実再現。純粋文字列（golden 不要）。
+- **文字列前後の半角スペース除去（AF, commit 1d59420, 805）**: `PropertyStringTrimmer.TrimSpaces`（=`PropTrimSpace`, Fysk00.c:6253 改訂<70>）。半角スペース(0x20)のみ `value.Trim(' ')`。全角スペース・タブは対象外、null は空文字扱い。純粋文字列。
+- **★実行時パラメータ取得基盤（環境変数→設定ファイル集約, commit fd4a340, 813）**: C原典は ZONECD 等を `getenv` で直読みしており OS 依存。ユーザ提案で設定ファイル源に集約した。`IRuntimeParameterProvider`（Ews.Domain/Configuration, `GetValue(name)`+`ZoneCode`）を OS 非依存の境界とし、`RuntimeParameterNames`（ZONECD/LHOST/TERMID/SYMID/HCONHOST/AUTO_TEST/INFPATH/DATAFILE/LOGFILE/LOGFLAG/FILEPATH/GNAME の名前定数）、`InMemoryRuntimeParameterProvider`（辞書ベース・Ordinal 比較＝getenv 大小区別）、`FileRuntimeParameterProvider`（Ews.Data/Configuration, System.Text.Json で UTF-8 JSON 読込。`RuntimeParameters` セクション or 直下オブジェクト両対応、ネストは無視）を新設。`src/Ews.App.Batch/runtime-parameters.json`（UTF-8, CopyToOutputDirectory）を DI 登録し、合成ルート 1 箇所に OS 依存を隔離。**FyGetZoneCD 実体**（toku/lib/libfycom/fyzonecd.c:43）は `getenv("ZONECD"); strcpy` のみ。
+- **AL付ハーフサイズブレーカのメーカー変更（AG, commit 343cb12, 821）**: `CtAlBreakerMakerAdjuster.AdjustMakerCodes`（=`PropChgCTALMaker`, Fysk00.c:6294 改訂<72>）。暁第一工場（3F, ゾーンコード 78007）の製作図で CT/AL 付・メーカー無指定・予約語 MCB/ELB のハーフサイズブレーカのメーカーを三菱（M）に強制。**新設パラメータ基盤の初適用**で、`getenv(ZONECD)` を `IRuntimeParameterProvider.ZoneCode` 経由に置換。
+- **メーカーコード選定順位調整（AH, commit 8f133b6, 826）**: `MakerCodePriorityAdjuster.RemoveUnlistedCodes`（=`PropAdjustMakerCode`, Fysk00.c:8100 改訂<122>）。保存値（元の順位）に含まれないメーカーコードを選定順位から除去し前詰め（4 スロット固定・順序維持・空白補充）。
+
+#### ※ `PropChgFuseType_SY` 本体は保留（依存ファイル調査結果）
+
+AH で切出した `PropAdjustMakerCode` の親関数 `PropChgFuseType_SY`（ヒューズのデフォルト機器タイプ設定, Fysk00.c:6335 改訂<73>）本体は未移植依存が多く保留。必要ファイル/データの調査結果：
+
+| 依存（C関数/データ） | 用途 | 必要ファイル | 状態 |
+|---|---|---|---|
+| `FyGetFacGrp` | ZONECD→地区グループ（1札幌/2つくば・相模/3相模/4水俣/5本社）変換 | `interfdt.inf`（地区情報定義表） | ✅ **存在** `TOKUD/interfdt.inf` |
+| `mcthr_tbl`（`PropSelChkMgsd`） | スターデルタ MC/THR 容量選定表 | `sel_mgsd.cns`（定数） | ✅ **存在** `toku/const/sekkei/sel_mgsd.cns` |
+| `Fysk11_FYDF805_KkGet`/`_Ato`/`_Mae` | 行・桁から回路内容記述を取得 | FYDF805（回路内容記述） | ✅ **C#側に既存**（`CircuitDescriptionLine` + `SqlCircuitDescriptionRepository`） |
+| `PropChangeWlKpav` | WL の回路電圧変更 | （ファイル不要） | ⚠️ f800（主回路配列）依存の関数移植のみ |
+| `FyCpHbHbnInfFileR`（`struct hbninf`） | 依頼明細番号キーで品番情報を取得 | **品番情報ファイル（.clh）** | △ スキーマ `PartNumberInfo` は既存だがリポジトリ未整備 |
+
+- **hbninf のファイル名（C原典）**: `FyCpFileGet`（cpgtfile.c）が `FyGetFilePath("WORK") + "/" + 依頼明細番号（空白除去） + ".clh"` で構築。拡張子 `clh` 固定（品番系 clh/clb/clu/clm/clp の先頭）。実ファイルは `WORK/<依頼明細番号>/<依頼明細番号>.clh`（例: `WORK/2607AL01/2607AL01.clh`、計6件存在）。`.clh` は `sizeof(struct hbninf)` ちょうどの固定長バイナリ1レコード。
+- **推奨の進め方**: `PropChgFuseType_SY` 本体をいきなり移植せず、依存を下から leaf 移植。品番情報ファイル以外は今すぐ前進可（`FyGetFacGrp` → `Fysk11_FYDF805_KkGet` → `sel_mgsd.cns`/`PropSelChkMgsd` → 品番情報リポジトリ）。
 
 ### 2026-07-29 セッション追加分（サマリ：Fysk00 統括の決定的リーフ群 V〜AB）
 

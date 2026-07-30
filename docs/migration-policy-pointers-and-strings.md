@@ -45,12 +45,33 @@ C の文字列/数値関数には C# 標準 API と挙動が異なるものが�
 - `Get_1_Group` 等の**桁数カウント**: 全角=2バイト等のバイト長前提が残るため、バイト計算を固定長コーデック/専用ロジックに閉じ込めて保存。
 - 固定長への書き戻し時の切り詰め(`Min(encoded.Length, length)`)は、C の `CHAR[n]` 溢れ挙動を保つ。
 
+## 3-2. OS 依存(`getenv`・環境変数) → 実行時パラメータプロバイダで境界隔離
+
+C 資産は運転パラメータ(ZONECD=地区コード、ログインホスト、端末 ID 等)を `getenv()` で直接読み出しており、**OS 環境変数に密結合**しています。移植では「OS 依存を業務ロジックから追い出し、**設定ファイル源＋インタフェース**の背後へ隔離する」方針を採ります。
+
+| C原典のパターン | C# での扱い | 実例 |
+|---|---|---|
+| `getenv("ZONECD")` 直読み(NULL チェック無し) | `IRuntimeParameterProvider.ZoneCode` / `GetValue(name)` 経由 | `CtAlBreakerMakerAdjuster.AdjustMakerCodes(IRuntimeParameterProvider parameters, ...)` が引数注入で受け取り `parameters.ZoneCode` を参照 |
+| `getenv` の名前リテラル散在 | `RuntimeParameterNames` の定数へ集約 | `ZoneCode="ZONECD"` / `LoginHost="LHOST"` / `TerminalId="TERMID"` 等 12 個 |
+| `getenv` の大小区別・NULL 返却 | `StringComparer.Ordinal` 辞書＋ `string?` 返却 | `InMemoryRuntimeParameterProvider`(getenv の大小区別を Ordinal で再現、未設定は `null`) |
+| 環境変数の実供給源 | **設定ファイル(UTF-8 JSON)** に置換 | `FileRuntimeParameterProvider`(System.Text.Json)＋ `src/Ews.App.Batch/runtime-parameters.json` |
+
+要点:
+- **OS 依存(環境変数アクセス)は合成ルート 1 箇所に隔離**する。`FileRuntimeParameterProvider` を DI で `IRuntimeParameterProvider` として 1 度だけ登録し、以降の業務ロジックは引数注入で受ける(OS API を直接触らない)。
+- `getenv` を持つ関数(例: `FyGetZoneCD` = `getenv("ZONECD"); strcpy` のみ)は、C# では**インタフェース越しの値参照**に置換し、環境変数そのものは持ち込まない。
+- 供給源を環境変数から設定ファイルへ移すことで、テスト時は `InMemoryRuntimeParameterProvider` に任意値を入れて OS 非依存に検証できる。
+
 ## 4. まとめ(チェックリスト)
 
 1. ポインタ = 参照 / コレクション / null 可能性 / 出力引数 へ読み替える。`malloc`/`free` は移植しない。
 2. `\0`・固定長・バイト長は **DAL・`FixedFieldCodec` の境界に隔離**し、業務ロジック層は `string` / `List<T>` で書く。
 3. **C の文字列/数値関数の "途中解釈・桁計上" は挙動保存が必要** → C 互換ヘルパで明示的に移植する。
-4. 置換した箇所は原文名を `【C原典】` コメント＋ `docs/name-mapping.csv` に併記して追跡可能にする。
+4. **OS 依存(`getenv`・環境変数)は `IRuntimeParameterProvider` の背後へ隔離**し、合成ルート 1 箇所で設定ファイルから注入する。
+5. 置換した箇所は原文名を `【C原典】` コメント＋ `docs/name-mapping.csv` に併記して追跡可能にする。
+
+## 補足: ソース文字コードの落とし穴(CP932 波ダッシュ)
+
+`.cs` / `.csv` は **CP932 / BOM なし / CRLF**。.NET の CP932 エンコードでは **波ダッシュ `〜`(U+301C) が `?`(0x3F) に化ける**ため、全角チルダ `～`(U+FF5E) を使う。編集後は各ファイルで **U+FFFD=0 かつ `[0-9]\?[0-9]`(範囲の `?` 置換)=0** を確認する(本ドキュメント・`.md` は UTF-8 のため対象外)。
 
 ## 関連
 
