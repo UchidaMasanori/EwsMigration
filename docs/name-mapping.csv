@@ -482,3 +482,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fysk01_Chokisearch_BRK,NearestRankSelector.SearchBreaker,Fysk01.c,遮断器専用の直近上下位検索(二次形状/形状/メーカー順)
 関数,Fysk01_Chokkin_Read_Check_MTG,NearestRankSearch.SearchMotorGroup,Fysk01.c,MTG専用の候補best選定(proc別に電流幅/電圧/定格キーで比較)
 関数,Fysk01_Chokisearch_MTG,NearestRankSelector.SearchMotorSwitch,Fysk01.c,THR/MC/MG/MGSD専用の直近上下位検索(cross-key best選定)
+関数,Fysk01_Type_Check3,ShapeTypeExpander.ExpandSecondary,Fysk01.c,PBSのタイプ位置3を追加展開(type_tbl3)
+テーブル,type_tbl3,ShapeTypeExpander.Table3,fyrt819.h,PBSタイプ位置3展開テーブル(1A/2A/1A1B等)
+関数,Fysk01_Chokisearch_PBS,NearestRankSelector.SearchPushButton,Fysk01.c,PBS専用の直近上下位検索(形状/ti3/ti2の総当たり)
+関数,Fysk01_Chokisearch_CT,NearestRankSelector.SearchCurrentTransformer,Fysk01.c,CT専用の直近上下位検索(定格電流をn倍スケール探索)

@@ -101,15 +101,17 @@ public static class NearestRankSelector
         }
         if (Matches(yo, "CT ", 3))
         {
-            throw new NotImplementedException("Fysk01_Chokisearch_CT は後続バッチで移植予定です。");
+            return SearchCurrentTransformer(specKind, table, parameters, inputFlags, shapeTypes, shapeTypeIndex,
+                                            dataTypes, makerCodes, productName, candidates);
         }
         if (Matches(yo, "PBS ", 4))
         {
-            throw new NotImplementedException("Fysk01_Chokisearch_PBS は後続バッチで移植予定です。");
+            return SearchPushButton(specKind, table, parameters, inputFlags, shapeTypes, shapeTypeIndex,
+                                    dataTypes, makerCodes, productName, handleLockFlag, contactFlag, candidates);
         }
         if (Matches(yo, "SC  ", 4))
         {
-            throw new NotImplementedException("Fysk01_Chokisearch_SC は後続バッチで移植予定です。");
+            throw new NotImplementedException("Fysk01_Chokisearch_SC は Fysk02_Check_Teichi_SC2 / PropSelChkSc 未移植のため保留です。");
         }
         if (IsBreaker(yo))
         {
@@ -545,6 +547,197 @@ public static class NearestRankSelector
 
     private static string Key50(NearestRankReference reference) =>
         (reference.RatingKey ?? string.Empty).PadRight(50)[..50];
+
+    /// <summary>
+    /// PBS 専用の直近上下位検索。【C原典】Fysk01_Chokisearch_PBS(Fysk01.c:853)。
+    /// Type_Check2 の二次形状(ti2)に加え、Type_Check3 の接点タイプ(ti3)をも展開して
+    /// メーカー×形状×ti3×ti2 の総当たりで検索し、最初に該当した候補を採用する。
+    /// </summary>
+    public static NearestRankSearchResult SearchPushButton(
+        int specKind,
+        RatingCheckTable table,
+        NumericElectricalParameters parameters,
+        IReadOnlyList<int> inputFlags,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        string[] dataTypes,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        int contactFlag,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(shapeTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        ArgumentNullException.ThrowIfNull(makerCodes);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        string yo = table.ReservedWord;
+        char mainAcDc = parameters.V2Kbn;
+        char controlAcDc = parameters.VcKbn;
+
+        ShapeTypeExpansion secondaryExpansion = ShapeTypeExpander.Expand(yo, dataTypes);
+        IReadOnlyList<string> secondaryShapeTypes = secondaryExpansion.ShapeTypes;
+        int secondaryIndex = secondaryExpansion.TypeIndex;
+
+        ShapeTypeExpansion thirdExpansion = ShapeTypeExpander.ExpandSecondary(yo, dataTypes);
+        IReadOnlyList<string> thirdShapeTypes = thirdExpansion.ShapeTypes;
+        int thirdIndex = thirdExpansion.TypeIndex;
+
+        string ratingKey = RatingKeyBuilder.MakeRatingKey(table.Entries, parameters);
+        string[] baseTypes = BaseDataTypes(dataTypes);
+
+        NearestRankReference? firstQuery = null;
+
+        IEnumerable<(int MakerIdx, int ShapeIdx)> order = specKind == 0
+            ? EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: true)
+            : EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: false);
+
+        foreach ((int j, int k) in order)
+        {
+            for (int n = 0; n < thirdShapeTypes.Count; n++)
+            {
+                for (int i = 0; i < secondaryShapeTypes.Count; i++)
+                {
+                    string[] types = (string[])baseTypes.Clone();
+                    Assign(types, shapeTypeIndex, Pad(shapeTypes[k]));
+                    Assign(types, thirdIndex, Pad(thirdShapeTypes[n]));
+                    Assign(types, secondaryIndex, Pad(secondaryShapeTypes[i]));
+
+                    NearestRankReference query = BuildQueryFromTypes(
+                        yo, Slot(makerCodes, j, 3), types, mainAcDc, controlAcDc, ratingKey);
+                    firstQuery ??= query;
+
+                    NearestRankSearchResult r = NearestRankSearch.Search(
+                        table, query, candidates, productName, handleLockFlag, parameters, inputFlags, contactFlag);
+
+                    if (r.Status == Good)
+                    {
+                        return r;
+                    }
+                }
+            }
+        }
+
+        return new NearestRankSearchResult(NoGood, firstQuery);
+    }
+
+    /// <summary>
+    /// CT 専用の直近上下位検索。【C原典】Fysk01_Chokisearch_CT(Fysk01.c:702)。
+    /// 定格電流(A1)を n 倍(1,2,3…)しながら 1200 を超えるまで定格値キーを再生成して検索し、
+    /// 最初に該当した候補を採用する(CT 比換比の直近上位探索)。
+    /// ※改訂&lt;34&gt; の PropSelChkCT(cns LW CT 選定パラメータ)は後続移植のため未適用。
+    /// QrespoPlus の最低電流 5A 補正は zoneCode 指定時のみ適用(未指定は A1&lt;=0 で探索省略)。
+    /// </summary>
+    public static NearestRankSearchResult SearchCurrentTransformer(
+        int specKind,
+        RatingCheckTable table,
+        NumericElectricalParameters parameters,
+        IReadOnlyList<int> inputFlags,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        string[] dataTypes,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        IReadOnlyList<NearestRankReference> candidates,
+        string zoneCode = "")
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(shapeTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        ArgumentNullException.ThrowIfNull(makerCodes);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        // 【C原典】改訂<36> QrespoPlus は末端機器が無い場合の無限ループ回避で最低電流 5A。
+        if ((zoneCode == "33333" || zoneCode == "33334" || zoneCode == "33335") && parameters.A1 <= 0.0)
+        {
+            parameters.A1 = 5.0;
+        }
+
+        string yo = table.ReservedWord;
+        char mainAcDc = parameters.V2Kbn;
+        char controlAcDc = parameters.VcKbn;
+
+        ShapeTypeExpansion expansion = ShapeTypeExpander.Expand(yo, dataTypes);
+        IReadOnlyList<string> secondaryShapeTypes = expansion.ShapeTypes;
+        int secondaryIndex = expansion.TypeIndex;
+        string[] baseTypes = BaseDataTypes(dataTypes);
+
+        double baseCurrent = parameters.A1;
+        NearestRankReference? firstQuery = null;
+
+        try
+        {
+            IEnumerable<(int MakerIdx, int ShapeIdx)> order = specKind == 0
+                ? EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: true)
+                : EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: false);
+
+            foreach ((int j, int k) in order)
+            {
+                for (int i = 0; i < secondaryShapeTypes.Count; i++)
+                {
+                    string[] types = (string[])baseTypes.Clone();
+                    Assign(types, shapeTypeIndex, Pad(shapeTypes[k]));
+                    Assign(types, secondaryIndex, Pad(secondaryShapeTypes[i]));
+
+                    // 【C原典】A1 を n 倍しながら kteichi を再生成して検索(A1<=0 は無限ループ回避で打切り)。
+                    for (int scale = 1; ; scale++)
+                    {
+                        parameters.A1 = baseCurrent * scale;
+                        if (parameters.A1 > 1200.0 || baseCurrent <= 0.0)
+                        {
+                            break;
+                        }
+
+                        string ratingKey = RatingKeyBuilder.MakeRatingKey(table.Entries, parameters);
+                        NearestRankReference query = BuildQueryFromTypes(
+                            yo, Slot(makerCodes, j, 3), types, mainAcDc, controlAcDc, ratingKey);
+                        firstQuery ??= query;
+
+                        NearestRankSearchResult r = NearestRankSearch.Search(
+                            table, query, candidates, productName, -1, parameters, inputFlags, -1);
+
+                        if (r.Status == Good)
+                        {
+                            return r;
+                        }
+                    }
+                }
+            }
+
+            return new NearestRankSearchResult(NoGood, firstQuery);
+        }
+        finally
+        {
+            parameters.A1 = baseCurrent;
+        }
+    }
+
+    private static string[] BaseDataTypes(string[] dataTypes)
+    {
+        string[] types = new string[NearestRankReference.ParameterTypeSlotCount];
+        for (int n = 0; n < types.Length; n++)
+        {
+            types[n] = Pad(n < dataTypes.Length ? dataTypes[n] : string.Empty);
+        }
+        return types;
+    }
+
+    private static NearestRankReference BuildQueryFromTypes(
+        string reservedWord, string makerCode, string[] types,
+        char mainAcDc, char controlAcDc, string ratingKey)
+        => new()
+        {
+            ReservedWord = reservedWord,
+            MakerCode = makerCode,
+            ParameterTypes = types,
+            MainPowerAcDc = mainAcDc,
+            ControlPowerAcDc = controlAcDc,
+            RatingKey = ratingKey,
+        };
 
     private static void Assign(string[] types, int index, string value)
     {

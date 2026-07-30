@@ -131,6 +131,67 @@ public static class ShapeTypeExpander
         return [head];
     }
 
+    // yCŒ´“Tztype_t3_pbs(fyrt819.h:30)BPBS ‚Ìƒ^ƒCƒvˆÊ’u3(ti3)‚Ì’Ç‰Á“WŠJB
+    private static readonly TypeRule[] Pbs3 =
+    [
+        new("1A   ", "1A ", "2A ", "3A ", "4A "),
+        new("2A   ", "2A ", "3A ", "4A "),
+        new("3A   ", "3A ", "4A "),
+        new("1B   ", "1B ", "2B ", "3B ", "4B "),
+        new("2B   ", "2B ", "3B ", "4B "),
+        new("3B   ", "3B ", "4B "),
+        new("1A1B ", "1A1B ", "2A1B ", "1A2B ", "2A2B "),
+        new("2A1B ", "2A1B ", "2A2B "),
+        new("1A2B ", "1A2B ", "2A2B "),
+    ];
+
+    // yCŒ´“Tztype_tbl3[](fyrt819.h:43)BŒ»ó PBS ‚Ì‚İ(ichi=3)B
+    private static readonly TableEntry[] Table3 = [new("PBS ", 3, Pbs3)];
+
+    /// <summary>
+    /// PBS ‚Ìƒ^ƒCƒvˆÊ’u3(ti3)‚ğ’Ç‰Á“WŠJ‚·‚éByCŒ´“TzFysk01_Type_Check3(Fysk01.c:3325)+type_tbl3B
+    /// </summary>
+    /// <param name="reservedWord">w’è—\–ñŒêByCŒ´“TzyoB</param>
+    /// <param name="dataTypes">ƒf[ƒ^ƒ^ƒCƒv(7˜g)ByCŒ´“Tzktype(=dtype)B</param>
+    public static ShapeTypeExpansion ExpandSecondary(string reservedWord, IReadOnlyList<string> dataTypes)
+    {
+        ArgumentNullException.ThrowIfNull(reservedWord);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+
+        int typeIndex = 1;
+        var shapeTypes = new List<string> { Blank7 };
+
+        foreach (TableEntry entry in Table3)
+        {
+            if (!Matches(reservedWord, entry.ReservedWord, entry.ReservedWord.Length))
+            {
+                continue;
+            }
+
+            typeIndex = entry.Index;
+            string target = DataTypeAt(dataTypes, typeIndex);
+
+            bool matched = false;
+            foreach (TypeRule rule in entry.Rules)
+            {
+                if (Matches(target, rule.Symbol, rule.Symbol.Length))
+                {
+                    shapeTypes = [.. rule.Types.Select(Pad7)];
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                shapeTypes = [Pad7(target)];
+            }
+            return new ShapeTypeExpansion(shapeTypes, typeIndex);
+        }
+
+        // yCŒ´“Tzƒe[ƒuƒ‹‚É–³‚¢—\–ñŒê‚Í ti=1Ewtype[0]=ktype[1]B
+        return new ShapeTypeExpansion([Pad7(DataTypeAt(dataTypes, typeIndex))], typeIndex);
+    }
+
     private static string DataTypeAt(IReadOnlyList<string> dataTypes, int index)
     {
         string value = index >= 0 && index < dataTypes.Count ? dataTypes[index] ?? string.Empty : string.Empty;

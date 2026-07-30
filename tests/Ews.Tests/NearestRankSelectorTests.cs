@@ -98,12 +98,40 @@ public sealed class NearestRankSelectorTests
     }
 
     [Fact]
-    public void CT予約語は未実装で例外を投げる()
+    public void SC予約語は未実装で例外を投げる()
     {
         Assert.Throws<NotImplementedException>(() =>
             NearestRankSelector.SelectMain(
-                0, Table("CT "), Params(new NumericElectricalParameters()), BlankTypes(),
+                0, Table("SC  "), Params(new NumericElectricalParameters()), BlankTypes(),
                 [""], 1, ["A  "], string.Empty, -1, []));
+    }
+
+    [Fact]
+    public void CT選定は定格電流をスケールして該当を返す()
+    {
+        var self = new NumericElectricalParameters { A1 = 10.0 };   // 電流入力 → epno=1
+        var upper = new NumericElectricalParameters { A1 = 10.0 };  // 検索に使う sep[1]
+        NumericElectricalParameters[] parameters = [self, upper, new NumericElectricalParameters()];
+        var candidates = new List<NearestRankReference> { Candidate("CT ", "A", productName: "CTOK") };
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, Table("CT "), parameters, BlankTypes(), [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(1, result.Status);
+        Assert.Equal("CTOK", result.Result!.ProductName);
+    }
+
+    [Fact]
+    public void PBS選定は専用検索で該当を返す()
+    {
+        var candidates = new List<NearestRankReference> { Candidate("PBS", "A", productName: "PBSOK") };
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, Table("PBS "), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(3, result.Status);
+        Assert.Equal("PBSOK", result.Result!.ProductName);
     }
 
     [Fact]
