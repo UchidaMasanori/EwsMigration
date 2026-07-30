@@ -435,3 +435,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,FyCpHbHbnInfFileR(iraimei解決),FilePartNumberInfoRepository.Find,toku/compo/lib/clhbn_dir/clfilerw.c,依頼明細番号から品番情報(.clh)を取得するリポジトリ
 関数,PropChangeWlKpav,WlCircuitVoltageAdjuster.Adjust,toku/sekkei/src/Fysk00.c,Fの子WLの回路電圧を河村製は005-それ以外はFの電圧へ変更
 関数,PropChgFuseType_SY,FuseDefaultTypeResolver.Resolve,toku/sekkei/src/Fysk00.c,ヒューズのデフォルト機器タイプGT設定とメーカーFT調整と子WL電圧変更
+関数,PropChgFuseType_SY2,SimpleFuseDefaultTypeResolver.Resolve,toku/sekkei/src/Fysk00.c,ヒューズ既定機器タイプ設定の簡易版(LAMP22無効時 タイプ指定なし特注でGT/MK無でFT)
