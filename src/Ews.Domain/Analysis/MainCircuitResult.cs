@@ -103,6 +103,12 @@ public sealed class MainCircuitData
     /// <summary>回路要素。【C原典】kiryoso("C")。</summary>
     public char CircuitElement { get; set; } = ' ';
 
+    /// <summary>
+    /// 特殊予約語区分。【C原典】tokkbn("C",改訂&lt;8&gt;～&lt;10&gt;)。
+    /// '1':MGSH+(3P) '2':MGSH+(2P) '3':27A '4':27B '5':27C '6':27端子台 '7':INVBP。
+    /// </summary>
+    public char SpecialReservedWordKind { get; set; } = ' ';
+
     /// <summary>親データ追番(親機器の datano)。【C原典】oyatno[3]("9")。Find_Parent の親検索キー。</summary>
     public string ParentSequenceNumber { get; set; } = "000";
 

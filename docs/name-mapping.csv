@@ -453,3 +453,10 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChgPluginType,BreakerTypeAdjuster.AdjustPluginType,Fysk00.c,プラグインCH/CHPの接続相NOTHINGをRNに変更
 関数,PropChgM10AfBreaker,BreakerTypeAdjuster.AdjustM10AfBreaker,Fysk00.c,三菱/協約3PのELB10AFを50AFとして選定
 関数,PropChgLaClass1Type,BreakerTypeAdjuster.AdjustLaClass1Type,Fysk00.c,LA CLASS1のタイプ2未設定時にRSを設定
+関数,PropChgRtrMaker,EquipmentMakerOverrideAdjuster.AdjustRtrMaker,Fysk00.c,フル2線メーカー未指定RTRを松下Dに固定
+関数,PropChgRmcbMaker,EquipmentMakerOverrideAdjuster.AdjustRmcbMaker,Fysk00.c,コンポ仕様メーカー未指定RMCBを松下Dに固定
+関数,PropChgNL63Maker,EquipmentMakerOverrideAdjuster.AdjustNl63Maker,Fysk00.c,KM/TLタイプ非KNのMCB先頭にKKYを挿入し件数増
+関数,PropChgWHMaker,EquipmentMakerOverrideAdjuster.AdjustWhMaker,Fysk00.c,QrespoPlusの1P2W210WHをMS/MN/M/ONに変更
+関数,PropChgINVBPMaker,EquipmentMakerOverrideAdjuster.AdjustInvbpMaker,Fysk00.c,INVBPのMC/THRを負荷容量で三菱MN/MSに固定
+関数,PropChgGPNMaker,EquipmentMakerOverrideAdjuster.AdjustGpnMaker,Fysk00.c,制御GP/GPN/APNのOM直前にOMNを挿入
+フィールド,tokkbn,MainCircuitData.SpecialReservedWordKind,fydf806.h,特殊予約語区分(7=INVBP等)を主回路データに追加
