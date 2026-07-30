@@ -19,7 +19,7 @@ public sealed class NearestRankSelectorTests
 
     private static NearestRankReference Candidate(
         string reservedWord, string makerCode, char mainAcDc = ' ', char controlAcDc = ' ',
-        string productName = "")
+        string productName = "", string ratingKey = "0")
         => new()
         {
             ReservedWord = reservedWord,
@@ -27,7 +27,7 @@ public sealed class NearestRankSelectorTests
             ParameterTypes = ["", "", "", "", "", "", ""],
             MainPowerAcDc = mainAcDc,
             ControlPowerAcDc = controlAcDc,
-            RatingKey = "0",
+            RatingKey = ratingKey,
             ProductName = productName,
         };
 
@@ -117,5 +117,60 @@ public sealed class NearestRankSelectorTests
 
         Assert.Equal(3, result.Status);
         Assert.Equal("BRK", result.Result!.ProductName);
+    }
+
+    // ---- MTG(MC/MG/THR/MGSD) ----
+
+    private static RatingCheckTable MotorTable(string reservedWord, short procNo)
+        => new(reservedWord, procNo, 0, 0, 0, [End]);
+
+    [Fact]
+    public void MC選定は電圧同値なら最小定格キーの候補を選ぶ()
+    {
+        var candidates = new List<NearestRankReference>
+        {
+            Candidate("MC ", "A", productName: "BIG", ratingKey: "0020"),
+            Candidate("MC ", "A", productName: "SMALL", ratingKey: "0010"),
+        };
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, MotorTable("MC ", 12), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(3, result.Status);
+        Assert.Equal("SMALL", result.Result!.ProductName);
+    }
+
+    [Fact]
+    public void THR選定はMTG経路で該当を返す()
+    {
+        // THR はタイプ位置1が空欄なら 1A1B/1C に展開されるため、候補の ptype[1] を一致させる。
+        var candidate = new NearestRankReference
+        {
+            ReservedWord = "THR",
+            MakerCode = "A",
+            ParameterTypes = ["", "1A1B", "", "", "", "", ""],
+            RatingKey = "0005",
+            ProductName = "OK",
+        };
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, MotorTable("THR", 11), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, [candidate]);
+
+        Assert.Equal(3, result.Status);
+        Assert.Equal("OK", result.Result!.ProductName);
+    }
+
+    [Fact]
+    public void MG該当なしはステータス4()
+    {
+        var candidates = new List<NearestRankReference> { Candidate("ELB", "A") };  // 予約語違い
+
+        MainSelectionResult result = NearestRankSelector.SelectMain(
+            0, MotorTable("MG ", 13), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(4, result.Status);
     }
 }

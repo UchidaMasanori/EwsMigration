@@ -96,7 +96,8 @@ public static class NearestRankSelector
 
         if (table.ProcessNumber is >= Pc1 and <= Pc4)
         {
-            throw new NotImplementedException("Fysk01_Chokisearch_MTG(THR/MC/MG/MGSD) は後続バッチで移植予定です。");
+            return SearchMotorSwitch(specKind, table, parameters, inputFlags, shapeTypes, shapeTypeIndex,
+                                     dataTypes, makerCodes, productName, handleLockFlag, candidates);
         }
         if (Matches(yo, "CT ", 3))
         {
@@ -438,6 +439,112 @@ public static class NearestRankSelector
         Matches(yo, "ELB ", 4) || Matches(yo, "MCB ", 4) || Matches(yo, "MMCB ", 5) ||
         Matches(yo, "ELMB ", 5) || Matches(yo, "RMCB ", 5) || Matches(yo, "RELB ", 5) ||
         Matches(yo, "RMMCB ", 6) || Matches(yo, "RELMB ", 6);
+
+    /// <summary>
+    /// THR/MC/MG/MGSD/XERY 専用の直近上下位検索。【C原典】Fysk01_Chokisearch_MTG(Fysk01.c:1268)。
+    /// メーカー・形状を変えて <see cref="NearestRankSearch.SearchMotorGroup"/> を呼び、候補が得られた
+    /// 最初の(メーカー,形状)の二次形状候補から、PC_1/PC_3 は <see cref="EquipmentSelector.CompareCandidate"/> で
+    /// 最良 1 件を選ぶ(他は最後の該当を採用)。
+    /// </summary>
+    public static NearestRankSearchResult SearchMotorSwitch(
+        int specKind,
+        RatingCheckTable table,
+        NumericElectricalParameters parameters,
+        IReadOnlyList<int> inputFlags,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        string[] dataTypes,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(shapeTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        ArgumentNullException.ThrowIfNull(makerCodes);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        string yo = table.ReservedWord;
+        char mainAcDc = parameters.V2Kbn;
+        char controlAcDc = parameters.VcKbn;
+
+        ShapeTypeExpansion expansion = ShapeTypeExpander.Expand(yo, dataTypes);
+        IReadOnlyList<string> secondaryShapeTypes = expansion.ShapeTypes;
+        int secondaryIndex = expansion.TypeIndex;
+        string ratingKey = RatingKeyBuilder.MakeRatingKey(table.Entries, parameters);
+
+        string[] baseTypes = new string[NearestRankReference.ParameterTypeSlotCount];
+        for (int n = 0; n < baseTypes.Length; n++)
+        {
+            baseTypes[n] = Pad(n < dataTypes.Length ? dataTypes[n] : string.Empty);
+        }
+
+        short proc = table.ProcessNumber;
+        bool selectBest = proc == NearestRankSearch.Pc1Thr || proc == NearestRankSearch.Pc3Mg;
+
+        NearestRankReference? firstQuery = null;
+        NearestRankReference? best = null;
+        double[] bestPair = new double[2];
+        double bestVoltage = 0.0;
+        int found = 0;
+
+        IEnumerable<(int MakerIdx, int ShapeIdx)> order = specKind == 0
+            ? EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: true)
+            : EnumeratePairs(makerCodes.Count, shapeTypes.Count, makerFirst: false);
+
+        foreach ((int j, int k) in order)
+        {
+            for (int i = 0; i < secondaryShapeTypes.Count; i++)
+            {
+                NearestRankReference query = BuildQuery(
+                    yo, Slot(makerCodes, j, 3), baseTypes,
+                    shapeTypeIndex, Pad(shapeTypes[k]),
+                    secondaryIndex, Pad(secondaryShapeTypes[i]),
+                    mainAcDc, controlAcDc, ratingKey, shapeOverridesSecondary: false);
+
+                firstQuery ??= query;
+
+                MotorGroupSearchResult r = NearestRankSearch.SearchMotorGroup(
+                    table, query, candidates, productName, handleLockFlag, parameters, inputFlags);
+
+                if (r.Status != Good || r.Selected is null)
+                {
+                    continue;
+                }
+
+                if (selectBest)
+                {
+                    if (found == 0 ||
+                        EquipmentSelector.CompareCandidate(
+                            proc, parameters.At, r.AmpereTripPair, r.Voltage, Key50(r.Selected),
+                            bestPair, bestVoltage, Key50(best!)) == 1)
+                    {
+                        best = r.Selected;
+                        bestPair = r.AmpereTripPair;
+                        bestVoltage = r.Voltage;
+                    }
+                }
+                else
+                {
+                    best = r.Selected;
+                }
+                found++;
+            }
+
+            // 【C原典】当該(メーカー,形状)で該当が得られたら確定。
+            if (found > 0)
+            {
+                return new NearestRankSearchResult(Good, best);
+            }
+        }
+
+        return new NearestRankSearchResult(NoGood, firstQuery);
+    }
+
+    private static string Key50(NearestRankReference reference) =>
+        (reference.RatingKey ?? string.Empty).PadRight(50)[..50];
 
     private static void Assign(string[] types, int index, string value)
     {

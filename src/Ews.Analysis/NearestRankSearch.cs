@@ -45,6 +45,18 @@ public static class NearestRankSearch
     /// <summary>TM 専用検索のプロセス番号。【C原典】PC_6 == 16。</summary>
     public const short Pc6Tm = 16;
 
+    /// <summary>THR/MGFR 専用のプロセス番号。【C原典】PC_1 == 11。</summary>
+    public const short Pc1Thr = 11;
+
+    /// <summary>MC 専用のプロセス番号。【C原典】PC_2 == 12。</summary>
+    public const short Pc2Mc = 12;
+
+    /// <summary>MG 専用のプロセス番号。【C原典】PC_3 == 13。</summary>
+    public const short Pc3Mg = 13;
+
+    /// <summary>MGSD/XERY 専用のプロセス番号。【C原典】PC_4 == 14。</summary>
+    public const short Pc4Mgsd = 14;
+
     /// <summary>
     /// 直近上下位参照ファイル検索の入口(検索方式で下請けへ分岐)。
     /// 【C原典】<c>Fysk01_Chokkin_Read_Check</c>(Fysk01.c:2342)。
@@ -262,6 +274,153 @@ public static class NearestRankSearch
     }
 
     /// <summary>
+    /// THR/MC/MG/MGSD/XERY 専用の候補抽出。【C原典】<c>Fysk01_Chokkin_Read_Check_MTG</c>(Fysk01.c:1799)。
+    /// 前方一致した候補を全走査し、proc_no 別の比較(電流幅 CMP_1・電圧 CMP_3・定格値キー辞書順)で
+    /// 最良 1 件を選ぶ。THR(PC_1)/MGSD(PC_4)は電流幅の均等度、MC(PC_2)/MG(PC_3)は電圧を主基準にする。
+    /// ※改訂&lt;9&gt;/&lt;11&gt;/&lt;13&gt;/&lt;34&gt; の MC/MG 容量選定フィルタ(PropSelChkMcMg 系・cns 容量表)は
+    ///   後続移植のため未適用(THR/MGSD は影響なし。MC/MG の容量絞り込みは近似)。
+    /// </summary>
+    public static MotorGroupSearchResult SearchMotorGroup(
+        RatingCheckTable table,
+        NearestRankReference query,
+        IReadOnlyList<NearestRankReference> candidates,
+        string productName,
+        short handleLockFlag,
+        NumericElectricalParameters parameters,
+        IReadOnlyList<int> inputFlags)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(inputFlags);
+
+        int compareSize = ComputeMatchSize(table, inputFlags);
+        List<NearestRankReference> matches = FrontMatch(query, candidates, compareSize);
+        var comparison = new RatingComparisonState();
+
+        NearestRankReference? best = null;
+        double[] bestPair = new double[2];
+        double bestVoltage = 0.0;
+        int times = 1;
+
+        while (true)
+        {
+            bool needRepeat = false;
+
+            foreach (NearestRankReference candidate in matches)
+            {
+                NumericSharedInfo scd = SharedInfoConverter.Convert(candidate);
+                int ret = RatingValueChecker.Check(
+                    table.Flag, table.Entries, parameters, inputFlags, candidate.RatingKey, scd, times, comparison, -1);
+
+                if (ret == Repeat)
+                {
+                    needRepeat = true;
+                    continue;
+                }
+                if (ret != Good)
+                {
+                    continue;
+                }
+                if (ProductNameChecker.Check(productName, candidate.ProductName) != ProductNameChecker.Good)
+                {
+                    continue;
+                }
+                // 【C原典】PC_2/PC_3 の MC/MG 容量選定フィルタ(PropSelChkMcMg 系)は後続移植のため未適用。
+                if (handleLockFlag > -1 && candidate.HandleLockKind != 'H')
+                {
+                    continue;
+                }
+
+                double[] pair = { comparison.AmpereTripPair[0], comparison.AmpereTripPair[1] };
+                double voltage = comparison.Voltage;
+
+                if (best is null)
+                {
+                    best = candidate;
+                    bestPair = pair;
+                    bestVoltage = voltage;
+                    continue;
+                }
+
+                if (ShouldReplaceMotor(table.ProcessNumber, parameters.At, pair, voltage, bestPair, bestVoltage, candidate, best))
+                {
+                    best = candidate;
+                    bestPair = pair;
+                    bestVoltage = voltage;
+                }
+            }
+
+            if (needRepeat)
+            {
+                times++;
+                continue;
+            }
+
+            if (best is null)
+            {
+                return new MotorGroupSearchResult(NoGood, null, new double[2], 0.0);
+            }
+
+            RequireNoContactCalculation(-1);
+            return new MotorGroupSearchResult(Good, best, bestPair, bestVoltage);
+        }
+    }
+
+    // 【C原典】Chokkin_Read_Check_MTG の proc_no 別 best 選定(switch(tbl.proc_no))。
+    private static bool ShouldReplaceMotor(
+        short procNo, double sentchi, double[] pair, double voltage,
+        double[] bestPair, double bestVoltage, NearestRankReference candidate, NearestRankReference best)
+    {
+        bool sameCurrent = Math.Abs(pair[0] - bestPair[0]) < Tolerance && Math.Abs(pair[1] - bestPair[1]) < Tolerance;
+        bool smallerKey = string.CompareOrdinal(Key50(candidate), Key50(best)) < 0;
+
+        switch (procNo)
+        {
+            case Pc1Thr:
+            case Pc4Mgsd:
+                if (sameCurrent)
+                {
+                    return smallerKey;
+                }
+                return EquipmentSelector.CompareByRangeCentering(sentchi, pair, bestPair) == 1;
+
+            case Pc2Mc:
+                if (voltage < bestVoltage)
+                {
+                    return true;
+                }
+                if (Math.Abs(voltage - bestVoltage) < Tolerance)
+                {
+                    return smallerKey;
+                }
+                return false;
+
+            case Pc3Mg:
+                if (voltage < bestVoltage)
+                {
+                    return true;
+                }
+                if (Math.Abs(voltage - bestVoltage) < Tolerance)
+                {
+                    if (sameCurrent)
+                    {
+                        return smallerKey;
+                    }
+                    return EquipmentSelector.CompareByRangeCentering(sentchi, pair, bestPair) == 1;
+                }
+                return false;
+
+            default:
+                return false;
+        }
+    }
+
+    private static string Key50(NearestRankReference reference) =>
+        (reference.RatingKey ?? string.Empty).PadRight(50)[..50];
+
+    /// <summary>
     /// 前方一致サイズを求める(KEY 部 62 + 定格値比較文字数)。
     /// 【C原典】siz = (sfg[0]==0 ? tbl.cpsize : Fysk0a_CmpMojisu_Get(tbl,sfg)) + 62。
     /// </summary>
@@ -347,3 +506,13 @@ public static class NearestRankSearch
 /// <param name="Status">GOOD(0)/NOGOOD(1)/SYS_ERR(-1)。</param>
 /// <param name="Selected">採用候補(該当なしは null)。【C原典】memcpy(data, &amp;tmp/&amp;ckwk, ...)。</param>
 public readonly record struct NearestRankSearchResult(int Status, NearestRankReference? Selected);
+
+/// <summary>
+/// MTG 専用検索の結果。【C原典】Fysk01_Chokkin_Read_Check_MTG の該当データ ckwk と CMP_1/CMP_3。
+/// </summary>
+/// <param name="Status">GOOD/NOGOOD。</param>
+/// <param name="Selected">最良候補(直近上下位該当データ)。【C原典】ckwk。</param>
+/// <param name="AmpereTripPair">最良候補の電流幅比較値。【C原典】wk1(=CMP_1)。</param>
+/// <param name="Voltage">最良候補の電圧比較値。【C原典】wk3(=CMP_3)。</param>
+public readonly record struct MotorGroupSearchResult(
+    int Status, NearestRankReference? Selected, double[] AmpereTripPair, double Voltage);
