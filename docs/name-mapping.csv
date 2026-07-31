@@ -494,3 +494,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss32_SC_NT_Tumiage_Set,UpstreamStackingKindSetter.SetUpstreamStackingKind,toku/sekkei/src/Fyss32.c,上流積み上げ区分(jagekbn)セット。K→1再セット/他クリア→SC・NTの直列最上位へ1(直列追番1は自身/他はi-(cno-1))→末端でないSCは0KW以外で1
 関数,Fyss34_MattanGyouSento_Set,LeadingEquipmentFlagSetter.SetLeadingEquipmentFlag,toku/sekkei/src/Fyss34.c,末端回路行種先頭機器フラグ(sentflg)セット。末端機器の同一行種グループで回路要素1/5の階層×1000+直列追番が最小の機器群に1(計器WH kiryoso3/CT kiryoso2は対象外)
 構造体,sk_work.sentflg,CircuitWork.LeadingEquipmentFlag,fyrt800.h,末端回路行種先頭機器フラグ(' ':非先頭 '1':先頭)
+関数,set_denryu,EnergizingCurrentCalculator.TryCalculate,toku/sekkei/src/Fyss31.c,負荷容量から通電電流値算出。負荷種類(M/H/S/HA/FL/NA/TR/YA/YS)別に回路電圧・相数で分岐(電動機は容量帯別pow近似・MG/INVBP/製作仕様の強制値)
