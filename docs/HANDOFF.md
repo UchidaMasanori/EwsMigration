@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1004 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1018 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -152,6 +152,17 @@ EwsMigration/
 - **MC/MG/THR 検索（④, 3f30de9）**: `NearestRankSearch.SearchMotorGroup`（=`Chokkin_Read_Check_MTG`, proc別best選定）＋`SearchMotorSwitch`（=`Chokisearch_MTG`, `EquipmentSelector.CompareCandidate` でcross-key選定）。
 - **PBS/CT 検索（⑤, 0bac3bc）**: `SearchPushButton`（=`Chokisearch_PBS`, ti3展開込み）＋`SearchCurrentTransformer`（=`Chokisearch_CT`, 定格電流をn倍スケール探索）。
 - **保留（②残）**: SC検索（`Fysk02_Check_Teichi_SC2`/`Chokkin_Read_Check2`/`PropSelChkSc` 未移植）、MC/MG容量選定フィルタ（`PropSelChkMcMg` 系＋cns容量表）、CT/AM/SC の LW 選定パラメータ（`PropSelChk*` cns）、接点計算（`Get_Seten_GoodData`, 制御回路）、`Kikisearch_S2/T/P`。`PropSetSmartType`(①保留)は S1 結線済みで移植可能に。
+
+### 2026-07-31 セッション⑥ 追加分（ゴールデンマスタ 5 ファイル比較コア）
+
+MIGRATION_PLAN §7 で確定した検証方式（`Fysk07_File_Write_ALL` 出力 5 ファイルのバイト比較）の
+**比較エンジン基盤**を TDD で新設。パイプライン成熟前でも回せる検証ゲートの土台を用意した。テストは 1004 → **1018**。
+
+- **比較エンジン（commit 予定）**: `src/Ews.Domain/Validation/GoldenMasterComparer.cs`。`GoldenMasterComparer.Compare(kind, expected, actual, maskDatajg)` が固定長レコードをレコード単位・バイト単位で比較し、`GoldenMasterComparisonResult`（件数・レコード別最初の差分・差分バイト総数）を返す。
+- **レイアウト定義**: `GoldenMasterLayout`（RL: FYDF806=1219 / 807=1219 / 808=1920 / 809=304 / 811=350、`datajg`=末尾36バイト固定）＋ `GoldenMasterFileKind`（主回路/複合/制御/論理/構成機器）。RL は実 WORK データのファイル長で整合検証済み。
+- **datajg マスク**: 全 5 ファイルとも登録情報 `datajg`(termid/date/time) がレコード末尾36バイト。既定でマスクし比較対象から除外（非マスク比較も可能）。
+- **テスト**: 合成レコードでマスク・件数差・バイト差検出を網羅＋実 WORK データ（FYDF806/808/809/811）で自己比較一致・datajg 改変マスク挙動・RL 整合を実証（未配置環境はスキップ）。
+- **後続**: C# 側 `Fysk07` 相当の出力ライタ（結果モデル→FYDF806-811 固定長シリアライズ）をパイプライン成熟に合わせて実装し、本エンジンへ接続する。`_RO` 改訂&lt;1&gt;（出力時変換）は出力ライタ側で再現。
 
 ### 2026-07-31 セッション④ 追加分（AQ〜AT: マイルストーン①「機器検索前処理」を全移植）
 

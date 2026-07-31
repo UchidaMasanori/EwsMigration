@@ -486,3 +486,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 テーブル,type_tbl3,ShapeTypeExpander.Table3,fyrt819.h,PBSタイプ位置3展開テーブル(1A/2A/1A1B等)
 関数,Fysk01_Chokisearch_PBS,NearestRankSelector.SearchPushButton,Fysk01.c,PBS専用の直近上下位検索(形状/ti3/ti2の総当たり)
 関数,Fysk01_Chokisearch_CT,NearestRankSelector.SearchCurrentTransformer,Fysk01.c,CT専用の直近上下位検索(定格電流をn倍スケール探索)
+関数,Fysk07_File_Write_ALL,GoldenMasterComparer.Compare,Fysk07.c,5出力ファイル(FYDF806-811)のゴールデンマスタ比較エンジン(datajgマスク付)
+構造体,datajg,GoldenMasterLayout.DatajgLength,fycommon.h,登録情報36バイト(termid/date/time・比較時マスク領域)
+定義,FNAME_SY/FU/SE/RO/KO,GoldenMasterFileKind,fyrt808.h,FYDF806-811の5出力ファイル種別列挙
