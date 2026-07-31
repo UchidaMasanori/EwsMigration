@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1151 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1170 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -148,6 +148,21 @@ EwsMigration/
 - **ブレーカ系セッタ4種（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs`＝`Fyss3G_Set_MCB`/`Set_ELB`/`Set_MMCB`/`Set_ELMB`。共通下請け `Check_fyrt800`（=`ComputeParameterFlags` パラメータ設定要否 p1/p2）／`Set_IM`（=`ComputeInductionMotorCurrent` 誘導電動機電流）／`PropSetELBKando`（=`SetElbSensitivity` 親機器の相から ELB 感度電流）／`Fysk0e_SetELBkando`（=`ApplyElbSensitivity`、Ma[0]=0015/0030/0100/0200）。親機器探索は既存 `ParentEquipmentLocator.FindParentPRow` を再利用（親不在は早期 return でガード＝C原典は親存在前提のため意図的な相違）。**C原典の `dwork == Stof(...)`（== 誤記で no-op）バグを Set_MCB HPSB ブロックで忠実再現**（コメントで明示）。
 - **忠実性メモ**: `eparm_set` が ep[0] を整形ゼロ（"00000.000"/"0000000.00"）で埋めるため、"未入力" 判定の memcmp が生ゼロ（"000000000"）と一致しない点を再現。テストも整形ゼロで期待値を組む。
 - **保留（Fyss3G 残）**: CNS Seek 関数群（`PrmtpSeek`/`SQsetSeek`/`A2setSeek`/`A1setSeek`）／ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／`Check_fyrt812`／非ブレーカ系デバイスセッタ（MC/THR/MG/WH/AM/CT/TB/CON/TR 等）。順次移植後にオーケストレータへ結線。
+
+### 2026-07-31 セッション⑬ 追加分（Fyss3G CNS Seek 関数群4種＋Check_fyrt812）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の CNS テーブル検索インフラを移植。ローダー（セッション⑫）が
+構築した `IReadOnlyList` を C の線形リストと同順で走査する純関数として実装。テストは 1151 → **1170**（+19）。
+
+- **CNS Seek 4種＋Check_fyrt812（commit 予定）**: `src/Ews.Analysis/CurrentParameterTableSeeker.cs`（新規静的クラス）。
+  - `SeekParameterSettingType`（=`Fyss3G_CnsPrmtpSeek`）: 予約語8バイト右詰め一致の最初の `ParameterSettingType`（無しは null）。ディスパッチャが `prm_tp` 取得に使用。
+  - `SeekWireSize`（=`Fyss3G_CnsSQsetSeek`）: `key=通電電流*1.12`、許容電流≧key かつ選定フラグ0 の最初の電線サイズ（無しは0）。`Set_TB` が使用予定。
+  - `SeekRatedCurrent2Coefficient`（=`Fyss3G_CnsA2setSeek`）: 負荷種類2バイト一致・回路電圧＞対象・相数（全相'\0' or 一致）の係数（無しは1）。`Set_MC`/`Set_MG` が使用予定。
+  - `SeekRatedCurrent1`（=`Fyss3G_CnsA1setSeek`）: key超の最初の定格電流、該当無しは末尾ノードの定格電流。`Set_WH`/`Set_AM`/`Set_CT` が使用予定。
+  - `CheckLoadCapacityTable`（=`Fyss3G_Check_fyrt812`）: ブレーカ系14予約語（MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/NHMB/HPSB/HSB/CP/CKS, 94.09.27 追加フィルタ）に一致し機器選定区分'1'・負荷種類非空白なら1（ディスパッチャで continue）。既存 `LoadCapacityDecisionTable`（=fyrt812）を走査。
+- **忠実性メモ**: `A2setSeek` の機器選定区分は C 原典が `rt800->wk`（=`&rt800[0]` 呼出のため先頭 records[0].Work）を参照する癖を忠実再現（対象添字 `no` ではなく先頭データの区分）。`A1setSeek` の「全ノード key 以下→末尾定格返却」も再現。予約語/負荷種類の memcmp は右詰め空白比較（`PadReservedWord`/`PadLoadKind`）で再現。
+- **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／非ブレーカ系デバイスセッタ（MC/THR/MG/WH/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/DCPW/SSW/CKS/L 等）。Seek 群はこれら移植時に結線。
+
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 

@@ -521,3 +521,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3G_Set_IM,CurrentParameterSetter.ComputeInductionMotorCurrent,toku/sekkei/src/Fyss3G.c,負荷容量W1から電動機/ヒータの負荷電流値算出。三相/単相と回路電圧で係数分岐
 関数,PropSetELBKando,CurrentParameterSetter.SetElbSensitivity,toku/sekkei/src/Fyss3G.c,親P行の回路相数を取得しFysk0e_SetELBkandoで漏電ブレーカ感度電流を設定
 関数,Fysk0e_SetELBkando,CurrentParameterSetter.ApplyElbSensitivity,toku/sekkei/src/Fysk0e.c,回路相数/フレーム電流/データタイプ(EV)から感度電流MA[0]決定(0015/0030/0100/0200)
+クラス,Fyss3G_Cns*Seek群,CurrentParameterTableSeeker,toku/sekkei/src/Fyss3G.c,電流パラメータCNSテーブル検索とFYRT812チェックを束ねる静的クラス
+関数,Fyss3G_CnsPrmtpSeek,CurrentParameterTableSeeker.SeekParameterSettingType,toku/sekkei/src/Fyss3G.c,予約語(8バイト右詰め)一致の最初のパラメータ設定タイプを返す。無しはnull
+関数,Fyss3G_CnsSQsetSeek,CurrentParameterTableSeeker.SeekWireSize,toku/sekkei/src/Fyss3G.c,key=通電電流*1.12で許容電流>=key且つ選定フラグ0の最初の電線サイズを返す
+関数,Fyss3G_CnsA2setSeek,CurrentParameterTableSeeker.SeekRatedCurrent2Coefficient,toku/sekkei/src/Fyss3G.c,負荷種類/回路電圧/相数一致の定格電流2算出係数を返す。区分判定は先頭records[0]参照
+関数,Fyss3G_CnsA1setSeek,CurrentParameterTableSeeker.SeekRatedCurrent1,toku/sekkei/src/Fyss3G.c,key超の最初の定格電流を返す。該当無しは末尾ノードの定格電流
+関数,Fyss3G_Check_fyrt812,CurrentParameterTableSeeker.CheckLoadCapacityTable,toku/sekkei/src/Fyss3G.c,ブレーカ系14予約語一致且つ機器選定区分1且つ負荷種類有で1(スキップ)を返す
