@@ -112,6 +112,9 @@ public sealed class MainCircuitData
     /// <summary>親データ追番(親機器の datano)。【C原典】oyatno[3]("9")。Find_Parent の親検索キー。</summary>
     public string ParentSequenceNumber { get; set; } = "000";
 
+    /// <summary>グループ親データ追番。【C原典】goyano[3]("9")。"000" なら親データ追番(oyatno)を用いる。</summary>
+    public string GroupParentSequenceNumber { get; set; } = "000";
+
     /// <summary>負荷発生元区分。【C原典】ahassei("C")。</summary>
     public char LoadSourceKind { get; set; } = ' ';
 
@@ -214,4 +217,38 @@ public sealed class CircuitWork
 
     /// <summary>機器マスター補助情報の定格容量(W, VA)。【C原典】sk_work.teiwva (DOUBLE)。</summary>
     public double RatedCapacity { get; set; }
+
+    /// <summary>
+    /// 積算エリア(相 R,S,T,X,Y,N の 6 スロット)。【C原典】sk_work.sk_area[6](struct seki_area)。
+    /// 末端回路の通電電流値算出(Fyss36)が相×機器種別で通電電流値・負荷容量を積み上げる。
+    /// </summary>
+    public AccumulationArea[] AccumulationSlots { get; } = [new(), new(), new(), new(), new(), new()];
+}
+
+/// <summary>
+/// 積算エリア1スロット(1 相分)。【C原典】struct seki_area(fyrt800.h)。
+/// A/B/C/D/E には通電電流値、M/S には負荷容量が積算される。
+/// </summary>
+public sealed class AccumulationArea
+{
+    /// <summary>【C原典】a_area。</summary>
+    public double A { get; set; }
+
+    /// <summary>【C原典】b_area。</summary>
+    public double B { get; set; }
+
+    /// <summary>【C原典】c_area。</summary>
+    public double C { get; set; }
+
+    /// <summary>【C原典】d_area。</summary>
+    public double D { get; set; }
+
+    /// <summary>【C原典】e_area。</summary>
+    public double E { get; set; }
+
+    /// <summary>【C原典】m_area。</summary>
+    public double M { get; set; }
+
+    /// <summary>【C原典】s_area。</summary>
+    public double S { get; set; }
 }

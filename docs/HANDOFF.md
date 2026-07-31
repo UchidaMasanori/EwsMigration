@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1084 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1093 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -156,7 +156,7 @@ EwsMigration/
 ### 2026-07-31 セッション⑦ 追加分（M2: Fyss15 下流パラメータ生成の着手）
 
 下流パラメータ生成 `Fyss15_Make_LowerParm`（機器サーチを実パイプラインへ結線するマイルストーン M2）の
-**先頭ステップ群**を移植。オーケストレータ本体（約20サブ関数）は各サブを順次移植してから組み立てる方針。テストは 1018 → **1084**。
+**先頭ステップ群**を移植。オーケストレータ本体（約20サブ関数）は各サブを順次移植してから組み立てる方針。テストは 1018 → **1093**。
 
 - **末端区分セット（commit 予定）**: `src/Ews.Analysis/TerminalKindSetter.cs`＝`Fyss30_MattanKubun_Set`（Fyss15 の第1ステップ）。P系統で自 datano が親 oyatno に不在なら末端(mattan='1')。SC 単独末端は直前直列機器へ付け直し（`ReattachTerminalToPrevious`）。直前が MC かつ同一行種グループに MGSD/MCSD がある場合は付け直さない（SC より積算するため）。階層/並列一致時は付属パラメータ（fpalw1/2/kbn・fpaln[0..1]）を移送、不一致時は後方に有効負荷が無い場合のみ付け直す。
 - **上流積み上げ区分セット（commit 予定）**: `src/Ews.Analysis/UpstreamStackingKindSetter.cs`＝`Fyss32_SC_NT_Tumiage_Set`（Fyss15 第2ステップ）。jagekbn を 'K'→'1' 再セット/他クリアし、P系統の SC/NT の直列最上位（直列追番1は自身、他は i-(cno-1)）へ '1'。SC は直前 MC/MGSD 関係で設定先を切替（951005/951031）。最後に末端でない SC を fpaln[1]≠"0KW" で '1'（950925）。
@@ -165,6 +165,15 @@ EwsMigration/
 - **保留（Fyss31 本体）**: `Fyss31_FukaHassei_Set`本体は FYRT812(負荷容量決定表41件)/`set_fky`/`get_ep`/エラー域(FYRT805)/SC処理(`Fyss39`・`Fyss3A`)依存の大型関数。下請け `set_denryu` を先行移植。残りのサブを順次移植後に本体を組立。
 - **機器選定区分セット（commit 予定）**: `src/Ews.Analysis/EquipmentSelectionKindSetter.cs`＝`Fyss33_KikiSentei_Set` 一式（Fyss15 第4ステップ）。機器選定区分(kikiskbn)・始動回路区分(startkbn)を設定。本体＋`Shori1`(下流に独立負荷源が複数→'2')＋`Shori2`＋`Shori3`(負荷容量ある末端から上流へ負荷情報伝播・始動区分)＋`Shori4`(選定'2'の電動機大分類に下流電動機の負荷種類コピー)を集約。下流探索は移植済 `DownstreamSelector`(Fyss35)再利用、Shori4 の機器大分類(kikirui)は解決子注入。★C原典 Shori2 第1ループは `kikiskbn == '3'`(代入=でなく比較==)でデッドコードのため kikiskbn='3' は実質発生しない→忠実に非移植。
 - **保留（Fyss15 残ステップ）**: `Fyss36`/`Fyss3G_Denryuu_Parm_Set`/`Fyss3B_Breaker_Sentei`(機器選定本体)/`Fyss3C`〜`Fyss3I`/`Fyss37`/`Fyss38`/`Fyss3A`/`Fyss3H`/`Fyss15_MCB1P_NT`/`Pre_CT_Make`。順次移植後にオーケストレータへ結線。
+
+### 2026-07-31 セッション⑧ 追加分（Fyss36 第1段: 積算エリアセット）
+
+末端回路の通電電流値算出 `Fyss36_MattanKairo_Iset`（大型・外部 `Fyss37`/`Fyss3A` 依存）のうち、
+自己完結した **積算エリアセット**を先行移植。
+
+- **積算エリアセット（commit 予定）**: `src/Ews.Analysis/AccumulationAreaSetter.cs`＝`Fyss36_Set_Seki`（＋`Get_Pdno`/`Get_Are1`/`Get_Are2`）。負荷発生元の通電電流値・負荷容量を相(R/S/T/X/Y/N の6スロット)×機器種別(A/B/C/D/E/M/S)で積算エリア sk_area へ展開（A～E=通電電流値、M/S=負荷容量）。相の判定は回路相数/線式/極数とグループ親・P系統の相数の組合せ15条件。
+- **新設モデル**: `CircuitWork.AccumulationSlots`(=sk_area 6スロット)＋`AccumulationArea`(=seki_area A/B/C/D/E/M/S)、`MainCircuitData.GroupParentSequenceNumber`(=goyano)。
+- **保留（Fyss36 残）**: `Fyss36_Get_Seki`(上流への電流伝搬)、本体オーケストレータ(外部 `Fyss37_I_Set_Sub`・`Fyss3A_Chk_Yoyaku`/`Fyss3A_Prc_Seksan` 依存)。順次移植。
 
 ### 2026-07-31 セッション⑥ 追加分（ゴールデンマスタ 5 ファイル比較コア）
 **比較エンジン基盤**を TDD で新設。パイプライン成熟前でも回せる検証ゲートの土台を用意した。テストは 1004 → **1018**。
