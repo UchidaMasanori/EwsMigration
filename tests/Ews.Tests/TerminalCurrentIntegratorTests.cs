@@ -212,4 +212,99 @@ public sealed class TerminalCurrentIntegratorTests
 
         Assert.Equal(0.0, r.Work.SetCurrent, Precision);
     }
+
+    // ── 積算本体(IntegrateCurrent = Fyss37_I_Set_Sub) ────────────────
+
+    private static MainCircuitResult Node(
+        string datano,
+        string oyatno = "000",
+        string yoyaku = "",
+        char ahassei = ' ',
+        char kikiskbn = ' ')
+    {
+        var r = new MainCircuitResult
+        {
+            SequenceNumber = datano,
+            Data = new MainCircuitData
+            {
+                SystemKind = '1',
+                CircuitElement = '1',
+                ParentSequenceNumber = oyatno,
+                ReservedWord = yoyaku,
+                LoadSourceKind = ahassei,
+                EnergizingCurrent = "00000.00",
+            },
+        };
+        r.Work.EquipmentSelectionKind = kikiskbn;
+        return r;
+    }
+
+    [Fact]
+    public void 積算は負荷発生元の積算エリアを親へ積み上げ通電電流値をセットする()
+    {
+        // oiban(P, 表外) 配下の負荷発生元 MC の積算エリアを親へ積み上げる(matan_flg=0 の単純加算)。
+        MainCircuitResult oiban = Node("001", yoyaku: "P");
+        MainCircuitResult load = Node("002", oyatno: "001", yoyaku: "MC", ahassei: '1');
+        load.Work.AccumulationSlots[0].A = 10;
+        load.Work.AccumulationSlots[0].B = 5;
+        load.Work.AccumulationSlots[0].M = 3;
+
+        bool ok = TerminalCurrentIntegrator.IntegrateCurrent([oiban, load], 1);
+
+        Assert.True(ok);
+        Assert.Equal(10.0, oiban.Work.AccumulationSlots[0].A);
+        Assert.Equal(5.0, oiban.Work.AccumulationSlots[0].B);
+        Assert.Equal(3.0, oiban.Work.AccumulationSlots[0].M);
+        // 通電電流値 = a + b + (c+d+e)×0.8 = 15。
+        Assert.Equal("00015.00", oiban.Data.EnergizingCurrent);
+        Assert.Equal("00015.00", load.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 積算はブレーカ定格を超える相を定格電流で置き換える()
+    {
+        // oiban(MCB, AT=5A→定格 Ia=4) 配下に負荷 10A → 定格 4A で頭打ち。
+        MainCircuitResult oiban = Node("001", yoyaku: "MCB");
+        oiban.Data.ElectricalParameterSlots[0].At = "00005.000";
+        MainCircuitResult load = Node("002", oyatno: "001", yoyaku: "MC", ahassei: '1');
+        load.Work.AccumulationSlots[0].A = 10;
+
+        bool ok = TerminalCurrentIntegrator.IntegrateCurrent([oiban, load], 1);
+
+        Assert.True(ok);
+        Assert.Equal(4.0, oiban.Work.AccumulationSlots[0].A); // 5 × 0.8
+        Assert.Equal("00004.00", oiban.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 積算は回路要素が主回路でなければfalse()
+    {
+        MainCircuitResult oiban = Node("001", yoyaku: "P");
+        oiban.Data.CircuitElement = '2'; // 計器回路
+
+        bool ok = TerminalCurrentIntegrator.IntegrateCurrent([oiban], 1);
+
+        Assert.False(ok);
+    }
+
+    [Fact]
+    public void 積算は範囲外データ追番でfalse()
+    {
+        MainCircuitResult oiban = Node("001", yoyaku: "P");
+
+        Assert.False(TerminalCurrentIntegrator.IntegrateCurrent([oiban], 99));
+    }
+
+    [Fact]
+    public void 積算は下流が無くても対象の通電電流値を設定する()
+    {
+        // 下流無しの単独機器。積算エリアからそのまま通電電流値を算出。
+        MainCircuitResult oiban = Node("001", yoyaku: "MC");
+        oiban.Work.AccumulationSlots[0].A = 7;
+
+        bool ok = TerminalCurrentIntegrator.IntegrateCurrent([oiban], 1);
+
+        Assert.True(ok);
+        Assert.Equal("00007.00", oiban.Data.EnergizingCurrent);
+    }
 }

@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1113 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1118 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -156,7 +156,7 @@ EwsMigration/
 ### 2026-07-31 セッション⑦ 追加分（M2: Fyss15 下流パラメータ生成の着手）
 
 下流パラメータ生成 `Fyss15_Make_LowerParm`（機器サーチを実パイプラインへ結線するマイルストーン M2）の
-**先頭ステップ群**を移植。オーケストレータ本体（約20サブ関数）は各サブを順次移植してから組み立てる方針。テストは 1018 → **1113**。
+**先頭ステップ群**を移植。オーケストレータ本体（約20サブ関数）は各サブを順次移植してから組み立てる方針。テストは 1018 → **1118**。
 
 - **末端区分セット（commit 予定）**: `src/Ews.Analysis/TerminalKindSetter.cs`＝`Fyss30_MattanKubun_Set`（Fyss15 の第1ステップ）。P系統で自 datano が親 oyatno に不在なら末端(mattan='1')。SC 単独末端は直前直列機器へ付け直し（`ReattachTerminalToPrevious`）。直前が MC かつ同一行種グループに MGSD/MCSD がある場合は付け直さない（SC より積算するため）。階層/並列一致時は付属パラメータ（fpalw1/2/kbn・fpaln[0..1]）を移送、不一致時は後方に有効負荷が無い場合のみ付け直す。
 - **上流積み上げ区分セット（commit 予定）**: `src/Ews.Analysis/UpstreamStackingKindSetter.cs`＝`Fyss32_SC_NT_Tumiage_Set`（Fyss15 第2ステップ）。jagekbn を 'K'→'1' 再セット/他クリアし、P系統の SC/NT の直列最上位（直列追番1は自身、他は i-(cno-1)）へ '1'。SC は直前 MC/MGSD 関係で設定先を切替（951005/951031）。最後に末端でない SC を fpaln[1]≠"0KW" で '1'（950925）。
@@ -173,6 +173,13 @@ EwsMigration/
 - **FYRT812 負荷容量決定表（commit 予定）**: `src/Ews.Analysis/LoadCapacityDecisionTable.cs`（41 エントリ）＝`fyrt812[]`。予約語→電気パラメータ優先順位(ep_pry[5])/予約語優先順位(pry)/負荷電流算出係数(kei)。Fyss31/Fyss37 共用。
 - **電流計算リーフ（commit 予定）**: `src/Ews.Analysis/TerminalCurrentIntegrator.cs`＝`Fyss37_Get_Fuka`(FYRT812優先解決)/`Get_DenIa`(優先パラメータ×0.8)/`Get_DenIb`(積算エリア相和 a+b+(c+d+e)×0.8)/`Kei_TR`(V2/V1)/`Set_Tden`(通電電流値)/`Set_Sden`(設定電流値 Is)。Get_Fuka の電気パラメータゼロ判定は整形ゼロ文字列("00000.000" 等)との照合。
 - **保留（Fyss37 残）**: 積算状態機械 `Fyss37_Seki_Tsumi`（seki_flag/s_Ia/f_fuka の置換ロジック）＋`Chk_Break`/`Mat_flg`＋本体 `Fyss37_I_Set_Sub`。次回。
+
+### 2026-07-31 セッション⑩ 追加分（Fyss37 積算本体＝完成）
+
+通電電流積算 `Fyss37_I_Set_Sub` の**積算状態機械**を移植し、Fyss37 を完成。
+
+- **積算本体（commit 予定）**: `TerminalCurrentIntegrator.IntegrateCurrent`＝`Fyss37_I_Set_Sub`（＋`Seki_Tsumi`/`Chk_Break`/`Mat_flg`）。下流の負荷発生元('1')の積算エリアを上流へ積み上げ、対象・下流機器へ通電電流値・設定電流値をセット。`seki_flag`（積上フラグ）は `IntegrateCurrent` が `bool[]` を確保し各下請けへ伝播。ブレーカ定格未満の相は定格電流(Ia=優先電流×0.8)で頭打ち置換、末端行種先頭機器フラグ(Mat_flg)・上流積上区分/負荷発生元で積上中断(Chk_Break)、予約語 'TR' は係数倍。C原典の s_area+=fuka[i][5](=m) 等の癖も忠実再現。0ガード無し/配列外参照は安全ガード。
+- **これで Fyss37 は完成**（電流計算リーフ群＋積算本体）。TDD5件（1113→1118）。
 ### 2026-07-31 セッション⑧ 追加分（Fyss36 第1段: 積算エリアセット）
 
 末端回路の通電電流値算出 `Fyss36_MattanKairo_Iset`（大型・外部 `Fyss37`/`Fyss3A` 依存）のうち、
