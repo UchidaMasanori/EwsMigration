@@ -206,6 +206,9 @@ public sealed class CircuitWork
     /// <summary>n“®‰ñ˜H‹æ•ªByCŒ´“Tzsk_work.startkbnB</summary>
     public char StartCircuitKind { get; set; } = ' ';
 
+    /// <summary>––’[‰ñ˜Hsíæ“ª‹@Šíƒtƒ‰ƒOByCŒ´“Tzsk_work.sentflgB' ':”ñæ“ª '1':æ“ªB</summary>
+    public char LeadingEquipmentFlag { get; set; } = ' ';
+
     /// <summary>İ’è“d—¬’lByCŒ´“Tzsk_work.setteii (DOUBLE)B</summary>
     public double SetCurrent { get; set; }
 

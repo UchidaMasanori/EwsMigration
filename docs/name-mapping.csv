@@ -492,3 +492,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss30_MattanKubun_Set,TerminalKindSetter.SetTerminalKind,toku/sekkei/src/Fyss30.c,末端区分(mattan)セット。P系統で自datanoが親oyatnoに不在→末端。SC単独末端は直前直列機器へ付け直し(MGSD/MCSD有時除外)
 関数,Fyss30(SC付け直し内側),TerminalKindSetter.ReattachTerminalToPrevious,toku/sekkei/src/Fyss30.c,SC末端を直前へ付け直す内側処理。階層/並列一致で移送(負荷未設定なら付属パラメータ移送)/不一致は後方有効負荷無時のみ
 関数,Fyss32_SC_NT_Tumiage_Set,UpstreamStackingKindSetter.SetUpstreamStackingKind,toku/sekkei/src/Fyss32.c,上流積み上げ区分(jagekbn)セット。K→1再セット/他クリア→SC・NTの直列最上位へ1(直列追番1は自身/他はi-(cno-1))→末端でないSCは0KW以外で1
+関数,Fyss34_MattanGyouSento_Set,LeadingEquipmentFlagSetter.SetLeadingEquipmentFlag,toku/sekkei/src/Fyss34.c,末端回路行種先頭機器フラグ(sentflg)セット。末端機器の同一行種グループで回路要素1/5の階層×1000+直列追番が最小の機器群に1(計器WH kiryoso3/CT kiryoso2は対象外)
+構造体,sk_work.sentflg,CircuitWork.LeadingEquipmentFlag,fyrt800.h,末端回路行種先頭機器フラグ(' ':非先頭 '1':先頭)
