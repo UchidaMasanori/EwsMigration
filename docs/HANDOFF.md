@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1188 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1208 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -175,6 +175,20 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
 - **忠実性メモ**: denryu は `%08.2f`（8桁）格納のため、C の `memcpy("00000.000",9)`→`memcpy(denryu,8)` は末尾 '0' が残り `%09.3f` 相当の9桁になる（`AtFromEnergizingCurrent` ヘルパで再現）。回路相数→Set_IM 負荷種別（'3'→1/'1'→2、他は C 未初期化のため決定性 0）は `PhaseToLoadKind` で再現。ep[1] 判定の memcmp は整形ゼロ（"00000.000"）比較のため、テストは ep[1] を整形ゼロで明示設定。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 下流抽出依存]/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/DCPW/SSW/CKS/L 等）。
 
+### 2026-07-31 セッション⑧ 追加分（Fyss3G リーフセッタ10種: CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の非ブレーカ系デバイスセッタのうち、下流抽出やゾーンコードなど
+外部依存のない自完結な10種（リーフセッタ群）を一括移植。既存 `CurrentParameterSetter` に追加。テストは 1188 → **1208**（+20）。
+
+- **リーフセッタ10種（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs` に追加。いずれも ep[2].A2/MA を中心に設定。
+  - `SetCon`（=`Fyss3G_Set_CON`, CON/ZCT）/`SetSsw`（=`Fyss3G_Set_SSW`, SSW/LSW/DSW/TSW）: ep[2].A2 に通電電流値。
+  - `SetMcdt`（=`Fyss3G_Set_MCDT`）: ep[2].A2 = 通電電流値×1.25。`SetF`（=`Fyss3G_Set_F`）: 3A未満は3A/以上は通電電流値。`SetL`（=`Fyss3G_Set_L`）: 40A未満は30A/以上は60A。
+  - `SetElr`（=`Fyss3G_Set_ELR`）: ep[0].MA 未設定時に通電100A以下30mA/超200mA。`SetLgr`（=`Fyss3G_Set_LGR`）: ep[0].MA 未設定時に200mA。
+  - `SetTs`（=`Fyss3G_Set_TS`）/`SetSu`（=`Fyss3G_Set_SU`, PBSU/COSU/2COSU/OLU）: A2 を固定値（15A/1.5A）に設定し、prm1==0 で ep[1].A2 に ep[0].A2 を複写。
+  - `SetCks`（=`Fyss3G_Set_CKS`）: prm2==0 のとき、設定電流(setteii)!=0 はその値、それ以外は通電電流値を整形して A2 に設定。
+- **ヘルパリネーム変更**: A2 でも使うため `AtFromEnergizingCurrent` → `EnergizingCurrentToNine` にリネーム（機能不変、SetThr/SetMg の呼出しも更新）。
+- **移植省略**: `Fyss3G_Set_DCPW` は C 原典が空関数（no-op）のため移植しない（ディスパッチャで no-op 扱い）。
+- **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／複雑なセッタ（AM[ゾーンコード/gyocd]/CT[同一機器多重ループ]/TB[SQseek+改訂]/TR[Fyss35 下流抽出]/RRY[親 oyatno 遡行]/MC[Set_MC_SC]）。
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 

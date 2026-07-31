@@ -530,3 +530,13 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3G_Set_THR,CurrentParameterSetter.SetThr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(THR/2ERY/3ERY/4ERY)。主回路はep[2]ATに通電電流。ep[0].AT無かつW1有はSet_IMで生成
 関数,Fyss3G_Set_MG,CurrentParameterSetter.SetMg,toku/sekkei/src/Fyss3G.c,電流パラメータセット(MG/MGFR/MGSD/MGFRSD)。ep[2]ATと通電電流とA2SET係数の積のA2設定後ep[1]生成
 関数,Fyss3G_Set_WH,CurrentParameterSetter.SetWh,toku/sekkei/src/Fyss3G.c,電流パラメータセット(WH)。回路要素で主回路(A2=30/120)と計器回路(A1=A1SET検索/A2=5)を分岐
+関数,Fyss3G_Set_CON,CurrentParameterSetter.SetCon,toku/sekkei/src/Fyss3G.c,電流パラメータセット(CON/ZCT)。ep[2].A2に通電電流値を設定
+関数,Fyss3G_Set_MCDT,CurrentParameterSetter.SetMcdt,toku/sekkei/src/Fyss3G.c,電流パラメータセット(MCDT)。ep[2].A2=通電電流値の1.25倍
+関数,Fyss3G_Set_F,CurrentParameterSetter.SetF,toku/sekkei/src/Fyss3G.c,電流パラメータセット(F)。ep[2].A2は通電3A未満で3A/以上は通電電流値
+関数,Fyss3G_Set_ELR,CurrentParameterSetter.SetElr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(ELR)。ep[0].MA未設定時に通電100A以下30mA/超200mA
+関数,Fyss3G_Set_LGR,CurrentParameterSetter.SetLgr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(LGR)。ep[0].MA未設定時に200mAを設定
+関数,Fyss3G_Set_TS,CurrentParameterSetter.SetTs,toku/sekkei/src/Fyss3G.c,電流パラメータセット(TS)。A2=15A固定/prm1onでep[1].A2にep[0].A2複写
+関数,Fyss3G_Set_SU,CurrentParameterSetter.SetSu,toku/sekkei/src/Fyss3G.c,電流パラメータセット(PBSU/COSU/2COSU/OLU)。A2=1.5A固定/prm1onでep[1].A2複写
+関数,Fyss3G_Set_SSW,CurrentParameterSetter.SetSsw,toku/sekkei/src/Fyss3G.c,電流パラメータセット(SSW/LSW/DSW/TSW)。ep[2].A2に通電電流値を設定
+関数,Fyss3G_Set_CKS,CurrentParameterSetter.SetCks,toku/sekkei/src/Fyss3G.c,電流パラメータセット(CKS)。prm2offで設定電流有はその値/無は通電電流値をA2設定
+関数,Fyss3G_Set_L,CurrentParameterSetter.SetL,toku/sekkei/src/Fyss3G.c,電流パラメータセット(L)。ep[2].A2は通電40A未満で30A/以上は60A

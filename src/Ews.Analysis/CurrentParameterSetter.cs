@@ -4,7 +4,8 @@ namespace Ews.Analysis;
 
 /// <summary>
 /// 電流に関するパラメータのセット処理(ブレーカ系＋非ブレーカ系一部)。
-/// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH
+/// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH /
+///   Set_CON / Set_MCDT / Set_F / Set_ELR / Set_LGR / Set_TS / Set_SU / Set_SSW / Set_CKS / Set_L
 ///   および補助関数 Check_fyrt800 / Set_IM / PropSetELBKando(toku/sekkei/src/Fyss3G.c)、
 ///   Fysk0e_SetELBkando(toku/sekkei/src/Fysk0e.c)。
 ///
@@ -14,10 +15,11 @@ namespace Ews.Analysis;
 ///
 /// 【段階移植の範囲】
 ///   本クラスではブレーカ系 4 種(MCB系/ELB系/MMCB系/ELMB系)のセッタ、非ブレーカ系の
-///   THR/MG/WH のセッタ、およびその依存(Check_fyrt800/Set_IM/PropSetELBKando/
-///   Fysk0e_SetELBkando、CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
-///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT/TB/CON/TR 等の
-///   残りの機器セッタは後続増分で移植する。
+///   THR/MG/WH のセッタおよびリーフセッタ群(CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L)、
+///   およびその依存(Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando、
+///   CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
+///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT/TB/TR/RRY 等の
+///   残りの機器セッタは後続増分で移植する(Set_DCPW は C 原典が空関数のため移植省略)。
 ///
 /// 【C 原典のバグ再現】Set_MCB 内 <c>dwork == Stof(...)</c> は代入 <c>=</c> の誤記(<c>==</c>)で
 ///   実質 no-op のため、AM はその時点で <c>dwork</c> が保持する値から整形される。本移植は
@@ -412,7 +414,7 @@ public static class CurrentParameterSetter
             // 【C原典】回路要素= 主回路(kiryoso=='1')のとき AT=通電電流値。
             if (dt.CircuitElement == '1')
             {
-                ep[2].At = AtFromEnergizingCurrent(dt.EnergizingCurrent);
+                ep[2].At = EnergizingCurrentToNine(dt.EnergizingCurrent);
             }
         }
 
@@ -462,7 +464,7 @@ public static class CurrentParameterSetter
         if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
         {
             // 【C原典】AT=通電電流値。
-            ep[2].At = AtFromEnergizingCurrent(dt.EnergizingCurrent);
+            ep[2].At = EnergizingCurrentToNine(dt.EnergizingCurrent);
 
             // 【C原典】A2 = 通電電流値 × A2SET 係数。
             double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
@@ -595,6 +597,271 @@ public static class CurrentParameterSetter
                 ep[2].A1 = Fix(ep[1].A1, 9);
                 ep[2].A2 = Fix(ep[1].A2, 9);
             }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(CON/ZCT 用)。【C原典】Fyss3G_Set_CON。
+    /// A2 に通電電流値を設定するのみ(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetCon(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 通電電流値(denryu 8桁)。
+            ep[2].A2 = EnergizingCurrentToNine(dt.EnergizingCurrent);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(MCDT 用)。【C原典】Fyss3G_Set_MCDT。
+    /// A2 = 通電電流値 * 1.25(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetMcdt(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 通電電流値 * 1.25。
+            double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+            ep[2].A2 = Format9(denryu * 1.25);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(F 用)。【C原典】Fyss3G_Set_F。
+    /// A2 は通電電流値 3A 未満なら 3A、それ以外は通電電流値そのまま(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetF(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】denryu<3.0 は 3A、それ以外は denryu を整形。
+            double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+            ep[2].A2 = denryu < 3.0 ? "00003.000" : Format9(denryu);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(ELR 用)。【C原典】Fyss3G_Set_ELR。
+    /// ep[0] の感度電流(MA)が未設定のとき、通電電流値 100A 以下は 30mA、超は 200mA(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetElr(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[0].MA[0] が未設定のとき、通電電流値<=100 は 30mA、それ以外は 200mA。
+            if (MatchesZero(ep[0].Ma[0], ZeroMa))
+            {
+                double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+                ep[2].Ma[0] = denryu <= 100.0 ? "0030" : "0200";
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(LGR 用)。【C原典】Fyss3G_Set_LGR。
+    /// ep[0] の感度電流(MA)が未設定のとき 200mA を設定(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetLgr(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[0].MA[0] が未設定のとき 200mA を設定。
+            if (MatchesZero(ep[0].Ma[0], ZeroMa))
+            {
+                ep[2].Ma[0] = "0200";
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(TS 用)。【C原典】Fyss3G_Set_TS。
+    /// A2 = 15A 固定、prm1==0 のとき ep[1].A2 = ep[0].A2。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetTs(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 15A 固定。
+            ep[2].A2 = Format9(15.0);
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[1].A2 = ep[0].A2。
+            ep[1].A2 = Fix(ep[0].A2, 9);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(PBSU/COSU/2COSU/OLU 用)。【C原典】Fyss3G_Set_SU。
+    /// A2 = 1.5A 固定、prm1==0 のとき ep[1].A2 = ep[0].A2。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetSu(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 1.5A 固定。
+            ep[2].A2 = Format9(1.5);
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[1].A2 = ep[0].A2。
+            ep[1].A2 = Fix(ep[0].A2, 9);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(SSW/LSW/DSW/TSW 用)。【C原典】Fyss3G_Set_SSW。
+    /// A2 に通電電流値を設定するのみ(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetSsw(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 通電電流値(denryu 8桁)。
+            ep[2].A2 = EnergizingCurrentToNine(dt.EnergizingCurrent);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(CKS 用)。【C原典】Fyss3G_Set_CKS。
+    /// prm2==0 のとき、設定電流(setteii)!=0 はその値、それ以外は通電電流値を整形して A2 に設定。
+    /// </summary>
+    /// <param name="parameter2SetRequired">パラメータ2設定フラグ 1:on 0:off。【C原典】prm2。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetCks(
+        int parameter2SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag) && parameter2SetRequired == 0)
+        {
+            // 【C原典】setteii!=0 はその値、それ以外は通電電流値を整形して A2 に設定。
+            double value = row.Work.SetCurrent != 0.0
+                ? row.Work.SetCurrent
+                : EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+            ep[2].A2 = Format9(value);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(L 用)。【C原典】Fyss3G_Set_L。
+    /// A2 は通電電流値 40A 未満なら 30A、それ以外は 60A(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetL(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】denryu<40 は 30A、それ以外は 60A。
+            double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+            ep[2].A2 = denryu < 40.0 ? "00030.000" : "00060.000";
         }
     }
 
@@ -759,10 +1026,10 @@ public static class CurrentParameterSetter
         Fix(EquipmentParameterFormatter.SprintfF("%03.0f", value), 3);
 
     /// <summary>
-    /// 通電電流値(denryu 8桁)を AT/A1 用の 9 桁へ設定する。
+    /// 通電電流値(denryu 8桁)を AT/A1/A2 用の 9 桁へ設定する。
     /// 【C原典】memcpy(dest,"00000.000",9); memcpy(dest,denryu,8);(先頭 8 桁を denryu で上書き、9 桁目は '0')。
     /// </summary>
-    private static string AtFromEnergizingCurrent(string? energizingCurrent) =>
+    private static string EnergizingCurrentToNine(string? energizingCurrent) =>
         Fix(energizingCurrent, DenryuWidth) + "0";
 
     /// <summary>
