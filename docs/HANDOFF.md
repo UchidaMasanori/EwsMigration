@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1126 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1151 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -137,6 +137,17 @@ EwsMigration/
 - 🟡 入力解析 Fyss11 / 主回路 Fyss12 / 上流 Fyss14（部分）
 - ❌ 制御回路 Fyss13/1k/1l・下流結線 Fyss15・制御電源 Fyss19/1p/U0・検証 Prop 群・線番 Fyss3*・Fysk10_Main 本体結線
 - ❌ 制御設計 libfysgy.a（Fysc20_Sekkei_Control 系, 別ライブラリ）… 完全移植に必須
+
+### 2026-07-31 セッション⑫ 追加分（Fyss3G 電流パラメータ設定: CNS ローダー4種＋ブレーカ系セッタ4種）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set`（Fyss15 の M2 スライス）を段階移植。CNS マスタ読込4種と
+ブレーカ系デバイスセッタ4種、および共通下請け（`Check_fyrt800`/`Set_IM`/`PropSetELBKando`/`Fysk0e_SetELBkando`）を移植。テストは 1126 → **1151**（+25）。
+
+- **電流パラメータ表モデル（commit 予定）**: `src/Ews.Domain/Analysis/CurrentParameterTables.cs`＝`struct prmtp`→`ParameterSettingType`（予約語/seq_no/prm_tp/cod[10]）／`struct sqset`→`WireSizeSetting`（電線サイズ/許容電流/選定フラグ）／`struct a2set`→`RatedCurrent2Setting`（負荷種類/相/電圧/係数）／`struct a1set`→`RatedCurrent1Setting`（定格電流）。出典 `toku/include/sekkei/fyss3g01.h`。
+- **CNS ローダー4種（commit 予定）**: `src/Ews.Data/Seeding/CurrentParameterTableLoader.cs`＝`Fyss3G_CnsPrmtpRead`/`CnsSQsetRead`/`CnsA2setRead`/`CnsA1setRead`（amp001〜004.cns）。ヘッダ2行スキップ＋CP932読込。C の `sscanf` を**先頭失敗で全変換打切り**まで忠実再現（`ReadFixedWidthToken`/`TrimAtComma`/`SkipLiteralComma`/`TryScanDouble`/`TryScanInt`）。A2SET の「HA 行が %lf 失敗→係数/相を前行キャリー」癖を再現。A1SET のコメント行(`/* 3.0 */`)がデータ化して先頭0.0になる癖も忠実。
+- **ブレーカ系セッタ4種（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs`＝`Fyss3G_Set_MCB`/`Set_ELB`/`Set_MMCB`/`Set_ELMB`。共通下請け `Check_fyrt800`（=`ComputeParameterFlags` パラメータ設定要否 p1/p2）／`Set_IM`（=`ComputeInductionMotorCurrent` 誘導電動機電流）／`PropSetELBKando`（=`SetElbSensitivity` 親機器の相から ELB 感度電流）／`Fysk0e_SetELBkando`（=`ApplyElbSensitivity`、Ma[0]=0015/0030/0100/0200）。親機器探索は既存 `ParentEquipmentLocator.FindParentPRow` を再利用（親不在は早期 return でガード＝C原典は親存在前提のため意図的な相違）。**C原典の `dwork == Stof(...)`（== 誤記で no-op）バグを Set_MCB HPSB ブロックで忠実再現**（コメントで明示）。
+- **忠実性メモ**: `eparm_set` が ep[0] を整形ゼロ（"00000.000"/"0000000.00"）で埋めるため、"未入力" 判定の memcmp が生ゼロ（"000000000"）と一致しない点を再現。テストも整形ゼロで期待値を組む。
+- **保留（Fyss3G 残）**: CNS Seek 関数群（`PrmtpSeek`/`SQsetSeek`/`A2setSeek`/`A1setSeek`）／ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／`Check_fyrt812`／非ブレーカ系デバイスセッタ（MC/THR/MG/WH/AM/CT/TB/CON/TR 等）。順次移植後にオーケストレータへ結線。
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 

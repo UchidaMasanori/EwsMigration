@@ -505,3 +505,19 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss37_Get_Fuka/Get_DenIa/Get_DenIb/Kei_TR/Set_Tden/Set_Sden,TerminalCurrentIntegrator,toku/sekkei/src/Fyss37.c,通電電流積算の電流計算リーフ群。FYRT812優先解決/電流Ia(係数08)/Ib(積算エリア相和)/TR係数(V2/V1)/通電電流値/設定電流値Is算出
 関数,Fyss37_I_Set_Sub/Seki_Tsumi/Chk_Break/Mat_flg,TerminalCurrentIntegrator.IntegrateCurrent,toku/sekkei/src/Fyss37.c,通電電流積算本体。下流負荷発生元の積算エリアを親へ積上げ(seki_flag管理)、ブレーカ定格超過相はIa=定格×0.8で頭打ち、TR係数倍、通電/設定電流値セット
 関数,set_fky/get_ep,LoadSourceSelector.SelectLoadCurrent,toku/sekkei/src/Fyss31.c,負荷発生元の負荷容量決定。FYRT812で予約語検索→優先順位1-3順に電気パラメータ選定→get_epで電流化(AT/A1/A2は係数×値/W/VAはset_denryu)。戻り0選定/1値無/2優先低/3表外
+構造体,prmtp,ParameterSettingType,toku/include/sekkei/fyss3g01.h,パラメータ設定タイプ(予約語yoyaku/seq_no/prm_tp/設定フラグcod[10])。電流パラメータのセット処理タイプを保持
+構造体,sqset,WireSizeSetting,toku/include/sekkei/fyss3g01.h,電線サイズ設定(電線サイズsq/許容電流denryu/選定sentei)
+構造体,a2set,RatedCurrent2Setting,toku/include/sekkei/fyss3g01.h,定格電流２設定(負荷種類fpalw1/回路相数kpaph/回路圧kpa/定格電流算出係数kei)
+構造体,a1set,RatedCurrent1Setting,toku/include/sekkei/fyss3g01.h,定格電流１設定(標準定格電流key)
+関数,Fyss3G_CnsPrmtpRead,CurrentParameterTableLoader.ParseParameterSettingTypes,toku/sekkei/src/Fyss3G.c,amp001.cns読込。先頭2行スキップ後sscanf(%8s/%hd計12)。sscanf成否に関わらず1行1ノード追加し失敗時は直前値持ち越し
+関数,Fyss3G_CnsSQsetRead,CurrentParameterTableLoader.ParseWireSizeSettings,toku/sekkei/src/Fyss3G.c,amp002.cns読込。sscanf(%lf/%lf/%hd)。最初の変換失敗で以降中断し直前値持ち越し
+関数,Fyss3G_CnsA2setRead,CurrentParameterTableLoader.ParseRatedCurrent2Settings,toku/sekkei/src/Fyss3G.c,amp003.cns読込。sscanf(%2s %lf/%hd/%2s)。2文字負荷種類は幅2で桁落ちし係数/電圧/相数を直前行から持ち越す(HA等)
+関数,Fyss3G_CnsA1setRead,CurrentParameterTableLoader.ParseRatedCurrent1Settings,toku/sekkei/src/Fyss3G.c,amp004.cns読込。先頭2行のみスキップのため3行目コメントが数値行化し先頭要素が0になる
+関数,Fyss3G_Set_MCB,CurrentParameterSetter.SetMcb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(MCB/RMCB/CP/SB/HPSB/HSB)。ep[2]AT/AF・HPSB系AM設定後ep[1]生成。dwork==誤記バグを忠実再現
+関数,Fyss3G_Set_ELB,CurrentParameterSetter.SetElb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(ELB/RELB)。ep[2]AT/AFと感度電流設定後ep[1]生成
+関数,Fyss3G_Set_MMCB,CurrentParameterSetter.SetMmcb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(MMCB/RMMCB/NHMB)。ep[2]AT/AF後ep[1]生成(W1有はSet_IMで電動機電流)。NHMBはAF設定なし
+関数,Fyss3G_Set_ELMB,CurrentParameterSetter.SetElmb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(ELMB/RELMB)。MMCB(W1/Set_IM)とELB(感度電流)の複合処理
+関数,Fyss3G_Check_fyrt800,CurrentParameterSetter.ComputeParameterFlags,toku/sekkei/src/Fyss3G.c,ep[0]入力有無からパラメータ設定要否prm1/prm2を判定。ahassei='1'かつ設定要でprm2=0
+関数,Fyss3G_Set_IM,CurrentParameterSetter.ComputeInductionMotorCurrent,toku/sekkei/src/Fyss3G.c,負荷容量W1から電動機/ヒータの負荷電流値算出。三相/単相と回路電圧で係数分岐
+関数,PropSetELBKando,CurrentParameterSetter.SetElbSensitivity,toku/sekkei/src/Fyss3G.c,親P行の回路相数を取得しFysk0e_SetELBkandoで漏電ブレーカ感度電流を設定
+関数,Fysk0e_SetELBkando,CurrentParameterSetter.ApplyElbSensitivity,toku/sekkei/src/Fysk0e.c,回路相数/フレーム電流/データタイプ(EV)から感度電流MA[0]決定(0015/0030/0100/0200)
