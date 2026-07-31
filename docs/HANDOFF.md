@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1170 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1188 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -162,6 +162,18 @@ EwsMigration/
   - `CheckLoadCapacityTable`（=`Fyss3G_Check_fyrt812`）: ブレーカ系14予約語（MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/NHMB/HPSB/HSB/CP/CKS, 94.09.27 追加フィルタ）に一致し機器選定区分'1'・負荷種類非空白なら1（ディスパッチャで continue）。既存 `LoadCapacityDecisionTable`（=fyrt812）を走査。
 - **忠実性メモ**: `A2setSeek` の機器選定区分は C 原典が `rt800->wk`（=`&rt800[0]` 呼出のため先頭 records[0].Work）を参照する癖を忠実再現（対象添字 `no` ではなく先頭データの区分）。`A1setSeek` の「全ノード key 以下→末尾定格返却」も再現。予約語/負荷種類の memcmp は右詰め空白比較（`PadReservedWord`/`PadLoadKind`）で再現。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／非ブレーカ系デバイスセッタ（MC/THR/MG/WH/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/DCPW/SSW/CKS/L 等）。Seek 群はこれら移植時に結線。
+
+### 2026-07-31 セッション⑭ 追加分（Fyss3G 非ブレーカ系セッタ: THR/MG/WH）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の非ブレーカ系デバイスセッタのうち、セッション⑬で移植した
+CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に追加（Set_IM/整形ヘルパを再利用）。テストは 1170 → **1188**（+18）。
+
+- **THR/MG/WH セッタ（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs` に追加。
+  - `SetThr`（=`Fyss3G_Set_THR`, THR/2ERY/3ERY/4ERY）: 主回路（`kiryoso=='1'`）は ep[2].AT に通電電流。ep[0].AT 未設定かつ ep[0].W1 有は `Set_IM` で ep[1].AT を算出。負荷発生元は ep[1]→ep[2] コピー。Seek 不使用。
+  - `SetMg`（=`Fyss3G_Set_MG`, MG/MGFR/MGSD/MGFRSD）: ep[2].AT＝通電電流、ep[2].A2＝通電電流と `A2setSeek` 係数の積。ep[1] は W1 有で `Set_IM`、無しは ep[2] コピー。
+  - `SetWh`（=`Fyss3G_Set_WH`, WH）: 回路要素で分岐。主回路は A1 初期化＋A2 を通電電流(40 以下 30A/超 120A)で決定、計器回路(CT付き)は A1＝`A1setSeek`／A2＝5A 固定。param1 は主回路 A2 を ep[0].A2 で 30/120（150 超は据え置き=C の else コメントアウト再現）。
+- **忠実性メモ**: denryu は `%08.2f`（8桁）格納のため、C の `memcpy("00000.000",9)`→`memcpy(denryu,8)` は末尾 '0' が残り `%09.3f` 相当の9桁になる（`AtFromEnergizingCurrent` ヘルパで再現）。回路相数→Set_IM 負荷種別（'3'→1/'1'→2、他は C 未初期化のため決定性 0）は `PhaseToLoadKind` で再現。ep[1] 判定の memcmp は整形ゼロ（"00000.000"）比較のため、テストは ep[1] を整形ゼロで明示設定。
+- **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 下流抽出依存]/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/DCPW/SSW/CKS/L 等）。
 
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）

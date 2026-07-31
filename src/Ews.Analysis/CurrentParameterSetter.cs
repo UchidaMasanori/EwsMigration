@@ -3,8 +3,8 @@ using Ews.Domain.Analysis;
 namespace Ews.Analysis;
 
 /// <summary>
-/// 電流に関するパラメータのセット処理(ブレーカ系)。
-/// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB
+/// 電流に関するパラメータのセット処理(ブレーカ系＋非ブレーカ系一部)。
+/// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH
 ///   および補助関数 Check_fyrt800 / Set_IM / PropSetELBKando(toku/sekkei/src/Fyss3G.c)、
 ///   Fysk0e_SetELBkando(toku/sekkei/src/Fysk0e.c)。
 ///
@@ -13,10 +13,11 @@ namespace Ews.Analysis;
 /// 予約語別のトリップ電流(AT)/フレーム電流(AF)/感度電流(MA)/メーカー定格(AM)を設定する。
 ///
 /// 【段階移植の範囲】
-///   本増分ではブレーカ系 4 種(MCB系/ELB系/MMCB系/ELMB系)のセッタと、その依存
-///   (Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando)のみを移植する。
-///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、Check_fyrt812、CNS Seek 群、
-///   および MC/THR/MG/WH/AM/CT/TB/CON/TR 等の他機器セッタは後続増分で移植する。
+///   本クラスではブレーカ系 4 種(MCB系/ELB系/MMCB系/ELMB系)のセッタ、非ブレーカ系の
+///   THR/MG/WH のセッタ、およびその依存(Check_fyrt800/Set_IM/PropSetELBKando/
+///   Fysk0e_SetELBkando、CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
+///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT/TB/CON/TR 等の
+///   残りの機器セッタは後続増分で移植する。
 ///
 /// 【C 原典のバグ再現】Set_MCB 内 <c>dwork == Stof(...)</c> は代入 <c>=</c> の誤記(<c>==</c>)で
 ///   実質 no-op のため、AM はその時点で <c>dwork</c> が保持する値から整形される。本移植は
@@ -390,6 +391,213 @@ public static class CurrentParameterSetter
         }
     }
 
+    /// <summary>
+    /// 電流パラメータのセット処理(THR/2ERY/3ERY/4ERY 用)。【C原典】Fyss3G_Set_THR。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetThr(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】回路要素= 主回路(kiryoso=='1')のとき AT=通電電流値。
+            if (dt.CircuitElement == '1')
+            {
+                ep[2].At = AtFromEnergizingCurrent(dt.EnergizingCurrent);
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[0].AT==0 かつ ep[0].W1!=0 のとき Set_IM で AT を算出。
+            if (MatchesZero(ep[0].At, ZeroAt) && !MatchesZero(ep[0].W1, ZeroW1))
+            {
+                double denryu = ComputeInductionMotorCurrent(row, ep[1].W1, PhaseToLoadKind(dt.CircuitPhaseCount));
+                ep[1].At = Format9(denryu);
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].At = Fix(ep[1].At, 9);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(MG/MGFR/MGSD/MGFRSD 用)。【C原典】Fyss3G_Set_MG。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="ratedCurrent2Table">定格電流２設定一覧。【C原典】a2set_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetMg(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index,
+        IReadOnlyList<RatedCurrent2Setting> ratedCurrent2Table, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(ratedCurrent2Table);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】AT=通電電流値。
+            ep[2].At = AtFromEnergizingCurrent(dt.EnergizingCurrent);
+
+            // 【C原典】A2 = 通電電流値 × A2SET 係数。
+            double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+            double kei = CurrentParameterTableSeeker.SeekRatedCurrent2Coefficient(records, index, ratedCurrent2Table);
+            ep[2].A2 = Format9(denryu * kei);
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】AT 設定(ep[1].AT==0 のとき)。
+            if (MatchesZero(ep[1].At, ZeroAt))
+            {
+                if (!MatchesZero(ep[1].W1, ZeroW1))
+                {
+                    double denryu = ComputeInductionMotorCurrent(row, ep[1].W1, PhaseToLoadKind(dt.CircuitPhaseCount));
+                    ep[1].At = Format9(denryu);
+                }
+                else
+                {
+                    // 【C原典】memcpy(ep[1].epaat, ep[2].epaat, 9)。
+                    ep[1].At = Fix(ep[2].At, 9);
+                }
+            }
+
+            // 【C原典】A2 設定(ep[1].A2==0 のとき)。
+            if (MatchesZero(ep[1].A2, ZeroAt))
+            {
+                if (!MatchesZero(ep[1].W1, ZeroW1))
+                {
+                    double denryu = ComputeInductionMotorCurrent(row, ep[1].W1, PhaseToLoadKind(dt.CircuitPhaseCount));
+                    ep[1].A2 = Format9(denryu);
+                }
+                else
+                {
+                    // 【C原典】memcpy(ep[1].epaa2, ep[2].epaa2, 9)。
+                    ep[1].A2 = Fix(ep[2].A2, 9);
+                }
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].At = Fix(ep[1].At, 9);
+                ep[2].A2 = Fix(ep[1].A2, 9);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(WH 用)。【C原典】Fyss3G_Set_WH。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="ratedCurrent1Table">定格電流１設定一覧。【C原典】a1set_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetWh(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index,
+        IReadOnlyList<RatedCurrent1Setting> ratedCurrent1Table, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(ratedCurrent1Table);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // 【C原典】通電電流値を取得。
+        double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定。回路要素= 主回路(kiryoso=='1')は初期化、計器用回路(CT付き)は A1SET 検索。
+            ep[2].A1 = dt.CircuitElement == '1'
+                ? ZeroAt
+                : Format9(CurrentParameterTableSeeker.SeekRatedCurrent1(denryu, ratedCurrent1Table));
+
+            // 【C原典】A2 設定。主回路は通電電流値で 30/120、計器用回路(CT付き)は 5 固定。
+            if (dt.CircuitElement == '1')
+            {
+                // 【C原典】denryu<=40 は 30A、それ以外(<=150 も 150 超も)は 120A。
+                ep[2].A2 = denryu <= 40.0 ? "00030.000" : "00120.000";
+            }
+            else
+            {
+                ep[2].A2 = "00005.000";
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定。計器用回路(CT付き)かつ ep[1].A1!=0 のとき A1SET 再検索。
+            if (dt.CircuitElement != '1' && !MatchesZero(ep[1].A1, ZeroAt))
+            {
+                ep[1].A1 = Format9(CurrentParameterTableSeeker.SeekRatedCurrent1(denryu, ratedCurrent1Table));
+            }
+
+            // 【C原典】A2 設定。主回路のみ ep[0].A2 の値で 30/120 を決定。
+            if (dt.CircuitElement == '1')
+            {
+                double a2 = EquipmentParameterFormatter.Stof(ep[0].A2, 9);
+                if (a2 <= 40.0)
+                {
+                    ep[1].A2 = "00030.000";
+                }
+                else if (a2 <= 150.0)
+                {
+                    ep[1].A2 = "00120.000";
+                }
+                // 【C原典】else 節はコメントアウト(a2>150 は据え置き)。
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].A1 = Fix(ep[1].A1, 9);
+                ep[2].A2 = Fix(ep[1].A2, 9);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------
     //  補助関数
     // ---------------------------------------------------------------------
@@ -549,6 +757,25 @@ public static class CurrentParameterSetter
     /// <summary>C の <c>sprintf("%03.0lf", v)</c> + <c>memcpy(dest, work, 3)</c> 相当(先頭 3 桁)。</summary>
     private static string Format3(double value) =>
         Fix(EquipmentParameterFormatter.SprintfF("%03.0f", value), 3);
+
+    /// <summary>
+    /// 通電電流値(denryu 8桁)を AT/A1 用の 9 桁へ設定する。
+    /// 【C原典】memcpy(dest,"00000.000",9); memcpy(dest,denryu,8);(先頭 8 桁を denryu で上書き、9 桁目は '0')。
+    /// </summary>
+    private static string AtFromEnergizingCurrent(string? energizingCurrent) =>
+        Fix(energizingCurrent, DenryuWidth) + "0";
+
+    /// <summary>
+    /// 回路相数を Set_IM の負荷種別フラグ(1:三相 2:単相)へ変換する。
+    /// 【C原典】if(kpaph=='3') w1=1; if(kpaph=='1') w1=2;(いずれでもない場合 C では未初期化。決定性のため 0)。
+    /// </summary>
+    private static int PhaseToLoadKind(char circuitPhaseCount)
+    {
+        int w1 = 0;
+        if (circuitPhaseCount == '3') { w1 = 1; }
+        if (circuitPhaseCount == '1') { w1 = 2; }
+        return w1;
+    }
 
     /// <summary>固定長フィールドへの memcpy 相当。<paramref name="width"/> 桁に切詰/末尾 NUL 埋め。</summary>
     private static string Fix(string? value, int width)

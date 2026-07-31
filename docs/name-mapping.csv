@@ -527,3 +527,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3G_CnsA2setSeek,CurrentParameterTableSeeker.SeekRatedCurrent2Coefficient,toku/sekkei/src/Fyss3G.c,負荷種類/回路電圧/相数一致の定格電流2算出係数を返す。区分判定は先頭records[0]参照
 関数,Fyss3G_CnsA1setSeek,CurrentParameterTableSeeker.SeekRatedCurrent1,toku/sekkei/src/Fyss3G.c,key超の最初の定格電流を返す。該当無しは末尾ノードの定格電流
 関数,Fyss3G_Check_fyrt812,CurrentParameterTableSeeker.CheckLoadCapacityTable,toku/sekkei/src/Fyss3G.c,ブレーカ系14予約語一致且つ機器選定区分1且つ負荷種類有で1(スキップ)を返す
+関数,Fyss3G_Set_THR,CurrentParameterSetter.SetThr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(THR/2ERY/3ERY/4ERY)。主回路はep[2]ATに通電電流。ep[0].AT無かつW1有はSet_IMで生成
+関数,Fyss3G_Set_MG,CurrentParameterSetter.SetMg,toku/sekkei/src/Fyss3G.c,電流パラメータセット(MG/MGFR/MGSD/MGFRSD)。ep[2]ATと通電電流とA2SET係数の積のA2設定後ep[1]生成
+関数,Fyss3G_Set_WH,CurrentParameterSetter.SetWh,toku/sekkei/src/Fyss3G.c,電流パラメータセット(WH)。回路要素で主回路(A2=30/120)と計器回路(A1=A1SET検索/A2=5)を分岐
