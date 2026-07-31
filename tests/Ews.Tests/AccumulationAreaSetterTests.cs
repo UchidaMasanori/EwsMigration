@@ -152,4 +152,81 @@ public sealed class AccumulationAreaSetterTests
     {
         AccumulationAreaSetter.SetLoadSourceAccumulation([], 1);
     }
+
+    // ── Fyss36_Get_Seki: 上流負荷発生元からの伝播 ────────────────────────
+
+    private static MainCircuitResult WithArea(MainCircuitResult r, int slot, double a)
+    {
+        r.Work.AccumulationSlots[slot].A = a;
+        return r;
+    }
+
+    [Fact]
+    public void 電流0の末端は上流負荷発生元の電流と積算エリアを取得する()
+    {
+        MainCircuitResult ls = WithArea(
+            Row("001", ahassei: '1', denryu: "00010.00"), 0, 10.0);
+        MainCircuitResult mid = Row("002", oyatno: "001", denryu: "00000.00");
+        MainCircuitResult set = Row("003", oyatno: "002", denryu: "00000.00");
+
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([ls, mid, set], 3);
+
+        Assert.Equal("00010.00", set.Data.EnergizingCurrent);
+        Assert.Equal(10.0, set.Work.AccumulationSlots[0].A);
+        // 途中機器にも伝播する。
+        Assert.Equal("00010.00", mid.Data.EnergizingCurrent);
+        Assert.Equal(10.0, mid.Work.AccumulationSlots[0].A);
+        // 負荷発生元自身は不変。
+        Assert.Equal("00010.00", ls.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 負荷発生元が直接の親なら途中機器はなく対象のみ設定する()
+    {
+        MainCircuitResult ls = WithArea(
+            Row("001", ahassei: '1', denryu: "00010.00"), 2, 7.0);
+        MainCircuitResult set = Row("002", oyatno: "001", denryu: "00000.00");
+
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([ls, set], 2);
+
+        Assert.Equal("00010.00", set.Data.EnergizingCurrent);
+        Assert.Equal(7.0, set.Work.AccumulationSlots[2].A);
+    }
+
+    [Fact]
+    public void 既に電流がある末端は変更しない()
+    {
+        MainCircuitResult ls = Row("001", ahassei: '1', denryu: "00010.00");
+        MainCircuitResult set = Row("002", oyatno: "001", denryu: "00005.00");
+
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([ls, set], 2);
+
+        Assert.Equal("00005.00", set.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 上流に負荷発生元が無ければ何もしない()
+    {
+        MainCircuitResult set = Row("001", oyatno: "000", denryu: "00000.00");
+
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([set], 1);
+
+        Assert.Equal("00000.00", set.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 伝播対象が存在しなければ何もしない()
+    {
+        MainCircuitResult ls = Row("001", ahassei: '1', denryu: "00010.00");
+
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([ls], 99);
+
+        Assert.Equal("00010.00", ls.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 伝播で空リストでも例外にならない()
+    {
+        AccumulationAreaSetter.PropagateCurrentFromLoadSource([], 1);
+    }
 }

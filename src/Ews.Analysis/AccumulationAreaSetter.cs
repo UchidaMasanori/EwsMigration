@@ -3,11 +3,11 @@ using Ews.Domain.Analysis;
 namespace Ews.Analysis;
 
 /// <summary>
-/// 負荷発生元の通電電流値・負荷容量を積算エリア(sk_area)にセットする。末端回路の通電電流値算出
-/// (<c>Fyss36_MattanKairo_Iset</c>)の第1段(負荷発生元区分='1' の機器を積算エリアへ展開)。
+/// 負荷発生元の通電電流値・負荷容量を積算エリア(sk_area)にセットし、末端側へ伝播する。末端回路の
+/// 通電電流値算出(<c>Fyss36_MattanKairo_Iset</c>)の下請け。
 ///
 /// 【C原典】<c>Fyss36_Set_Seki</c>＋<c>Fyss36_Get_Pdno</c>＋<c>Fyss36_Get_Are1</c>＋
-///          <c>Fyss36_Get_Are2</c>(toku/sekkei/src/Fyss36.c)。
+///          <c>Fyss36_Get_Are2</c>＋<c>Fyss36_Get_Seki</c>(toku/sekkei/src/Fyss36.c)。
 ///
 /// 相(R,S,T,X,Y,N の 6 スロット)×機器種別(A,B,C,D,E,M,S)の組み合わせで、A～E に通電電流値、
 /// M/S に負荷容量を格納する。相の判定は回路相数(kpaph)・線式(kpawr)・極数(kpap)と、グループ親・
@@ -70,6 +70,104 @@ public static class AccumulationAreaSetter
                     default: slot.S = lw; break;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// 指定データ追番の通電電流値が 0 のとき、負荷発生元区分='1' の機器まで上流を遡り、その通電電流値
+    /// ・積算エリアを対象データ追番および途中の機器へセットする。
+    /// 【C原典】Fyss36_Get_Seki(no, num, syu)。
+    /// </summary>
+    /// <param name="mains">主回路エリア。【C原典】syu(件数 num)。</param>
+    /// <param name="dataNumber">対象データ追番(1始まり)。【C原典】no。</param>
+    public static void PropagateCurrentFromLoadSource(IReadOnlyList<MainCircuitResult> mains, int dataNumber)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        int set = FindByDataNumber(mains, dataNumber);
+        if (set < 0)
+        {
+            return;
+        }
+
+        // 通電電流値 != 0 なら既に確定済みで処理不要。
+        if (EquipmentParameterFormatter.Stof(mains[set].Data.EnergizingCurrent, 8) != 0.0)
+        {
+            return;
+        }
+
+        // 上流に負荷発生元区分='1' の機器を探す。【C原典】第1 while ループ。
+        int loadSource = FindUpstreamLoadSource(mains, mains[set].Data.ParentSequenceNumber);
+        if (loadSource < 0)
+        {
+            // C原典は負荷発生元不在で配列外参照(UB)。本移行では何もせず返す(正常データでは必ず存在)。
+            return;
+        }
+
+        // 負荷発生元 → 対象データ追番へ通電電流値・積算エリアをコピー。
+        CopyCurrentAndArea(mains[loadSource], mains[set]);
+
+        // 負荷発生元に至るまでの途中機器にも同様にセットする。【C原典】第2 while ループ(950124)。
+        int oyano = EquipmentParameterFormatter.Stoi(mains[set].Data.ParentSequenceNumber, 3);
+        for (int guard = 0; guard <= mains.Count; guard++)
+        {
+            int i = FindByDataNumber(mains, oyano);
+            if (i < 0 || mains[i].Data.LoadSourceKind == '1')
+            {
+                break;
+            }
+
+            oyano = EquipmentParameterFormatter.Stoi(mains[i].Data.ParentSequenceNumber, 3);
+            if (oyano == 0)
+            {
+                break;
+            }
+
+            CopyCurrentAndArea(mains[set], mains[i]);
+        }
+    }
+
+    /// <summary>
+    /// 上流(oyatno を辿る)で負荷発生元区分='1' の機器の添字を返す(無ければ-1)。
+    /// 【C原典】Fyss36_Get_Seki の第1 while ループ(0ガード無しのため -1 で安全終了)。
+    /// </summary>
+    private static int FindUpstreamLoadSource(IReadOnlyList<MainCircuitResult> mains, string startParent)
+    {
+        int oyano = EquipmentParameterFormatter.Stoi(startParent, 3);
+        for (int guard = 0; guard <= mains.Count; guard++)
+        {
+            int i = FindByDataNumber(mains, oyano);
+            if (i < 0)
+            {
+                return -1;
+            }
+
+            if (mains[i].Data.LoadSourceKind == '1')
+            {
+                return i;
+            }
+
+            oyano = EquipmentParameterFormatter.Stoi(mains[i].Data.ParentSequenceNumber, 3);
+        }
+
+        return -1;
+    }
+
+    /// <summary>通電電流値(denryu)と積算エリア(sk_area 全 6 スロット)を複写する。【C原典】memcpy 群。</summary>
+    private static void CopyCurrentAndArea(MainCircuitResult from, MainCircuitResult to)
+    {
+        to.Data.EnergizingCurrent = from.Data.EnergizingCurrent;
+        for (int j = 0; j < Seki; j++)
+        {
+            AccumulationArea s = from.Work.AccumulationSlots[j];
+            AccumulationArea d = to.Work.AccumulationSlots[j];
+            d.A = s.A;
+            d.B = s.B;
+            d.C = s.C;
+            d.D = s.D;
+            d.E = s.E;
+            d.M = s.M;
+            d.S = s.S;
         }
     }
 

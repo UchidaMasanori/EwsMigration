@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-07-31 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1093 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1099 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -173,7 +173,8 @@ EwsMigration/
 
 - **積算エリアセット（commit 予定）**: `src/Ews.Analysis/AccumulationAreaSetter.cs`＝`Fyss36_Set_Seki`（＋`Get_Pdno`/`Get_Are1`/`Get_Are2`）。負荷発生元の通電電流値・負荷容量を相(R/S/T/X/Y/N の6スロット)×機器種別(A/B/C/D/E/M/S)で積算エリア sk_area へ展開（A～E=通電電流値、M/S=負荷容量）。相の判定は回路相数/線式/極数とグループ親・P系統の相数の組合せ15条件。
 - **新設モデル**: `CircuitWork.AccumulationSlots`(=sk_area 6スロット)＋`AccumulationArea`(=seki_area A/B/C/D/E/M/S)、`MainCircuitData.GroupParentSequenceNumber`(=goyano)。
-- **保留（Fyss36 残）**: `Fyss36_Get_Seki`(上流への電流伝搬)、本体オーケストレータ(外部 `Fyss37_I_Set_Sub`・`Fyss3A_Chk_Yoyaku`/`Fyss3A_Prc_Seksan` 依存)。順次移植。
+- **積算エリア伝播（commit 予定）**: `AccumulationAreaSetter.PropagateCurrentFromLoadSource`＝`Fyss36_Get_Seki`。通電電流値が0の末端は上流の負荷発生元('1')まで oyatno を遡り、その通電電流値・積算エリアを対象データ追番および途中機器へ複写する。C原典の0ガード無しループ/配列外参照は安全終了(正常データでは必ず負荷発生元が存在)。
+- **保留（Fyss36 残）**: 本体オーケストレータ `Fyss36_MattanKairo_Iset`(外部 `Fyss37_I_Set_Sub`・`Fyss3A_Chk_Yoyaku`/`Fyss3A_Prc_Seksan` 依存)。自己完結サブ(Set_Seki/Get_Pdno/Get_Are1/Get_Are2/Get_Seki)は移植済。
 
 ### 2026-07-31 セッション⑥ 追加分（ゴールデンマスタ 5 ファイル比較コア）
 **比較エンジン基盤**を TDD で新設。パイプライン成熟前でも回せる検証ゲートの土台を用意した。テストは 1004 → **1018**。

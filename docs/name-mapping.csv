@@ -500,3 +500,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss36_Get_Are1,AccumulationAreaSetter.GetArea1,toku/sekkei/src/Fyss36.c,相積算エリア(R/S/T/X/Y/N)フラグ判定。データ追番・グループ親・P系統の回路相数/線式/極数の組み合わせ15条件
 関数,Fyss36_Get_Are2,AccumulationAreaSetter.GetArea2,toku/sekkei/src/Fyss36.c,機器種別積算エリア(A/B/C/D/E/M/S)フラグ判定。負荷容量有無・負荷種類M・相数で分岐
 構造体,sk_work.sk_area/seki_area,CircuitWork.AccumulationSlots/AccumulationArea,fyrt800.h,積算エリア6スロット(相R/S/T/X/Y/N)。各a-e/m/s(A-Eに通電電流値・M/Sに負荷容量)
+関数,Fyss36_Get_Seki,AccumulationAreaSetter.PropagateCurrentFromLoadSource,toku/sekkei/src/Fyss36.c,通電電流値が0の末端は上流の負荷発生元('1')まで遡り通電電流値・積算エリアを対象と途中機器へ伝播。負荷発生元不在は安全終了(C原典はUB)
