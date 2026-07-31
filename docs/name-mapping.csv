@@ -491,3 +491,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 定義,FNAME_SY/FU/SE/RO/KO,GoldenMasterFileKind,fyrt808.h,FYDF806-811の5出力ファイル種別列挙
 関数,Fyss30_MattanKubun_Set,TerminalKindSetter.SetTerminalKind,toku/sekkei/src/Fyss30.c,末端区分(mattan)セット。P系統で自datanoが親oyatnoに不在→末端。SC単独末端は直前直列機器へ付け直し(MGSD/MCSD有時除外)
 関数,Fyss30(SC付け直し内側),TerminalKindSetter.ReattachTerminalToPrevious,toku/sekkei/src/Fyss30.c,SC末端を直前へ付け直す内側処理。階層/並列一致で移送(負荷未設定なら付属パラメータ移送)/不一致は後方有効負荷無時のみ
+関数,Fyss32_SC_NT_Tumiage_Set,UpstreamStackingKindSetter.SetUpstreamStackingKind,toku/sekkei/src/Fyss32.c,上流積み上げ区分(jagekbn)セット。K→1再セット/他クリア→SC・NTの直列最上位へ1(直列追番1は自身/他はi-(cno-1))→末端でないSCは0KW以外で1
