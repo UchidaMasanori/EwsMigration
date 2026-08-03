@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1408 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1428 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -202,6 +202,18 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`GetPoleCountSum`**（=`Fyss38_Get_epap`）: 親追番・階層番号一致で予約語='MCB' かつ電気パラメータ[2]極数=1 の件数を合計し、奇数なら +1 で偶数化して返す。
 - **C原典UB**: 960322 の直列番号(chokuno)比較は原典 `memcmp` が長さ引数欠落(K&R)で未定義動作。直列番号の実幅である 3 バイト序数比較で決定化しコメント明記。
 - **テスト**: `NtSpecialProcessorTests.cs` 8件。テストは 1400 → **1408**（+8）。
+
+### 2026-08-05 セッションㄐ 追加分（Fyss3D 使用相決定 段階移植(1) 純粋ヘルパー群）
+
+`Fyss3D.c`（約2900行, 改訂&lt;1&gt;～&lt;33&gt;）の使用相決定 `Fyss3D_PH_Kettei` を段階移植。
+巨大かつ深く相互依存するため、まず外部依存（物件明細 hycpskbn・エラー通知 FyHcErrFunc/Err_Code_Set）
+の無い純粋ヘルパー群を Ews.Analysis の `PhaseAssigner`（新規静的クラス）へ移植。
+
+- **移植した11関数**: `Convert2PhaseTo1Phase`(=Siyousou2to1 2相→1相)／`SortByParallelNumber`(=sort3d 並列追番昇順ソート)／`CountVolt100VDevices`(=PropCount100Vkiki 100V機器index収集, 改訂&lt;7&gt;)／`SetPhase100VDevices`(=PropSetSou100Vkiki XN/YN交互, 210スキップ)／`SetPhase3P3WDevices`(=PropSetSou3P3Wkiki RS/ST/TR)／`SetPhase3P4WDevices`(=PropSetSou3P4Wkiki RN/SN/TN)／`SetPhaseMc`(=PropSetSouMC MC極数→XY/XNY, MCB/SB2P200V→210補正)／`SetPhaseMc2P`(=PropSetSouMC2P MC/TB中抜き)／`SetPhaseMc3P`(=PropSetSouMC3P MC3P直下2P交互)／`GetMcChildMaxVolt`(=PropMcChildVolt 子最大負荷電圧)／`SetParamFor2P200V`(=PropSetPrmFor2P200v XY/210)。
+- **datano 依存**: `SetPhaseMc2P`/`SetPhaseMc3P`/`GetMcChildMaxVolt` は親子判定に datano を用いるため引数を `MainCircuitResult`(SequenceNumber 保持)とした。
+- **C原典UB**: `SetPhaseMc3P` の入線番号～直列追番15桁キー比較は原典が `-1 == strncmp` と生バイト差に依存。AIX(char=unsigned)相当の先頭不一致バイト符号付き差を返す `StrncmpAix` を実装し `== -1`(直下=直列追番が隣接)を忠実再現。
+- **残作業(後続増分)**: 統括本体 `Fyss3D_PH_Kettei`／index収集 `PropGetF800Index`/`34`/`34P`/`33`／改訂&lt;32&gt; `PropChgSiyousou`・`PropConnect3P4W`／`Fyss3D_Katagiri`・`Fyss3D_Keiki_set`・`Fyss3D_ResetRRYsou`／エラー依存チェック `PropCheckUseVolt`・`PropChkElem1P2W`・`PropChkLacslRryFuka`(FyHcErrFunc/Err_Code_Set をデリゲート境界化予定)。
+- **テスト**: `PhaseAssignerTests.cs` 20件。テストは 1408 → **1428**（+20）。
 
 
 
