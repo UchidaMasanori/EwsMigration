@@ -259,4 +259,141 @@ public sealed class PhaseAssignerTests
         var oya = Row(datano: "005", yoyaku: "MC ", fpalv0: "200");
         Assert.Equal(0, PhaseAssigner.GetMcChildMaxVolt([oya], oya));
     }
+
+    // ── Fyss3D_ResetRRYsou ───────────────────────────────────────────────────
+
+    [Fact]
+    public void RRYのCTは極数一で使用相をN付き2Pへ戻す()
+    {
+        var r = Row(yoyaku: "RRY ", siyouso: "X   ", ep0P: "001", ep2P: "000");
+        r.Data.DataType[1] = "CT ";
+        PhaseAssigner.ResetRRYPhase([r]);
+        Assert.Equal("XN  ", r.Data.UsedPhase);
+        Assert.Equal("022", r.Data.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void RRYのCTは極数無かつ2次側1でも戻す()
+    {
+        var r = Row(yoyaku: "RRY ", siyouso: "Y   ", ep0P: "000", ep2P: "001");
+        r.Data.DataType[1] = "CT ";
+        PhaseAssigner.ResetRRYPhase([r]);
+        Assert.Equal("YN  ", r.Data.UsedPhase);
+        Assert.Equal("022", r.Data.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void RRY以外は使用相を戻さない()
+    {
+        var r = Row(yoyaku: "MC  ", siyouso: "X   ", ep0P: "001");
+        r.Data.DataType[1] = "CT ";
+        PhaseAssigner.ResetRRYPhase([r]);
+        Assert.Equal("X   ", r.Data.UsedPhase);
+    }
+
+    // ── PropChkElem1P2W ──────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("CT ")]
+    [InlineData("CS ")]
+    [InlineData("ZS ")]
+    [InlineData("SE ")]
+    [InlineData("SES ")]
+    public void 分岐エレメント数一の計器類はエラーを返す(string dt0)
+    {
+        var r = Row(gyocd: "B  ");
+        r.Data.DataType[0] = dt0;
+        r.Data.ElectricalParameterSlots[0].E = "1";
+        r.Data.DescriptionRow = "012";
+        r.Data.DescriptionColumn = "034";
+        var err = PhaseAssigner.CheckElement1P2W(r.Data);
+        Assert.NotNull(err);
+        Assert.Equal("FY-144E", err!.ErrorCode);
+        Assert.Equal(12, err.LineNumber);
+        Assert.Equal(34, err.Column);
+        Assert.Equal("FYMEE90", err.MessageId);
+    }
+
+    [Fact]
+    public void 分岐でもエレメント数が一でなければエラーなし()
+    {
+        var r = Row(gyocd: "B  ");
+        r.Data.DataType[0] = "CT ";
+        r.Data.ElectricalParameterSlots[0].E = "0";
+        Assert.Null(PhaseAssigner.CheckElement1P2W(r.Data));
+    }
+
+    // ── PropCheckUseVolt ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void 子200V親100Vはエラーを返す()
+    {
+        var oya = Row(fpalv0: "100");
+        var ko = Row(fpalv0: "200");
+        ko.Data.DescriptionRow = "005";
+        ko.Data.DescriptionColumn = "007";
+        var err = PhaseAssigner.CheckUseVolt(oya.Data, ko.Data);
+        Assert.NotNull(err);
+        Assert.Equal("FY-074E", err!.ErrorCode);
+        Assert.Equal(5, err.LineNumber);
+        Assert.Equal(7, err.Column);
+    }
+
+    [Fact]
+    public void 子200V親200Vはエラーなし()
+    {
+        var oya = Row(fpalv0: "200");
+        var ko = Row(fpalv0: "200");
+        Assert.Null(PhaseAssigner.CheckUseVolt(oya.Data, ko.Data));
+    }
+
+    // ── PropChkLacslRryFuka ──────────────────────────────────────────────────
+
+    [Fact]
+    public void RRYのLAは極数一200Vでエラーを返す()
+    {
+        var r = Row(yoyaku: "RRY ", ep0P: "001", fpalv0: "200");
+        r.Data.DataType[1] = "LA ";
+        var err = PhaseAssigner.CheckLacslRryLoad(r.Data);
+        Assert.NotNull(err);
+        Assert.Equal("FY-074E", err!.ErrorCode);
+    }
+
+    [Fact]
+    public void RRYのLAでも100Vならエラーなし()
+    {
+        var r = Row(yoyaku: "RRY ", ep0P: "001", fpalv0: "100");
+        r.Data.DataType[1] = "LA ";
+        Assert.Null(PhaseAssigner.CheckLacslRryLoad(r.Data));
+    }
+
+    // ── Fyss3D_Katagiri ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void 片切りMC2次側無しは極数から使用相N相を削除する()
+    {
+        var r = Row(datano: "005", yoyaku: "MC      ", siyouso: "XN  ", ep0P: "000", kpav0: "105");
+        r.Data.IdentityNumber = "01";
+        PhaseAssigner.AdjustKatagiriPhase([r]);
+        Assert.Equal("X   ", r.Data.UsedPhase); // ikpap=1 で index1 以降をクリア
+    }
+
+    [Fact]
+    public void 片切りMC2次側有りは回路極数で使用相をクリアする()
+    {
+        var oya = Row(datano: "005", yoyaku: "MC      ", siyouso: "XN  ", ep0P: "000");
+        oya.Data.CircuitPoleCount = '1';
+        var ko = Row(oyatno: "005");
+        PhaseAssigner.AdjustKatagiriPhase([oya, ko]);
+        Assert.Equal("X   ", oya.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 片切りMCで使用相がXNYN以外はパスして変更しない()
+    {
+        var r = Row(datano: "005", yoyaku: "MC      ", siyouso: "XY  ", ep0P: "000", kpav0: "105");
+        r.Data.IdentityNumber = "01";
+        PhaseAssigner.AdjustKatagiriPhase([r]);
+        Assert.Equal("XY  ", r.Data.UsedPhase);
+    }
 }

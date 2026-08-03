@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1428 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1444 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -214,6 +214,15 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **C原典UB**: `SetPhaseMc3P` の入線番号～直列追番15桁キー比較は原典が `-1 == strncmp` と生バイト差に依存。AIX(char=unsigned)相当の先頭不一致バイト符号付き差を返す `StrncmpAix` を実装し `== -1`(直下=直列追番が隣接)を忠実再現。
 - **残作業(後続増分)**: 統括本体 `Fyss3D_PH_Kettei`／index収集 `PropGetF800Index`/`34`/`34P`/`33`／改訂&lt;32&gt; `PropChgSiyousou`・`PropConnect3P4W`／`Fyss3D_Katagiri`・`Fyss3D_Keiki_set`・`Fyss3D_ResetRRYsou`／エラー依存チェック `PropCheckUseVolt`・`PropChkElem1P2W`・`PropChkLacslRryFuka`(FyHcErrFunc/Err_Code_Set をデリゲート境界化予定)。
 - **テスト**: `PhaseAssignerTests.cs` 20件。テストは 1408 → **1428**（+20）。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(2) リセット/片切り/エラーチェック）
+
+`PhaseAssigner`（既存）へ Fyss3D のリーフ/サブ関数群を追加移植。
+
+- **移植した5関数**: `ResetRRYPhase`(=Fyss3D_ResetRRYsou 機器選定後にRRY-CTの使用相をN付き2Pへ戻し極数を2Pへ修正, 改訂&lt;26&gt;)／`AdjustKatagiriPhase`(=Fyss3D_Katagiri 片切りMC/SSWの使用相N相削除。2次側機器の有無・同一機器認識番号の共用・極数(ep0.P/kpav/kpap)からN相以降をクリア, 改訂&lt;3&gt;&lt;33&gt;)。
+- **エラー依存チェック3種**（`Err_Code_Set`を `CircuitParseError?` 返却で境界化, null=正常）: `CheckElement1P2W`(=PropChkElem1P2W 分岐でCT/CS/ZS/SE/SESのエレメント数1で FY-144E)／`CheckUseVolt`(=PropCheckUseVolt 子200V・親100Vで FY-074E, 子機器の行桁)／`CheckLacslRryLoad`(=PropChkLacslRryFuka RRY-LAで極数1・200Vで FY-074E)。いずれも msgid="FYMEE90"。
+- **C原典メモ**: `Fyss3D_Keiki_set` はテーブル駆動で大きく后続増分へ。同関数内に C の代入バグ `ep[2].epaqty = '2'`（== のつもりが =）あり→移植時に忟実再現か修正か要判断。
+- **テスト**: `PhaseAssignerTests.cs` +16件。テストは 1428 → **1444**（+16）。
 
 
 

@@ -323,6 +323,293 @@ public static class PhaseAssigner
         }
     }
 
+    /// <summary>
+    /// MC/SSW を片切りで使う時に使用相を見直し N 相を削除する。同一機器認識番号の共用も考慮する。
+    /// 【C原典】<c>Fyss3D_Katagiri</c>(950206, 改訂&lt;3&gt;&lt;33&gt;)。
+    /// </summary>
+    public static void AdjustKatagiriPhase(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData di = mains[i].Data;
+
+            if (Matches(di.ReservedWord, "RRY     ", 8))
+            {
+                // 改訂<33> 両切り 6A リレーは対象外。
+                if (Matches(di.DataType[1], "6A4K", 4) || Matches(di.AttachedParameter.LoadVoltage[0], "200", 3))
+                {
+                    continue;
+                }
+
+                if (!Matches(di.IdentityNumber, "00", 2)) // 同一機器認識番号がセットされている
+                {
+                    di.UsedPhase = ClearPhaseFrom(di.UsedPhase, 1);
+                    for (int k = i; k < mains.Count; k++)
+                    {
+                        if (Matches(di.IdentityNumber, mains[k].Data.IdentityNumber, 2))
+                        {
+                            mains[k].Data.UsedPhase = ClearPhaseFrom(mains[k].Data.UsedPhase, 1);
+                        }
+                    }
+                }
+            }
+
+            // 改訂<3> MC で使用相が XN/YN 以外はパス。
+            if (Matches(di.ReservedWord, "MC      ", 8))
+            {
+                if (!Matches(di.UsedPhase, "XN  ", 4) && !Matches(di.UsedPhase, "YN  ", 4))
+                {
+                    continue;
+                }
+            }
+
+            if (!Matches(di.ReservedWord, "MC      ", 8) && !Matches(di.ReservedWord, "SSW     ", 8))
+            {
+                continue;
+            }
+
+            // 2 次側に機器が接続されるかを判定する。
+            bool secondaryExists = false;
+            for (int j = 0; j < mains.Count; j++)
+            {
+                if (Matches(mains[i].SequenceNumber, mains[j].Data.ParentSequenceNumber, 3))
+                {
+                    secondaryExists = true;
+                    break;
+                }
+            }
+
+            // 2 次側に機器がなくても同一機器認識番号があれば他の機器の 2 次側もチェックする。
+            if (!secondaryExists && !Matches(di.IdentityNumber, "00", 2))
+            {
+                for (int j = 0; j < mains.Count; j++)
+                {
+                    if (i == j)
+                    {
+                        continue;
+                    }
+
+                    MainCircuitData dj = mains[j].Data;
+                    if (Matches(di.IdentityNumber, dj.IdentityNumber, 2) &&
+                        Matches(di.ReservedWord, dj.ReservedWord, 8))
+                    {
+                        for (int k = 0; k < mains.Count; k++)
+                        {
+                            if (Matches(mains[j].SequenceNumber, mains[k].Data.ParentSequenceNumber, 3))
+                            {
+                                secondaryExists = true;
+                                break;
+                            }
+                        }
+
+                        if (secondaryExists)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            int ikpap;
+            if (!secondaryExists) // 2 次側に機器なし
+            {
+                if (Matches(di.IdentityNumber, "00", 2))
+                {
+                    continue;
+                }
+
+                if (Matches(di.ElectricalParameterSlots[0].P, "000", 3)) // 極数の入力が無い
+                {
+                    ikpap = string.CompareOrdinal(Fixed(di.CircuitVoltage[0], 3), "105") > 0 ? 2 : 1;
+                }
+                else
+                {
+                    ikpap = EquipmentParameterFormatter.Stoi(di.ElectricalParameterSlots[0].P, 3);
+                    if (ikpap >= 2) // 1996.08.22 電圧による判定
+                    {
+                        ikpap = KpavConcat9(di) == "210000000" ? 2 : 1;
+                    }
+                }
+            }
+            else // 2 次側に機器あり
+            {
+                if (Matches(di.ElectricalParameterSlots[0].P, "000", 3)) // 極数の入力が無い
+                {
+                    if (di.DesignationSuffix == ' ' && !Matches(di.DesignationNumber, "00", 2)) // 共用
+                    {
+                        int icnt100 = 0;
+                        int icnt200 = 0;
+                        for (int j = 0; j < mains.Count; j++)
+                        {
+                            MainCircuitData dj = mains[j].Data;
+                            if (!Matches(dj.ReservedWord, "MC      ", 8) && !Matches(dj.ReservedWord, "SSW     ", 8))
+                            {
+                                continue;
+                            }
+
+                            if (Matches(di.DesignationNumber, dj.DesignationNumber, 2))
+                            {
+                                if (string.CompareOrdinal(Fixed(dj.CircuitVoltage[0], 3), "105") > 0)
+                                {
+                                    icnt200++;
+                                }
+                                else
+                                {
+                                    icnt100++;
+                                }
+                            }
+                        }
+
+                        ikpap = icnt100 + (icnt200 * 2) <= 3 ? CharDigit(di.CircuitPoleCount) : 1;
+                    }
+                    else // 共用しない
+                    {
+                        ikpap = CharDigit(di.CircuitPoleCount);
+                    }
+                }
+                else // 極数の入力が有る
+                {
+                    if (di.DesignationSuffix == ' ' && !Matches(di.DesignationNumber, "00", 2)) // 共用
+                    {
+                        ikpap = EquipmentParameterFormatter.Stoi(di.ElectricalParameterSlots[0].P, 3);
+                        if (ikpap >= 2)
+                        {
+                            ikpap = KpavConcat9(di) == "210000000" ? 2 : 1;
+                        }
+                    }
+                    else // 共用しない
+                    {
+                        ikpap = EquipmentParameterFormatter.Stoi(di.ElectricalParameterSlots[0].P, 3);
+                    }
+                }
+            }
+
+            if (ikpap > 0 && ikpap < 4)
+            {
+                di.UsedPhase = ClearPhaseFrom(di.UsedPhase, ikpap);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 機器選定後に RRY+(CT) の使用相を 2 極(N 付き)へ戻す。【C原典】<c>Fyss3D_ResetRRYsou</c>(改訂&lt;26&gt;)。
+    /// </summary>
+    public static void ResetRRYPhase(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (!Matches(d.ReservedWord, "RRY ", 4) || !Matches(d.DataType[1], "CT ", 3))
+            {
+                continue;
+            }
+
+            if (Matches(d.ElectricalParameterSlots[0].P, "001", 3) ||
+                (Matches(d.ElectricalParameterSlots[0].P, "000", 3) &&
+                 Matches(d.ElectricalParameterSlots[2].P, "001", 3)))
+            {
+                d.UsedPhase = SetChar(d.UsedPhase, 1, 'N'); // XN,YN へ修正
+                d.ElectricalParameterSlots[2].P = SetChar3(d.ElectricalParameterSlots[2].P, 1, '2', 2, '2'); // 極数 2P
+            }
+        }
+    }
+
+    /// <summary>
+    /// 単相 2 線の分岐エレメント数チェック。分岐で CT/CS/ZS/SE/SES がエレメント数 1 なら接続不可エラー。
+    /// 【C原典】<c>PropChkElem1P2W</c>(改訂&lt;19&gt;)。エラーは <see cref="CircuitParseError"/> を返す。
+    /// </summary>
+    public static CircuitParseError? CheckElement1P2W(MainCircuitData main)
+    {
+        ArgumentNullException.ThrowIfNull(main);
+
+        if (First(main.LineTypeCode) == 'B' && Matches(main.ElectricalParameterSlots[0].E, "1", 1))
+        {
+            string dt0 = main.DataType[0];
+            if (Matches(dt0, "CT ", 3) || Matches(dt0, "CS ", 3) || Matches(dt0, "ZS ", 3) ||
+                Matches(dt0, "SE ", 3) || Matches(dt0, "SES ", 4))
+            {
+                return MakeError("FY-144E", main); // エレメント数が間違っています
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 使用電圧指示エラーチェック。子の負荷電圧 200V・親の負荷電圧 100V ならエラー。
+    /// 【C原典】<c>PropCheckUseVolt</c>(改訂&lt;3&gt;)。エラーは子機器の行桁で <see cref="CircuitParseError"/> を返す。
+    /// </summary>
+    public static CircuitParseError? CheckUseVolt(MainCircuitData oya, MainCircuitData ko)
+    {
+        ArgumentNullException.ThrowIfNull(oya);
+        ArgumentNullException.ThrowIfNull(ko);
+
+        if (Matches(ko.AttachedParameter.LoadVoltage[0], "200", 3) &&
+            Matches(oya.AttachedParameter.LoadVoltage[0], "100", 3))
+        {
+            return MakeError("FY-074E", ko); // 親が 100V のためエラー
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// LACSL リレーの負荷電圧チェック。RRY(LA) で極数 1・負荷電圧 200V ならエラー。
+    /// 【C原典】<c>PropChkLacslRryFuka</c>(改訂&lt;15&gt;)。エラーは <see cref="CircuitParseError"/> を返す。
+    /// </summary>
+    public static CircuitParseError? CheckLacslRryLoad(MainCircuitData main)
+    {
+        ArgumentNullException.ThrowIfNull(main);
+
+        if (Matches(main.ReservedWord, "RRY ", 4) && Matches(main.DataType[1], "LA ", 3))
+        {
+            if (Matches(main.ElectricalParameterSlots[0].P, "001", 3) &&
+                Matches(main.AttachedParameter.LoadVoltage[0], "200", 3))
+            {
+                return MakeError("FY-074E", main);
+            }
+        }
+
+        return null;
+    }
+
+    private static CircuitParseError MakeError(string code, MainCircuitData d) =>
+        new(code, EquipmentParameterFormatter.Stoi(d.DescriptionRow, 3),
+            EquipmentParameterFormatter.Stoi(d.DescriptionColumn, 3), "FYMEE90");
+
+    // 回路電圧 3 スロット(各3桁)を連結した 9 桁キー。【C原典】memcmp(&kpav[0],"210000000",9)。
+    private static string KpavConcat9(MainCircuitData d) =>
+        Fixed(d.CircuitVoltage[0], 3) + Fixed(d.CircuitVoltage[1], 3) + Fixed(d.CircuitVoltage[2], 3);
+
+    private static int CharDigit(char c) => c is >= '0' and <= '9' ? c - '0' : 0;
+
+    private static char First(string s) => s.Length > 0 ? s[0] : ' ';
+
+    // 4 桁固定の使用相の start から末尾までをスペースにする。
+    private static string ClearPhaseFrom(string phase, int start)
+    {
+        char[] arr = phase.PadRight(4)[..4].ToCharArray();
+        for (int k = start; k < 4; k++)
+        {
+            arr[k] = ' ';
+        }
+
+        return new string(arr);
+    }
+
+    // 3 桁固定文字列の 2 か所を指定文字に置換する(strncpy 相当の部分上書き)。
+    private static string SetChar3(string s, int i1, char c1, int i2, char c2)
+    {
+        char[] arr = s.PadRight(3)[..3].ToCharArray();
+        arr[i1] = c1;
+        arr[i2] = c2;
+        return new string(arr);
+    }
+
     // 入線番号+上流並列追番+階層番号+並列追番+直列追番 を各3桁固定で連結した15桁キー。
     private static string SeriesKey(MainCircuitData d) =>
         Fixed(d.IncomingNumber, 3) + Fixed(d.UpperParallelNumber, 3) + Fixed(d.HierarchyNumber, 3) +

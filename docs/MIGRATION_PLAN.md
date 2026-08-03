@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1428** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **594** | — |
+| テスト成功数 | **1444** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **599** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
 | 直近コミット | `629304d` | — |
-| 最終更新 | 2026-08-05 | — |
+| 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
@@ -188,7 +188,7 @@ graph LR
 ### フェーズ 8 — 線番付与・回路設計出力（Fyss3* 系, 約 12,300 行）
 | ファイル(行) | 役割 | 状況 |
 |---|---|---|
-| **Fyss3G(4073)**, **Fyss3D(2901)**, **Fyss3C(2397)**, Fyss3R(586), Fyss3F(370), Fyss3A(363),3B(211),3E(213),3H(317),3I(168) | 回路設計処理/線番系統変更 | 🟡 **Fyss3G ✅完全移植完了**（CNS/Seek/Check/全セッタ/ディスパッチャ本体）/ **Fyss3B ✅完全移植完了** / **Fyss3R ✅完全移植完了**（プラグイン判定 FyHcPlugInJdgType＋グルーピング PropGrouping＋結線処理 Kes_Set/PropSetSouFor1sou/3sou＋主幹チェック MainChk。FYDF805(NOTHING判定)・LibTreeSrch(親検索)はデリゲート境界化）/ **Fyss3A ✅完全移植完了**(ScNtUpstreamAccumulator) / **Fyss3F ✅完全移植完了**(LoadSourceChanger=負荷発生元変更。使用相別の積算エリア相間振替＋下流フラグ再帰クリア。外部依存なし) / **Fyss3D 🟡段階移植中**(PhaseAssigner=使用相決定Fyss3D_PH_Kettei。段階1: 外部依存なし純粋ヘルパー11関数移植=Siyousou2to1/sort3d/PropCount100Vkiki/PropSetSou100Vkiki/3P3W/3P4W/PropSetSouMC/MC2P/MC3P/PropMcChildVolt/PropSetPrmFor2P200v。残: 統括本体Fyss3D_PH_Kettei・PropGetF800Index*・PropChgSiyousou/PropConnect3P4W・Fyss3D_Katagiri/Keiki_set/ResetRRYsou・エラー依存チェック(PropCheckUseVolt/PropChkElem1P2W/PropChkLacslRryFuka)) / 他は ❌ |
+| **Fyss3G(4073)**, **Fyss3D(2901)**, **Fyss3C(2397)**, Fyss3R(586), Fyss3F(370), Fyss3A(363),3B(211),3E(213),3H(317),3I(168) | 回路設計処理/線番系統変更 | 🟡 **Fyss3G ✅完全移植完了**（CNS/Seek/Check/全セッタ/ディスパッチャ本体）/ **Fyss3B ✅完全移植完了** / **Fyss3R ✅完全移植完了**（プラグイン判定 FyHcPlugInJdgType＋グルーピング PropGrouping＋結線処理 Kes_Set/PropSetSouFor1sou/3sou＋主幹チェック MainChk。FYDF805(NOTHING判定)・LibTreeSrch(親検索)はデリゲート境界化）/ **Fyss3A ✅完全移植完了**(ScNtUpstreamAccumulator) / **Fyss3F ✅完全移植完了**(LoadSourceChanger=負荷発生元変更。使用相別の積算エリア相間振替＋下流フラグ再帰クリア。外部依存なし) / **Fyss3D 🟡段階移植中**(PhaseAssigner=使用相決定Fyss3D_PH_Kettei。段階1: 外部依存なし純粋ヘルパー11関数移植=Siyousou2to1/sort3d/PropCount100Vkiki/PropSetSou100Vkiki/3P3W/3P4W/PropSetSouMC/MC2P/MC3P/PropMcChildVolt/PropSetPrmFor2P200v。段階2: ResetRRYsou(RRY-CT使用相2Pへ戻す)・Katagiri(片切りN相削除)・エラー依存チェック3種(PropChkElem1P2W=FY-144E/PropCheckUseVolt=FY-074E/PropChkLacslRryFuka=FY-074E、CircuitParseError返却で境界化)移植。残: 統括本体Fyss3D_PH_Kettei・PropGetF800Index*・PropChgSiyousou/PropConnect3P4W・Fyss3D_Keiki_set(計器回路使用相セット)) / 他は ❌ |
 | Fyss3P(332), Fyss3Q(194) | 線番付与/線番ファイル更新 | ❌ |
 
 ### フェーズ 9 — オーケストレータ結線（Fysk10, 2,827 行）

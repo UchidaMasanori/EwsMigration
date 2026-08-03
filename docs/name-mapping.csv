@@ -593,3 +593,8 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropSetSouMC3P,PhaseAssigner.SetPhaseMc3P,toku/sekkei/src/Fyss3D.c,MC3P直下が2Pの場合にXN/YNを交互設定。入線番号～直列追番の15桁キーがstrncmp=-1(直下)かつ親子の時のみ(改訂16/31)
 関数,PropMcChildVolt,PhaseAssigner.GetMcChildMaxVolt,toku/sekkei/src/Fyss3D.c,親MCが負荷電圧無指定の時に子機器の最大負荷電圧を返す(改訂4)
 関数,PropSetPrmFor2P200v,PhaseAssigner.SetParamFor2P200V,toku/sekkei/src/Fyss3D.c,2P200V対応へ使用相XYと回路電圧210へ変更(改訂4)
+関数,Fyss3D_ResetRRYsou,PhaseAssigner.ResetRRYPhase,toku/sekkei/src/Fyss3D.c,機器選定後にRRY(CT)の使用相をN付き2Pへ戻し極数を2Pへ修正(改訂26)
+関数,Fyss3D_Katagiri,PhaseAssigner.AdjustKatagiriPhase,toku/sekkei/src/Fyss3D.c,MC/SSWを片切りで使う時に使用相のN相を削除・同一機器認識番号の共用も考慮(改訂3/33)
+関数,PropChkElem1P2W,PhaseAssigner.CheckElement1P2W,toku/sekkei/src/Fyss3D.c,分岐でCT/CS/ZS/SE/SESのエレメント数が1ならFY-144Eエラー(改訂19)
+関数,PropCheckUseVolt,PhaseAssigner.CheckUseVolt,toku/sekkei/src/Fyss3D.c,子の負荷電圧200V・親100VでFY-074Eエラー(改訂3)
+関数,PropChkLacslRryFuka,PhaseAssigner.CheckLacslRryLoad,toku/sekkei/src/Fyss3D.c,RRY(LA)で極数1・負荷電圧200VならFY-074Eエラー(改訂15)
