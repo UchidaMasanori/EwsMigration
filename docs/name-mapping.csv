@@ -574,3 +574,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss39_Get_Seiden,ScSpecialProcessor.GetCapacitance,toku/sekkei/src/Fyss39.c,ＳＣの静電容量算出。電動機容量Pkm=pm/1000と回路相数/電圧/周波数で係数a/bを決めSCuf=(Pkm)^a*b(三相?220/>220×50/60Hz容量帯・単相?105・他)。1998.05.19乗数変更(0.91/18.71)含む
 フィールド,scflg,CircuitWork.ScProcessedFlag,toku/include/common/fyrt800.h,ＳＣ処理済フラグ(' ':未処理 '1':処理済)。Fyss39が使用する1バイト固定長ワーク
 関数,Fyss39_Chk_Heiret/Get_ParmSC/Chg_KvarUf/Set_ParmSC,(未移植),toku/sekkei/src/Fyss39.c,並列ＳＣ処理群。SC_Procの負荷容量合計ループ手前951002 continueによりsc_flagが常に0となり到達不能(デッドコード)のため未移植
+関数,Fyss3F_Fuka_Change,LoadSourceChanger.ChangeLoadSource,toku/sekkei/src/Fyss3F.c,負荷発生元の変更処理。先頭機器(回路要素'1'&先頭機器フラグ'1')の負荷発生元区分を'1'にし使用相siyouso別に積算エリアsk_areaの相間振替(XN/YN=XY_set・RN/SN/TN=RST_set・RS/ST/TR=RST2_set)後、下流子孫の負荷発生元区分をclear_ahasseiで再帰クリア。外部依存なし
+関数,XY_set,LoadSourceChanger.XySet,toku/sekkei/src/Fyss3F.c,積算エリアのＸＹ相セット。destの各相(a/b/c/d/e/m/s)が0ならoriginから複写
+関数,RST_set,LoadSourceChanger.RstSet,toku/sekkei/src/Fyss3F.c,積算エリアのＲＳＴ相セット。destの各相が0ならorigin1優先(0ならorigin2)から複写
+関数,RST2_set,LoadSourceChanger.Rst2Set,toku/sekkei/src/Fyss3F.c,積算エリアのＲＳＴ相セット(2相補完)。sk_area[k1]==0で[k2]<-[k3]/[k4]<-[k5]・else [k6]==0で[k7]<-[k8]/[k9]<-[k10]
+関数,sou_clear,LoadSourceChanger.ClearPhase,toku/sekkei/src/Fyss3F.c,積算エリアの相クリア。指定相の全フィールド(a/b/c/d/e/m/s)を0にする
+関数,clear_ahassei,LoadSourceChanger.ClearLoadSourceFlag,toku/sekkei/src/Fyss3F.c,親の追い番を元に子供の負荷設定フラグをクリア。親追番=oyatnoの要素のahasseiを空白にし当該datanoで再帰(nest999上限)

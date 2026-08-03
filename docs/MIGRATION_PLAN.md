@@ -57,8 +57,8 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1394** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **575** | — |
+| テスト成功数 | **1400** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **581** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
 | 直近コミット | `1e9b860` | — |
 | 最終更新 | 2026-08-05 | — |
@@ -188,7 +188,7 @@ graph LR
 ### フェーズ 8 — 線番付与・回路設計出力（Fyss3* 系, 約 12,300 行）
 | ファイル(行) | 役割 | 状況 |
 |---|---|---|
-| **Fyss3G(4073)**, **Fyss3D(2901)**, **Fyss3C(2397)**, Fyss3R(586), Fyss3F(370), Fyss3A(363),3B(211),3E(213),3H(317),3I(168) | 回路設計処理/線番系統変更 | 🟡 **Fyss3G ✅完全移植完了**（CNS/Seek/Check/全セッタ/ディスパッチャ本体）/ **Fyss3B ✅完全移植完了** / **Fyss3R ✅完全移植完了**（プラグイン判定 FyHcPlugInJdgType＋グルーピング PropGrouping＋結線処理 Kes_Set/PropSetSouFor1sou/3sou＋主幹チェック MainChk。FYDF805(NOTHING判定)・LibTreeSrch(親検索)はデリゲート境界化）/ 他は ❌ |
+| **Fyss3G(4073)**, **Fyss3D(2901)**, **Fyss3C(2397)**, Fyss3R(586), Fyss3F(370), Fyss3A(363),3B(211),3E(213),3H(317),3I(168) | 回路設計処理/線番系統変更 | 🟡 **Fyss3G ✅完全移植完了**（CNS/Seek/Check/全セッタ/ディスパッチャ本体）/ **Fyss3B ✅完全移植完了** / **Fyss3R ✅完全移植完了**（プラグイン判定 FyHcPlugInJdgType＋グルーピング PropGrouping＋結線処理 Kes_Set/PropSetSouFor1sou/3sou＋主幹チェック MainChk。FYDF805(NOTHING判定)・LibTreeSrch(親検索)はデリゲート境界化）/ **Fyss3A ✅完全移植完了**(ScNtUpstreamAccumulator) / **Fyss3F ✅完全移植完了**(LoadSourceChanger=負荷発生元変更。使用相別の積算エリア相間振替＋下流フラグ再帰クリア。外部依存なし) / 他は ❌ |
 | Fyss3P(332), Fyss3Q(194) | 線番付与/線番ファイル更新 | ❌ |
 
 ### フェーズ 9 — オーケストレータ結線（Fysk10, 2,827 行）
