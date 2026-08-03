@@ -7,9 +7,12 @@ namespace Ews.Tests;
 
 /// <summary>
 /// <see cref="CurrentParameterSetter"/> の中位セッタ群
-/// (【C原典】Fyss3G_Set_TB / Set_TR / Set_RRY / Set_AM, toku/sekkei/src/Fyss3G.c)の単体テスト。
+/// (【C原典】Fyss3G_Set_TB / Set_TR / Set_RRY / Set_AM / Set_CT / Set_MC(Set_MC_SC),
+/// toku/sekkei/src/Fyss3G.c)の単体テスト。
 /// TB は電線サイズ検索(CnsSQsetSeek)、TR は下流抽出(Fyss35_Select_Karyu_Sub)、
-/// RRY は親遡行、AM は延長目盛りタイプ判定＋定格電流１検索(CnsA1setSeek)を伴う。
+/// RRY は親遡行、AM は延長目盛りタイプ判定＋定格電流１検索(CnsA1setSeek)、
+/// CT は同一機器認識番号による相互補完＋計器回路 WH/AM 参照、
+/// MC は直下 'SC' 検索＋INVBP 帯別 A2＋定格電流２係数を伴う。
 /// </summary>
 public class CurrentParameterSetterModerateTests
 {
@@ -487,6 +490,245 @@ public class CurrentParameterSetterModerateTests
         CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "78007");
 
         Assert.Equal("NBK    ", row.Data.DataType[0]);
+    }
+
+    // ==== Set_CT ====
+
+    [Fact]
+    public void SetCt_主回路はep2A1が未設定ならA1SET検索で設定する()
+    {
+        var row = Rec(energizingCurrent: "00005.00");
+        row.Data.CircuitElement = '1';
+        row.Data.ElectricalParameterSlots[2].A1 = "00000.000";  // C 意味の未設定
+        var records = new List<MainCircuitResult> { row };
+
+        // prm1=1 で ep[1] 処理を打ち切る。denryu=5 -> a1=5 -> A1SET 検索で 5 超の最初の 10。
+        CurrentParameterSetter.SetCt(1, records, 0, 1, RatedCurrents, 1);
+
+        Assert.Equal("00010.000", row.Data.ElectricalParameterSlots[2].A1);
+    }
+
+    [Fact]
+    public void SetCt_計器用回路CT付きはep2A2を5固定する()
+    {
+        var row = Rec(energizingCurrent: "00005.00");
+        row.Data.CircuitElement = '2';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetCt(1, records, 0, 1, RatedCurrents, 1);
+
+        // kiryoso=='2' なので A1 は未設定のまま、A2 のみ 5 固定。
+        Assert.Equal(RawZero9, row.Data.ElectricalParameterSlots[2].A1);
+        Assert.Equal("00005.000", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetCt_同一階層のAM回路要素2があればA1を1_2倍で検索する()
+    {
+        // records[0] = AM(回路要素2, 同一階層 001)。
+        var am = Rec(sequenceNumber: "001", hierarchyNumber: "001");
+        am.Data.ReservedWord = "AM      ";
+        am.Data.CircuitElement = '2';
+        // records[1] = CT(主回路, 同一階層 001, 同一機器認識番号 01)。
+        var ct = Rec(sequenceNumber: "002", energizingCurrent: "00018.00", hierarchyNumber: "001");
+        ct.Data.CircuitElement = '1';
+        ct.Data.IdentityNumber = "01";
+        ct.Data.ElectricalParameterSlots[2].A1 = "00000.000";  // C 意味の未設定
+        var records = new List<MainCircuitResult> { am, ct };
+
+        // denryu=18 -> AM 有りで 1.2 倍=21.6 -> A1SET 検索で 21.6 超の最初の 30。
+        CurrentParameterSetter.SetCt(1, records, 1, 2, RatedCurrents, 1);
+
+        Assert.Equal("00030.000", ct.Data.ElectricalParameterSlots[2].A1);
+    }
+
+    [Fact]
+    public void SetCt_ep1A1が未設定ならA1SET検索で設定する()
+    {
+        var row = Rec(energizingCurrent: "00025.00");
+        row.Data.CircuitElement = '2';
+        row.Data.ElectricalParameterSlots[1].A1 = "00000.000";  // C 意味の未設定
+        var records = new List<MainCircuitResult> { row };
+
+        // prm1=0。ep[1].A1 未設定 -> denryu=25 で A1SET 検索(25 超の最初の 30)。
+        CurrentParameterSetter.SetCt(0, records, 0, 1, RatedCurrents, 1);
+
+        Assert.Equal("00030.000", row.Data.ElectricalParameterSlots[1].A1);
+    }
+
+    [Fact]
+    public void SetCt_同一機器認識番号の相手からep2A1を補完する()
+    {
+        // records[0] = 設定済の相手(系統種別1, 同一機器認識番号 01, ep[2].A1=12.34)。
+        var donor = Rec(sequenceNumber: "001");
+        donor.Data.IdentityNumber = "01";
+        donor.Data.ElectricalParameterSlots[2].A1 = "00012.340";
+        // records[1] = 対象 CT(計器用回路, 同一機器認識番号 01, ep[2].A1 未設定)。
+        var ct = Rec(sequenceNumber: "002", energizingCurrent: "00005.00");
+        ct.Data.CircuitElement = '2';
+        ct.Data.IdentityNumber = "01";
+        ct.Data.ElectricalParameterSlots[2].A1 = "00000.000";  // C 意味の未設定(補完受け側)
+        var records = new List<MainCircuitResult> { donor, ct };
+
+        CurrentParameterSetter.SetCt(0, records, 1, 2, RatedCurrents, 1);
+
+        // 2 周目ループで相手の ep[2].A1 が対象へ複写される。
+        Assert.Equal("00012.340", ct.Data.ElectricalParameterSlots[2].A1);
+    }
+
+    [Fact]
+    public void SetCt_自身に入力が無ければ計器回路のWHのep0A1を採る()
+    {
+        // records[0] = WH(計器用回路2, 同一機器認識番号 01, 同一階層 001, ep[0].A1=7.89)。
+        var wh = Rec(sequenceNumber: "001", hierarchyNumber: "001", systemKind: '2');
+        wh.Data.ReservedWord = "WH      ";
+        wh.Data.CircuitElement = '2';
+        wh.Data.IdentityNumber = "01";
+        wh.Data.ElectricalParameterSlots[0].A1 = "00007.890";
+        // records[1] = CT(主回路, 同一機器認識番号 01, 同一階層 001, ep[0].A1 未設定)。
+        var ct = Rec(sequenceNumber: "002", energizingCurrent: "00005.00", hierarchyNumber: "001", systemKind: '2');
+        ct.Data.CircuitElement = '1';
+        ct.Data.IdentityNumber = "01";
+        ct.Data.ElectricalParameterSlots[0].A1 = "00000.000";
+        var records = new List<MainCircuitResult> { wh, ct };
+
+        CurrentParameterSetter.SetCt(0, records, 1, 2, RatedCurrents, 1);
+
+        // 1996.07.25 追加処理で WH の ep[0].A1 が自身の ep[0]/ep[1].A1 へ複写される。
+        Assert.Equal("00007.890", ct.Data.ElectricalParameterSlots[0].A1);
+        Assert.Equal("00007.890", ct.Data.ElectricalParameterSlots[1].A1);
+    }
+
+    [Fact]
+    public void SetCt_改訂4_WH用CTはVA未入力なら15VAとする()
+    {
+        // records[0] = WH(同一系統番号 003, 同一親データ追番 002)。
+        var wh = Rec(sequenceNumber: "001", systemKind: '2');
+        wh.Data.ReservedWord = "WH      ";
+        wh.Data.SystemNumber = "003";
+        wh.Data.ParentSequenceNumber = "002";
+        // records[1] = CT(同一系統番号 003, 同一親データ追番 002, ep[0].VA 未入力)。
+        var ct = Rec(sequenceNumber: "002", energizingCurrent: "00005.00");
+        ct.Data.CircuitElement = '2';
+        ct.Data.SystemNumber = "003";
+        ct.Data.ParentSequenceNumber = "002";
+        ct.Data.ElectricalParameterSlots[0].Va = "0000000.00";
+        var records = new List<MainCircuitResult> { wh, ct };
+
+        CurrentParameterSetter.SetCt(0, records, 1, 2, RatedCurrents, 1);
+
+        Assert.Equal("0000015.00", ct.Data.ElectricalParameterSlots[1].Va);
+        Assert.Equal("0000015.00", ct.Data.ElectricalParameterSlots[2].Va);
+    }
+
+    // ==== Set_MC ====
+
+    /// <summary>定格電流２設定表(空)。records[0] の機器選定区分が '1' でないため係数は常に 1。</summary>
+    private static readonly List<RatedCurrent2Setting> Rated2Empty = [];
+
+    [Fact]
+    public void SetMc_SC無し非INVBPはA2に通電電流と係数の積を設定する()
+    {
+        var row = Rec(energizingCurrent: "00030.00");
+        var records = new List<MainCircuitResult> { row };
+
+        // SC 無し・係数=1 -> A2 = denryu(30)。
+        CurrentParameterSetter.SetMc(1, records, 0, 1, Rated2Empty, 1, "01");
+
+        Assert.Equal("00030.000", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Theory]
+    [InlineData("0002200", "00013.000")]
+    [InlineData("0003700", "00020.000")]
+    [InlineData("0007500", "00035.000")]
+    [InlineData("0011000", "00050.000")]
+    [InlineData("0015000", "00065.000")]
+    [InlineData("0018500", "00080.000")]
+    [InlineData("0022000", "00100.000")]
+    [InlineData("0025000", "00125.000")]
+    public void SetMc_改訂13_INVBPは負荷容量帯でA2を強制する(string loadCapacity, string expected)
+    {
+        var row = Rec(energizingCurrent: "00030.00", loadCapacity: loadCapacity);
+        row.Data.SpecialReservedWordKind = '7';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetMc(1, records, 0, 1, Rated2Empty, 1, "01");
+
+        Assert.Equal(expected, row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetMc_SC有り製作仕様01でkpav超過はA2を1_2倍にする()
+    {
+        // records[0] = MC(系統種別1, denryu=10, 回路電圧 400>220)。
+        var mc = Rec(sequenceNumber: "001", energizingCurrent: "00010.00");
+        mc.Data.CircuitVoltage[0] = "400";
+        // records[1] = SC(MC の下流, 親データ追番 001)。
+        var sc = Rec(sequenceNumber: "002", parentSequenceNumber: "001");
+        sc.Data.ReservedWord = "SC      ";
+        var records = new List<MainCircuitResult> { mc, sc };
+
+        CurrentParameterSetter.SetMc(1, records, 0, 2, Rated2Empty, 1, "01");
+
+        // SC 有り・製作仕様 01・kpav=400>220 -> A2 = denryu*1.2 = 12。
+        Assert.Equal("00012.000", mc.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetMc_SC有り製作仕様非01は並列三相負荷帯でA2を算出する()
+    {
+        // records[0] = MC(系統種別1, denryu=10, 回路電圧 0)。
+        var mc = Rec(sequenceNumber: "001", energizingCurrent: "00010.00");
+        mc.Data.CircuitVoltage[0] = "000";
+        // records[1] = SC(親データ追番 001)。
+        var sc = Rec(sequenceNumber: "002", parentSequenceNumber: "001");
+        sc.Data.ReservedWord = "SC      ";
+        // records[2] = SC 並列の三相電動機負荷(親データ追番 001, 負荷容量 10000W, 回路電圧非0)。
+        var load = Rec(
+            sequenceNumber: "003",
+            parentSequenceNumber: "001",
+            loadSourceKind: '1',
+            loadCapacity: "0010000",
+            loadKind: "M ",
+            circuitPhaseCount: '3');
+        load.Data.CircuitVoltage[0] = "200";
+        var records = new List<MainCircuitResult> { mc, sc, load };
+
+        CurrentParameterSetter.SetMc(1, records, 0, 3, Rated2Empty, 1, "02");
+
+        // C の %lf→SHORT 未定義動作(AIX big-endian)により三相負荷は lw2_3s へ集約。
+        // lw2_3s=10000<=15000 -> A2 = pow(denryu,0.4)*10 = pow(10,0.4)*10 = 25.11886…。
+        Assert.Equal("00025.119", mc.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetMc_ep0A2未設定かつW1設定済ならep1A2を負荷種類から算出する()
+    {
+        // 単相ヒータ:w1/kpav = 2200/200 = 11。
+        var row = Rec(energizingCurrent: "00030.00", circuitPhaseCount: '1');
+        row.Data.CircuitVoltage[0] = "200";
+        row.Data.ElectricalParameterSlots[0].A2 = "00000.000";  // 未設定(C 意味の未設定)
+        row.Data.ElectricalParameterSlots[0].W1 = "0002200.00"; // 設定済(条件用)
+        row.Data.ElectricalParameterSlots[1].W1 = "0002200.00"; // 算出用
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetMc(0, records, 0, 1, Rated2Empty, 1, "01");
+
+        Assert.Equal("00011.000", row.Data.ElectricalParameterSlots[1].A2);
+    }
+
+    [Fact]
+    public void SetMc_負荷発生区分ならep2A2にep1A2を複写する()
+    {
+        var row = Rec(energizingCurrent: "00030.00", loadSourceKind: '1');
+        // ep[0].A2 は既定("000000000")のまま=C 意味では設定済扱い -> ep[1] 算出はスキップ。
+        row.Data.ElectricalParameterSlots[1].A2 = "00012.340";
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetMc(0, records, 0, 1, Rated2Empty, 1, "01");
+
+        Assert.Equal("00012.340", row.Data.ElectricalParameterSlots[2].A2);
     }
 }
 

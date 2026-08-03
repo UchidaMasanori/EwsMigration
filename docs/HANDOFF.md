@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1238 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1258 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -214,6 +214,18 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
   - **ep[1] 再設定（prm1==0）**: CT 付きで ep[1].A1 非ゼロなら定格電流を再検索(1.2 倍なし)。負荷発生元(ahassei=='1')は ep[2].A1 に ep[1].A1 を複写。
 - **依存**: ゾーンコードは C の `FyGetZoneCD` を `SetAm(..., string zoneCode)` 引数化（既存 `IRuntimeParameterProvider.ZoneCode` から供給）。定格電流１検索は既存 `CurrentParameterTableSeeker.SeekRatedCurrent1`。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 依存]/CT[同一機器多重ループ]）。
+
+### 2026-08-03 セッション⑭ 追加分（Fyss3G 依存付きセッタ: CT/MC）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の変流器/電磁接触器セッタ CT/MC を移植（Fyss3G 非ディスパッチャ最終分）。
+既存 `CurrentParameterSetter` に追加。テストは 1238 → **1258**（+20）。
+
+- **CT/MC セッタ（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs` に追加。
+  - `SetCt`（=`Fyss3G_Set_CT`, CT）: 主回路(kiryoso=='1')は ep[2].A1＝`SeekRatedCurrent1` 検索値。同一階層(kaisono)に予約語 AM の回路要素2があれば通電電流を 1.2 倍してから検索。計器回路 CT 付き(kiryoso=='2')は A2＝5 固定。prm1==0 では ep[1].A1 を検索設定し、同一機器認識番号(ninsno)の相手と ep[2].A1/A2 を相互補完。負荷発生元(ahassei=='1')は ep[2].A1←ep[1].A1。**1996.07.25 追加処理**（prm1==0）: ep[0].A1 未入力かつ計器回路の相手(回路要素2)経由で予約語 WH/AM の ep[0].A1 を ep[0]/ep[1].A1 へ継承。**改訂<4>**（prm1==0）: 同一系統番号(kno)・同一親データ追番(oyatno)の WH で ep[0].VA 未入力なら ep[1]/ep[2].VA＝15VA。
+  - `SetMc`（=`Fyss3G_Set_MC`, MC）: ep[2] は `SetMcSc`（=`Fyss3G_Set_MC_SC`, private）が SC 有り時に処理。SC 無しは INVBP(特殊予約語区分=='7', 改訂<13>)なら負荷容量帯で A2 強制（≦2.20→13 … ≦22.00→100/超→125）、他は通電電流×`SeekRatedCurrent2Coefficient` 係数。prm1==0 では ep[0].A2 未設定かつ ep[0].W1 有で ep[1].A2 を `ComputeInductionMotorCurrent` から算出（条件は ep[0].W1・算出は ep[1].W1 を参照する原典の癖を再現）。負荷発生元は ep[2].A2←ep[1].A2。
+  - `SetMcSc`（=`Fyss3G_Set_MC_SC`, private）: `DownstreamSelector.SelectDownstream`（=`Fyss35_Select_Karyu_Sub`）で下流を辿り予約語 SC を探索。製作仕様=="01" は kpav(回路電圧)≦220 で `pow(denryu,0.939)*1.65`／超で `denryu*1.2`。それ以外は SC 並列の三相/単相負荷容量帯で A2 を算出。
+- **忠実性メモ（重大）**: `Set_MC_SC` の C 原典は `sscanf("%lf", &kpav_lp)` で double(8byte) を SHORT(2byte) `kpav_lp` に書く未定義動作を含む。**本番＝AIX ビッグエンディアン**（repo メモリ）のため SHORT は IEEE754 double の上位16ビットを捕捉し、現実的な非ゼロ電圧では常に >220 となる。`DoubleHighBitsBE(v)=(short)(bits>>48)` で本番バイナリ挙動を忠実再現（golden data 整合）。CT の1周目 lp_1/lp_2 ループは読み捨て変数のみの死コードのため移植せず（コメントで明示）。ElectricalParameters 既定 "000000000" はドット付きゼロ定数と不一致＝"設定済"扱いのため、テストは未入力を "00000.000" で明示。
+- **完了（Fyss3G）**: 非ディスパッチャのデバイスセッタは全移植完了。**残るは唯一ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`**（Seek/Check/各セッタを結線）。
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 

@@ -6,7 +6,7 @@ namespace Ews.Analysis;
 /// 電流に関するパラメータのセット処理(ブレーカ系＋非ブレーカ系一部)。
 /// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH /
 ///   Set_CON / Set_MCDT / Set_F / Set_ELR / Set_LGR / Set_TS / Set_SU / Set_SSW / Set_CKS / Set_L /
-///   Set_TB / Set_TR / Set_RRY / Set_AM
+///   Set_TB / Set_TR / Set_RRY / Set_AM / Set_CT / Set_MC(Set_MC_SC)
 ///   および補助関数 Check_fyrt800 / Set_IM / PropSetELBKando(toku/sekkei/src/Fyss3G.c)、
 ///   Fysk0e_SetELBkando(toku/sekkei/src/Fysk0e.c)。
 ///
@@ -19,11 +19,14 @@ namespace Ews.Analysis;
 ///   THR/MG/WH のセッタ、リーフセッタ群(CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L)、
 ///   および依存関数を伴うセッタ(TB は電線サイズ検索 <c>CurrentParameterTableSeeker.SeekWireSize</c>、
 ///   TR は下流抽出 <c>DownstreamSelector.SelectDownstream</c>、RRY は親遡行、
-///   AM は延長目盛りタイプ判定＋定格電流１検索 <c>CurrentParameterTableSeeker.SeekRatedCurrent1</c>)、
+///   AM は延長目盛りタイプ判定＋定格電流１検索 <c>CurrentParameterTableSeeker.SeekRatedCurrent1</c>、
+///   CT は同一機器認識番号による ep[2].A1/A2 相互補完＋計器回路 WH/AM 参照、
+///   MC は直下 'SC' 検索(Set_MC_SC)＋INVBP 帯別 A2＋定格電流２係数
+///   <c>CurrentParameterTableSeeker.SeekRatedCurrent2Coefficient</c>)、
 ///   その依存(Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando、
 ///   CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
-///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/CT 等の
-///   残りの機器セッタは後続増分で移植する(Set_DCPW は C 原典が空関数のため移植省略)。
+///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体は後続増分で移植する
+///   (Set_DCPW は C 原典が空関数のため移植省略)。
 ///
 /// 【C 原典のバグ再現】Set_MCB 内 <c>dwork == Stof(...)</c> は代入 <c>=</c> の誤記(<c>==</c>)で
 ///   実質 no-op のため、AM はその時点で <c>dwork</c> が保持する値から整形される。本移植は
@@ -1263,6 +1266,385 @@ public static class CurrentParameterSetter
         }
     }
 
+    /// <summary>
+    /// 電流パラメータのセット処理(CT 用)。【C原典】Fyss3G_Set_CT。
+    /// 主回路(kiryoso=='1')は同一階層の CT/AM を見て定格電流１を検索、計器用回路CT付き(=='2')は
+    /// A2 を 5A 固定。さらに同一機器認識番号の機器と ep[2] を相互補完し、自身に入力が無ければ
+    /// 計器回路の WH/AM の入力値を採る。改訂&lt;4&gt;: WH 用 CT は VA 未入力時 15VA。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="count">主回路エリアの有効件数。【C原典】Pmainc。</param>
+    /// <param name="ratedCurrent1Table">定格電流１設定一覧。【C原典】a1set_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetCt(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int count,
+        IReadOnlyList<RatedCurrent1Setting> ratedCurrent1Table, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(ratedCurrent1Table);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // 【C原典】通電電流値を取得。
+        double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定。主回路(kiryoso=='1')かつ ep[2].A1 未設定のときのみ。
+            if (dt.CircuitElement == '1' && MatchesZero(ep[2].A1, ZeroAt))
+            {
+                // 【C原典 1997.03.28】CT,AM のときは AM に合わせるため 1.2 を掛けた値を使用する。
+                //   まず a1=denryu。同一機器認識番号が "00" 以外かつ主回路のとき、自身より前(lp<no)を
+                //   辿り、同一階層かつ予約語 "AM"・回路要素=='2' が有れば a1=denryu*1.2(break 無し。
+                //   合致する限り上書きするが値は同一)。最後に A1SET 検索。
+                double a1 = denryu;
+                if (string.CompareOrdinal(Fix(dt.IdentityNumber, 2), "00") != 0 && dt.CircuitElement == '1')
+                {
+                    for (int lp = 0; lp < index; lp++)
+                    {
+                        MainCircuitData other = records[lp].Data;
+                        if (string.CompareOrdinal(Fix(dt.HierarchyNumber, 3), Fix(other.HierarchyNumber, 3)) == 0 &&
+                            MatchesSpace(other.ReservedWord, "AM      ") &&
+                            other.CircuitElement == '2')
+                        {
+                            a1 = denryu * 1.2;
+                        }
+                    }
+                }
+
+                a1 = CurrentParameterTableSeeker.SeekRatedCurrent1(a1, ratedCurrent1Table);
+                ep[2].A1 = Format9(a1);
+            }
+
+            // 【C原典】A2 設定。計器用回路CT付き(kiryoso=='2')は 5A 固定。
+            if (dt.CircuitElement == '2')
+            {
+                ep[2].A2 = "00005.000";
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定(ep[1].A1==0 のとき。回路要素の別なく実行)。
+            if (MatchesZero(ep[1].A1, ZeroAt))
+            {
+                double a1 = CurrentParameterTableSeeker.SeekRatedCurrent1(denryu, ratedCurrent1Table);
+                ep[1].A1 = Format9(a1);
+            }
+
+            // 【C原典】同一機器のパラメータをセット処理。
+            //   C の 1 周目は lp_1/lp_2 を算出するが結果を一切参照しない死コードのため移植しない。
+            //   2 周目のみ移植:系統種別=='1' かつ同一機器認識番号一致の機器と ep[2].A1/A2 を相互補完。
+            for (int lp = 0; lp < count; lp++)
+            {
+                MainCircuitData other = records[lp].Data;
+                if (other.SystemKind == '1' &&
+                    string.CompareOrdinal(Fix(dt.IdentityNumber, 2), Fix(other.IdentityNumber, 2)) == 0)
+                {
+                    ElectricalParameters otherEp2 = other.ElectricalParameterSlots[2];
+                    if (MatchesZero(otherEp2.A1, ZeroAt) && !MatchesZero(ep[2].A1, ZeroAt))
+                    {
+                        otherEp2.A1 = Fix(ep[2].A1, 9);
+                    }
+                    if (MatchesZero(ep[2].A1, ZeroAt) && !MatchesZero(otherEp2.A1, ZeroAt))
+                    {
+                        ep[2].A1 = Fix(otherEp2.A1, 9);
+                    }
+                    if (MatchesZero(otherEp2.A2, ZeroAt) && !MatchesZero(ep[2].A2, ZeroAt))
+                    {
+                        otherEp2.A2 = Fix(ep[2].A2, 9);
+                    }
+                    if (MatchesZero(ep[2].A2, ZeroAt) && !MatchesZero(otherEp2.A2, ZeroAt))
+                    {
+                        ep[2].A2 = Fix(otherEp2.A2, 9);
+                    }
+                }
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].A1 = Fix(ep[1].A1, 9);
+            }
+        }
+
+        // ---- 1996.07.25 add:自身に入力が無ければ計器回路の WH/AM を探して ep[0].A1 を採る ----
+        // 【C原典】ShouldSet/prm1 のガード外で常に実行される。ep[0].A1 未設定かつ同一機器認識番号!="00"
+        //         かつ主回路のとき、(1)自分より前に回路要素=='2' の同一機器識別番号があるか(計器回路の
+        //         仲間判定) →(2)同一階層で回路要素=='2' の WH/AM を探す →(3)その ep[0].A1 を
+        //         自身の ep[0]/ep[1].A1 へコピー。各判断で当てはまらなければ何もしない。
+        if (MatchesZero(ep[0].A1, ZeroAt) &&
+            string.CompareOrdinal(Fix(dt.IdentityNumber, 2), "00") != 0 &&
+            dt.CircuitElement == '1')
+        {
+            bool hasCompanion = false;
+            for (int lp = 0; lp < index; lp++)
+            {
+                MainCircuitData other = records[lp].Data;
+                if (string.CompareOrdinal(Fix(dt.IdentityNumber, 2), Fix(other.IdentityNumber, 2)) == 0 &&
+                    other.CircuitElement == '2')
+                {
+                    hasCompanion = true;
+                    break;
+                }
+            }
+
+            if (hasCompanion)
+            {
+                int source = -1;
+                for (int lp = 0; lp < index; lp++)
+                {
+                    MainCircuitData other = records[lp].Data;
+                    if (string.CompareOrdinal(Fix(dt.HierarchyNumber, 3), Fix(other.HierarchyNumber, 3)) == 0 &&
+                        (MatchesSpace(other.ReservedWord, "WH      ") || MatchesSpace(other.ReservedWord, "AM      ")) &&
+                        other.CircuitElement == '2')
+                    {
+                        source = lp;
+                        break;
+                    }
+                }
+
+                if (source >= 0)
+                {
+                    ElectricalParameters srcEp0 = records[source].Data.ElectricalParameterSlots[0];
+                    if (!MatchesZero(srcEp0.A1, ZeroAt))
+                    {
+                        ep[0].A1 = Fix(srcEp0.A1, 9);
+                        ep[1].A1 = Fix(srcEp0.A1, 9);
+                    }
+                }
+            }
+        }
+
+        // ---- 改訂<4>:WH 用 CT は VA 未入力なら 15VA(従来 5VA) ----
+        // 【C原典】系統番号(kno)・親データ追番(oyatno)が一致する予約語 "WH" があれば WH 用 CT と判断。
+        for (int lp = 0; lp < count; lp++)
+        {
+            MainCircuitData other = records[lp].Data;
+            if (string.CompareOrdinal(Fix(other.SystemNumber, 3), Fix(dt.SystemNumber, 3)) == 0 &&
+                MatchesSpace(other.ReservedWord, "WH      ") &&
+                string.CompareOrdinal(Fix(other.ParentSequenceNumber, 3), Fix(dt.ParentSequenceNumber, 3)) == 0)
+            {
+                if (MatchesZero(ep[0].Va, ZeroVa))
+                {
+                    ep[1].Va = "0000015.00";
+                    ep[2].Va = "0000015.00";
+                    break;
+                }
+                // 【C原典】ep[0].VA が設定済なら continue(何もしない)。
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(MC 用)。【C原典】Fyss3G_Set_MC。
+    /// 直下の予約語 'SC' を検索(<see cref="SetMcSc"/>)。SC が無ければ、INVBP の MC(tokkbn=='7')は
+    /// 負荷容量帯で A2 を強制、それ以外は通電電流値×定格電流２係数で A2 を算出。
+    /// パラメータ１側は ep[0].A2 未設定かつ負荷容量設定済のとき負荷種類から A2 を算出する。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="count">主回路エリアの有効件数。【C原典】Pmainc。</param>
+    /// <param name="ratedCurrent2Table">定格電流２設定一覧。【C原典】a2set_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    /// <param name="manufacturingSpecKind">製作仕様区分。"01":河村標準。【C原典】bukken1-&gt;com.kyo.sshiykbn。</param>
+    public static void SetMc(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int count,
+        IReadOnlyList<RatedCurrent2Setting> ratedCurrent2Table, int inputFlag, string manufacturingSpecKind)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(ratedCurrent2Table);
+        ArgumentNullException.ThrowIfNull(manufacturingSpecKind);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // 【C原典】通電電流値を取得。
+        double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】直下の 'SC' を検索。SC が有れば SC 側で A2 設定済み(ret!=0)。
+            int ret = SetMcSc(records, index, count, manufacturingSpecKind);
+            if (ret == 0)
+            {
+                double a2;
+
+                // 【C原典 改訂<13>】INVBP の MC は負荷容量(kW)帯で A2 を強制。
+                if (dt.SpecialReservedWordKind == '7')
+                {
+                    double invlw = EquipmentParameterFormatter.Stof(dt.AttachedParameter.LoadCapacity, 7) / 1000.0;
+                    if (invlw <= 2.20) { a2 = 13.0; }
+                    else if (invlw <= 3.70) { a2 = 20.0; }
+                    else if (invlw <= 7.50) { a2 = 35.0; }
+                    else if (invlw <= 11.00) { a2 = 50.0; }
+                    else if (invlw <= 15.00) { a2 = 65.0; }
+                    else if (invlw <= 18.50) { a2 = 80.0; }
+                    else if (invlw <= 22.00) { a2 = 100.0; }
+                    else { a2 = 125.0; }
+                }
+                else
+                {
+                    double kei = CurrentParameterTableSeeker.SeekRatedCurrent2Coefficient(records, index, ratedCurrent2Table);
+                    a2 = denryu * kei;
+                }
+
+                ep[2].A2 = Format9(a2);
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[0].A2 未設定かつ ep[0].W1 設定済のとき、負荷種類から A2 を算出。
+            //         条件は ep[0].W1 を見るが、算出に渡すのは ep[1].W1(原典どおりの挙動)。
+            if (MatchesZero(ep[0].A2, ZeroAt) && !MatchesZero(ep[0].W1, ZeroW1))
+            {
+                double denryuOut = ComputeInductionMotorCurrent(row, ep[1].W1, PhaseToLoadKind(dt.CircuitPhaseCount));
+                ep[1].A2 = Format9(denryuOut);
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].A2 = Fix(ep[1].A2, 9);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 'MC' 直下の予約語 'SC' を検索し、見つかれば SC の並列関係要素から MC の A2 を算出・設定する。
+    /// 【C原典】Fyss3G_Set_MC_SC。戻り値: SC が無い/下流抽出エラーのとき 0、SC が見つかったとき
+    /// その下流データ追番(&gt;0)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">MC のデータ追番(0 始まり)。【C原典】no。</param>
+    /// <param name="count">主回路エリアの有効件数。【C原典】Pmainc。</param>
+    /// <param name="manufacturingSpecKind">製作仕様区分。"01":河村標準。【C原典】bukken1-&gt;com.kyo.sshiykbn。</param>
+    /// <returns>SC の下流データ追番(SC 無し/エラーは 0)。【C原典】ret。</returns>
+    private static int SetMcSc(
+        IReadOnlyList<MainCircuitResult> records, int index, int count, string manufacturingSpecKind)
+    {
+        // 【C原典】指定機器の下流データ追番を抽出(Fyss35_Select_Karyu_Sub, no+1)。抽出エラーは 0 を返す。
+        IReadOnlyList<int>? downstream = DownstreamSelector.SelectDownstream(records, index + 1);
+        if (downstream is null)
+        {
+            return 0;
+        }
+
+        // 【C原典】予約語 'SC' の存在チェック。d_no = *dno + lp(下流追番は連続するため先頭 + lp)。
+        int num = downstream.Count;
+        int scDno = -1;
+        for (int lp = 0; lp < num; lp++)
+        {
+            int dno = downstream[0] + lp;
+            if (MatchesSpace(records[dno - 1].Data.ReservedWord, "SC      "))
+            {
+                scDno = dno;
+                break;
+            }
+        }
+        if (scDno < 0)
+        {
+            return 0; // SC が無い場合
+        }
+
+        MainCircuitData mc = records[index].Data;
+        ElectricalParameters mcEp2 = mc.ElectricalParameterSlots[2];
+
+        // 【C原典】MC の通電電流値・回路電圧を取得。
+        double denryu = EquipmentParameterFormatter.Stof(mc.EnergizingCurrent, DenryuWidth);
+        int kpav = EquipmentParameterFormatter.Stoi(mc.CircuitVoltage[0], 3);
+
+        double a2;
+
+        // 【C原典】製作仕様区分 == "01"(河村標準)。
+        if (manufacturingSpecKind == "01")
+        {
+            a2 = kpav <= 220 ? Math.Pow(denryu, 0.939) * 1.65 : denryu * 1.2;
+            mcEp2.A2 = Format9(a2);
+            return scDno;
+        }
+
+        // 【C原典】製作仕様区分 != "01"。'SC' の並列関係要素(SC と同一 oyatno・負荷発生元=='1'・
+        //         負荷種類 "M ")の負荷容量を回路相数/電圧別に積算する。
+        double lw2_3s = 0.0;  // 回路相数=3(下記 UB により実挙動は非 0 電圧すべてがここへ集約)
+        double lw2_3l = 0.0;  // 回路相数=3
+        double lw2_1 = 0.0;   // 回路相数=1
+        string scParent = records[scDno - 1].Data.ParentSequenceNumber;
+
+        for (int lp = 0; lp < count; lp++)
+        {
+            MainCircuitData other = records[lp].Data;
+            if (string.CompareOrdinal(Fix(scParent, 3), Fix(other.ParentSequenceNumber, 3)) == 0 &&
+                other.LoadSourceKind == '1' &&
+                MatchesSpace(other.AttachedParameter.LoadKind, "M "))
+            {
+                // 【C原典 UB】C は sscanf("%lf", &kpav_lp) で double(8B)を SHORT(2B)へ書き込む
+                //   未定義動作。本番環境 AIX(big-endian)では SHORT は double ビット列の上位16bitを
+                //   取るため、現実的な電圧(非 0)では常に > 220 となり、下の <=220 分岐は事実上到達
+                //   しない(=三相負荷はすべて lw2_3s へ集約される)。忠実再現のため上位16bitを算出する。
+                double voltageValue = EquipmentParameterFormatter.Stof(
+                    Fix(other.CircuitVoltage[0], 3) + Fix(other.CircuitVoltage[1], 3) + Fix(other.CircuitVoltage[2], 3), 9);
+                short kpavLp = DoubleHighBitsBE(voltageValue);
+
+                double fpalw2Lp = EquipmentParameterFormatter.Stof(other.AttachedParameter.LoadCapacity, 7);
+
+                if (other.CircuitPhaseCount == '3')
+                {
+                    if (kpavLp <= 220) { lw2_3l += fpalw2Lp; }
+                    else { lw2_3s += fpalw2Lp; }
+                }
+                if (other.CircuitPhaseCount == '1')
+                {
+                    lw2_1 += fpalw2Lp;
+                }
+            }
+        }
+
+        // 【C原典】定格電流２(A2)の算出。
+        if (lw2_3s > 0)
+        {
+            a2 = lw2_3s <= 15000 ? Math.Pow(denryu, 0.4) * 10 : Math.Pow(denryu, 0.29) * 18;
+        }
+        else if (lw2_3l > 0)
+        {
+            if (lw2_3l <= 20000) { a2 = Math.Pow(denryu, 0.63) * 6.1; }
+            else if (lw2_3l <= 45000) { a2 = Math.Pow(denryu, 0.22) * 13.3; }
+            else { a2 = Math.Pow(denryu, 0.69) * 4.5; }
+        }
+        else if (lw2_1 > 0)
+        {
+            a2 = lw2_1 * 3;
+        }
+        else
+        {
+            a2 = kpav <= 220 ? Math.Pow(denryu, 0.939) * 1.65 : denryu * 1.2;
+        }
+
+        mcEp2.A2 = Format9(a2);
+        return scDno;
+    }
+
     // ---------------------------------------------------------------------
     //  補助関数
     // ---------------------------------------------------------------------
@@ -1450,6 +1832,17 @@ public static class CurrentParameterSetter
         if (circuitPhaseCount == '3') { w1 = 1; }
         if (circuitPhaseCount == '1') { w1 = 2; }
         return w1;
+    }
+
+    /// <summary>
+    /// C の <c>sscanf("%lf", &amp;short_var)</c>(double を SHORT 変数へ書き込む未定義動作)を
+    /// 本番環境 AIX(big-endian)の挙動で再現する。big-endian では SHORT には double のビット列の
+    /// 上位 16bit が格納されるため、それを符号付き 16bit として返す。【C原典】Fyss3G_Set_MC_SC の kpav_lp。
+    /// </summary>
+    private static short DoubleHighBitsBE(double value)
+    {
+        long bits = BitConverter.DoubleToInt64Bits(value);
+        return (short)(bits >> 48);
     }
 
     /// <summary>固定長フィールドへの memcpy 相当。<paramref name="width"/> 桁に切詰/末尾 NUL 埋め。</summary>
