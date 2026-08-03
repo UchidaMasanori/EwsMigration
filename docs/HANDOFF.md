@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1444 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1452 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -223,6 +223,16 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **エラー依存チェック3種**（`Err_Code_Set`を `CircuitParseError?` 返却で境界化, null=正常）: `CheckElement1P2W`(=PropChkElem1P2W 分岐でCT/CS/ZS/SE/SESのエレメント数1で FY-144E)／`CheckUseVolt`(=PropCheckUseVolt 子200V・親100Vで FY-074E, 子機器の行桁)／`CheckLacslRryLoad`(=PropChkLacslRryFuka RRY-LAで極数1・200Vで FY-074E)。いずれも msgid="FYMEE90"。
 - **C原典メモ**: `Fyss3D_Keiki_set` はテーブル駆動で大きく后続増分へ。同関数内に C の代入バグ `ep[2].epaqty = '2'`（== のつもりが =）あり→移植時に忟実再現か修正か要判断。
 - **テスト**: `PhaseAssignerTests.cs` +16件。テストは 1428 → **1444**（+16）。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(3) 計器回路使用相セット）
+
+`PhaseAssigner` へ `SetMeterCircuitPhase`(=`Fyss3D_Keiki_set` 950209)を追加移植。テーブル駆動の計器回路使用相セット。
+
+- **テーブル**: `PwvTbl`(43行+番兵 予約語/手配数量/回路相/回路線/回路電圧→使用相)・`F2Tbl`(3行 VS/VT→RT、番兵=RS)を `readonly record struct` 配列で定義。
+- **3ループ**: ①回路要素=2(CT従属 AM/WH/AS/THR): AMは DataType[2]="AS"でKKL他KL、WH/AS/THRは後述バグで常にKKL。②回路要素=3/4(計器/ヒューズ): 上流 "P" を逆行検索しその回路相kpaph/回路線kpawrと自分の予約語/手配数量(ep0.Qty)でPwvTblマッチ、1相2線は回路電圧も一致条件。使用相"F01"は次要素をF2Tbl参照(マッチ無しは番兵RS)、"X01"はoyatnoを上流逆行しF(手配数量2)でXY。他は3文字Overlay(4桁目保持)。③回路要素=5(ZCT従属 LGR/ELR)→KL。
+- **★C原典バグ忠実再現**: `if(maina[i].dt.ep[2].epaqty = '2')` は == のつもりが 代入。常に真で "KL  " 分岐は到達不能、かつ CT の ep[2].Qty='2' となる副作用も発生→両方忠実再現しコメント明記。
+- **C原典UBガード**: "P"未発見(j<0)は continue、i+1/iNo の配列参照は範囲ガード追加(原典は maina[-1]/maina[Pmainc] 参照でUB)。
+- **テスト**: `PhaseAssignerTests.cs` +8件。テストは 1444 → **1452**（+8）。
 
 
 

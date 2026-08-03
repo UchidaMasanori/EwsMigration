@@ -598,3 +598,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropChkElem1P2W,PhaseAssigner.CheckElement1P2W,toku/sekkei/src/Fyss3D.c,分岐でCT/CS/ZS/SE/SESのエレメント数が1ならFY-144Eエラー(改訂19)
 関数,PropCheckUseVolt,PhaseAssigner.CheckUseVolt,toku/sekkei/src/Fyss3D.c,子の負荷電圧200V・親100VでFY-074Eエラー(改訂3)
 関数,PropChkLacslRryFuka,PhaseAssigner.CheckLacslRryLoad,toku/sekkei/src/Fyss3D.c,RRY(LA)で極数1・負荷電圧200VならFY-074Eエラー(改訂15)
+関数,Fyss3D_Keiki_set,PhaseAssigner.SetMeterCircuitPhase,toku/sekkei/src/Fyss3D.c,計器回路使用相セット。回路要素2(CT従属AM/WH/AS/THR)・3/4(計器F/VT/VS/VM/WL/GL/RL/OL/BL/WHをPwvTbl・F2Tblで解決)・5(ZCT従属LGR/ELR)。C原典の代入バグep[2].epaqty='2'を忠実再現(950209)

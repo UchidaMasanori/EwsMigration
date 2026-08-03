@@ -577,6 +577,220 @@ public static class PhaseAssigner
         return null;
     }
 
+    /// <summary>
+    /// 計器回路(CT/計器/表示灯)の使用相をセットする。【C原典】<c>Fyss3D_Keiki_set</c>(950209)。
+    /// 回路要素 2(CT 従属計器)・3/4(計器/ヒューズ)・5(ZCT 従属継電器)を <c>PwvTbl</c>/<c>F2Tbl</c> で解決する。
+    /// </summary>
+    public static void SetMeterCircuitPhase(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        int count = mains.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            MainCircuitData di = mains[i].Data;
+
+            // 回路要素==2 の使用相セット(CT 従属の AM/WH/AS/THR)
+            if (Matches(di.ReservedWord, "CT      ", 8) && di.CircuitElement == '2')
+            {
+                for (int k = i + 1; k < count; k++)
+                {
+                    MainCircuitData dk = mains[k].Data;
+                    if (dk.CircuitElement != '2')
+                    {
+                        break;
+                    }
+
+                    if (Matches(dk.ReservedWord, "AM      ", 8))
+                    {
+                        dk.UsedPhase = Matches(dk.DataType[2], "AS     ", 7) ? "KKL " : "KL  ";
+                    }
+
+                    if (Matches(dk.ReservedWord, "WH      ", 8) ||
+                        Matches(dk.ReservedWord, "AS      ", 8) ||
+                        Matches(dk.ReservedWord, "THR     ", 8))
+                    {
+                        // 【C原典バグ】if(maina[i].dt.ep[2].epaqty = '2') は == のつもりの代入。
+                        // 常に真となり "KL  " 分岐は到達不能。代入副作用ごと忠実再現する。
+                        di.ElectricalParameterSlots[2].Qty = '2';
+                        dk.UsedPhase = "KKL ";
+                    }
+                }
+            }
+            // 回路要素==3 or 4 の使用相セット(950215)
+            else if (di.CircuitElement == '3' || di.CircuitElement == '4')
+            {
+                int j = i - 1;
+                while (j >= 0 && !Matches(mains[j].Data.ReservedWord, "P       ", 8))
+                {
+                    j--;
+                }
+
+                if (j < 0)
+                {
+                    continue; // 上流電源 "P" が無い場合はスキップ(C原典は maina[-1] 参照でUB)
+                }
+
+                MainCircuitData dj = mains[j].Data;
+
+                for (int k = 0; !string.IsNullOrEmpty(PwvTbl[k].Yoyaku); k++)
+                {
+                    PwvEntry e = PwvTbl[k];
+                    if (!Matches(e.Yoyaku, di.ReservedWord, 8) ||
+                        e.Qty != di.ElectricalParameterSlots[0].Qty ||
+                        e.Ph != dj.CircuitPhaseCount ||
+                        e.Wr != dj.CircuitWireType)
+                    {
+                        continue;
+                    }
+
+                    // 1相2線は回路電圧(105/210)も一致条件に加える
+                    if (e.Ph == '1' && e.Wr == '2' && !Matches(e.Kpav, di.CircuitVoltage[0], 3))
+                    {
+                        continue;
+                    }
+
+                    if (e.Siyousou == "F01") // F01 -> F2Tbl 参照(950911)
+                    {
+                        bool ibrk = false;
+                        int l = 0;
+                        for (; !string.IsNullOrEmpty(F2Tbl[l].Yoyaku); l++)
+                        {
+                            if (i + 1 < count &&
+                                Matches(mains[i + 1].Data.ReservedWord, F2Tbl[l].Yoyaku, 8) &&
+                                mains[i + 1].Data.ElectricalParameterSlots[0].Qty == F2Tbl[l].Qty &&
+                                Matches(mains[i + 1].Data.ParentSequenceNumber, mains[i].SequenceNumber, 3))
+                            {
+                                di.UsedPhase = Overlay(di.UsedPhase, F2Tbl[l].Siyousou);
+                                ibrk = true;
+                                break;
+                            }
+                        }
+
+                        if (!ibrk)
+                        {
+                            di.UsedPhase = Overlay(di.UsedPhase, F2Tbl[l].Siyousou); // 番兵=既定 RS
+                        }
+                    }
+                    else if (e.Siyousou == "X01") // 上流にある F を探し相を決定する(961101)
+                    {
+                        int iNo = EquipmentParameterFormatter.Stoi(di.ParentSequenceNumber, 3) - 1;
+                        while (true)
+                        {
+                            if (iNo <= 0 || iNo >= count)
+                            {
+                                break;
+                            }
+
+                            MainCircuitData du = mains[iNo].Data;
+                            if (Matches(du.ReservedWord, "F       ", 8))
+                            {
+                                if (du.ElectricalParameterSlots[0].Qty == '2')
+                                {
+                                    di.UsedPhase = Overlay(di.UsedPhase, "XY ");
+                                }
+
+                                break;
+                            }
+
+                            iNo = EquipmentParameterFormatter.Stoi(du.ParentSequenceNumber, 3) - 1;
+                        }
+                    }
+                    else
+                    {
+                        di.UsedPhase = Overlay(di.UsedPhase, e.Siyousou);
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        // ZCT, LGR or ELR の使用相(950525)
+        for (int i = 0; i < count - 1; i++)
+        {
+            if (!Matches(mains[i].Data.ReservedWord, "ZCT     ", 8) || mains[i].Data.CircuitElement != '5')
+            {
+                continue;
+            }
+
+            for (int j = i + 1; j < count; j++)
+            {
+                MainCircuitData dj = mains[j].Data;
+                if (dj.CircuitElement != '5')
+                {
+                    break;
+                }
+
+                if (Matches(dj.ReservedWord, "LGR     ", 8) || Matches(dj.ReservedWord, "ELR     ", 8))
+                {
+                    dj.UsedPhase = "KL  ";
+                }
+            }
+        }
+    }
+
+    // 【C原典】Fyss3D_Keiki_set の F2Tbl(950911)。yoyaku[0]=='\0' が番兵(既定 siyousou="RS ")。
+    private readonly record struct F2Entry(string Yoyaku, char Qty, string Siyousou);
+
+    private static readonly F2Entry[] F2Tbl =
+    {
+        new("VS      ", '1', "RT "),
+        new("VT      ", '2', "RT "),
+        new("", '\0', "RS "),
+    };
+
+    // 【C原典】Fyss3D_Keiki_set の PwvTbl。yoyaku/手配数量/回路相/回路線/回路電圧→使用相。
+    private readonly record struct PwvEntry(string Yoyaku, char Qty, char Ph, char Wr, string Kpav, string Siyousou);
+
+    private static readonly PwvEntry[] PwvTbl =
+    {
+        new("F       ", '1', '1', '3', "   ", "X  "),
+        new("F       ", '1', '3', '3', "   ", "R  "),
+        new("F       ", '1', '1', '2', "105", "X  "),
+        new("F       ", '1', '1', '2', "210", "X  "),
+        new("F       ", '2', '1', '3', "   ", "XY "),
+        new("F       ", '2', '3', '3', "   ", "F01"), // F01 -> F2Tbl 参照
+        new("F       ", '2', '1', '2', "105", "XN "),
+        new("F       ", '2', '1', '2', "210", "XY "),
+        new("F       ", '3', '1', '3', "   ", "XNY"),
+        new("F       ", '3', '3', '3', "   ", "RST"),
+        new("VT      ", '1', '1', '2', "105", "XN "),
+        new("VT      ", '1', '1', '2', "210", "XY "),
+        new("VT      ", '2', '1', '3', "   ", "XNY"),
+        new("VT      ", '2', '3', '3', "   ", "RST"),
+        new("VS      ", '1', '1', '3', "   ", "XNY"),
+        new("VS      ", '1', '3', '3', "   ", "RST"),
+        new("VM      ", '1', '1', '3', "   ", "XY "),
+        new("VM      ", '1', '3', '3', "   ", "RS "),
+        new("VM      ", '1', '1', '2', "105", "XN "),
+        new("VM      ", '1', '1', '2', "210", "XY "),
+        new("WL      ", '1', '1', '3', "   ", "X01"), // 961101
+        new("WL      ", '1', '3', '3', "   ", "RS "),
+        new("WL      ", '1', '1', '2', "105", "XN "),
+        new("WL      ", '1', '1', '2', "210", "XY "),
+        new("GL      ", '1', '1', '3', "   ", "X01"), // 961101
+        new("GL      ", '1', '3', '3', "   ", "RS "),
+        new("GL      ", '1', '1', '2', "105", "XN "),
+        new("GL      ", '1', '1', '2', "210", "XY "),
+        new("RL      ", '1', '1', '3', "   ", "X01"), // 961101
+        new("RL      ", '1', '3', '3', "   ", "RS "),
+        new("RL      ", '1', '1', '2', "105", "XN "),
+        new("RL      ", '1', '1', '2', "210", "XY "),
+        new("OL      ", '1', '1', '3', "   ", "X01"), // 961101
+        new("OL      ", '1', '3', '3', "   ", "RS "),
+        new("OL      ", '1', '1', '2', "105", "XN "),
+        new("OL      ", '1', '1', '2', "210", "XY "),
+        new("BL      ", '1', '3', '3', "   ", "X01"), // 961101
+        new("BL      ", '1', '1', '2', "105", "XN "),
+        new("BL      ", '1', '1', '2', "210", "XY "),
+        new("WH      ", '1', '1', '3', "   ", "XNY"),
+        new("WH      ", '1', '3', '3', "   ", "RST"),
+        new("WH      ", '1', '1', '2', "105", "XN "),
+        new("WH      ", '1', '1', '2', "210", "XY "),
+        new("", '\0', '\0', '\0', "", ""),
+    };
+
     private static CircuitParseError MakeError(string code, MainCircuitData d) =>
         new(code, EquipmentParameterFormatter.Stoi(d.DescriptionRow, 3),
             EquipmentParameterFormatter.Stoi(d.DescriptionColumn, 3), "FYMEE90");

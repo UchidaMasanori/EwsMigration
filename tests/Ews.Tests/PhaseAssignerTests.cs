@@ -396,4 +396,109 @@ public sealed class PhaseAssignerTests
         PhaseAssigner.AdjustKatagiriPhase([r]);
         Assert.Equal("XY  ", r.Data.UsedPhase);
     }
+
+    // ── Fyss3D_Keiki_set ─────────────────────────────────────────────────────
+
+    private static MainCircuitResult MeterRow(string yoyaku, char kiryoso, char ep0Qty = '0')
+    {
+        var r = Row(yoyaku: yoyaku);
+        r.Data.CircuitElement = kiryoso;
+        r.Data.ElectricalParameterSlots[0].Qty = ep0Qty;
+        return r;
+    }
+
+    [Fact]
+    public void CT従属のAMは通常KL計器箱付ASはKKLをセットする()
+    {
+        var ct = MeterRow("CT      ", '2');
+        var am1 = MeterRow("AM      ", '2');
+        var am2 = MeterRow("AM      ", '2');
+        am2.Data.DataType[2] = "AS     ";
+        PhaseAssigner.SetMeterCircuitPhase([ct, am1, am2]);
+        Assert.Equal("KL  ", am1.Data.UsedPhase);
+        Assert.Equal("KKL ", am2.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void CT従属のWHはC原典代入バグで常にKKLになる()
+    {
+        var ct = MeterRow("CT      ", '2');
+        var wh = MeterRow("WH      ", '2');
+        PhaseAssigner.SetMeterCircuitPhase([ct, wh]);
+        Assert.Equal("KKL ", wh.Data.UsedPhase);
+        Assert.Equal('2', ct.Data.ElectricalParameterSlots[2].Qty); // 代入副作用
+    }
+
+    [Fact]
+    public void 単相3線のヒューズ数量1はXをオーバレイし4桁目を保持する()
+    {
+        var p = MeterRow("P       ", '0');
+        p.Data.CircuitPhaseCount = '1';
+        p.Data.CircuitWireType = '3';
+        var f = MeterRow("F       ", '3', ep0Qty: '1');
+        f.Data.UsedPhase = "???N"; // 4桁目保持の確認
+        PhaseAssigner.SetMeterCircuitPhase([p, f]);
+        Assert.Equal("X  N", f.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 三相3線のワットメータはRSTをセットする()
+    {
+        var p = MeterRow("P       ", '0');
+        p.Data.CircuitPhaseCount = '3';
+        p.Data.CircuitWireType = '3';
+        var wh = MeterRow("WH      ", '3', ep0Qty: '1');
+        PhaseAssigner.SetMeterCircuitPhase([p, wh]);
+        Assert.Equal("RST ", wh.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 単相2線105Vのヒューズ数量2はXNをセットする()
+    {
+        var p = MeterRow("P       ", '0');
+        p.Data.CircuitPhaseCount = '1';
+        p.Data.CircuitWireType = '2';
+        var f = MeterRow("F       ", '3', ep0Qty: '2');
+        f.Data.CircuitVoltage[0] = "105";
+        PhaseAssigner.SetMeterCircuitPhase([p, f]);
+        Assert.Equal("XN  ", f.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void F01は次要素のVSを参照してRTをセットする()
+    {
+        var p = MeterRow("P       ", '0');
+        p.Data.CircuitPhaseCount = '3';
+        p.Data.CircuitWireType = '3';
+        var f = MeterRow("F       ", '3', ep0Qty: '2'); // F,2,3,3 → F01
+        f.SequenceNumber = "010";
+        var vs = MeterRow("VS      ", '0', ep0Qty: '1');
+        vs.Data.ParentSequenceNumber = "010";
+        PhaseAssigner.SetMeterCircuitPhase([p, f, vs]);
+        Assert.Equal("RT  ", f.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void F01で次要素が該当しなければ既定のRSをセットする()
+    {
+        var p = MeterRow("P       ", '0');
+        p.Data.CircuitPhaseCount = '3';
+        p.Data.CircuitWireType = '3';
+        var f = MeterRow("F       ", '3', ep0Qty: '2');
+        f.SequenceNumber = "010";
+        var other = MeterRow("XX      ", '0');
+        PhaseAssigner.SetMeterCircuitPhase([p, f, other]);
+        Assert.Equal("RS  ", f.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void ZCT従属のLGRとELRはKLをセットする()
+    {
+        var zct = MeterRow("ZCT     ", '5');
+        var lgr = MeterRow("LGR     ", '5');
+        var elr = MeterRow("ELR     ", '5');
+        PhaseAssigner.SetMeterCircuitPhase([zct, lgr, elr]);
+        Assert.Equal("KL  ", lgr.Data.UsedPhase);
+        Assert.Equal("KL  ", elr.Data.UsedPhase);
+    }
 }
