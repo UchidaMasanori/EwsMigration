@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1366 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1384 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -156,6 +156,20 @@ F(ヒューズ)特例で `searchsgy("C")` → `MainCircuitResult.SearchAgainFlag
 ④950927 SC 系統積算（`Fyss3A_Chk_Yoyaku`/`Fyss3A_Prc_Seksan` をデリゲート境界化、Fyss3A 未移植のため null 時は早期 return）。
 忠実性メモ: ループ②の SC/NT 予約語・スイッチ 1/2・特殊予約語 '6'(27端子台)スキップ、
 ループ④の `maina[i-1]` アクセスに `i>=1` ガード（C原典は UB）、LoadName[1]=="0KW" 分岐。テストは 1353 → **1366**（+13）。
+
+### 2026-08-05 セッション㐙 追加分（Fyss3A ＳＣ／ＮＴ上流積算移植 → Fyss3A 完全移植完了）
+
+`Fyss3A.c`（364 行）のフル移植。ＳＣ(進相コンデンサ)／ＮＴ(中性線)の上流積算処理を
+`ScNtUpstreamAccumulator`（新規静的クラス）に 6 関数全移植し、**Fyss3A を完全移植完了**。
+これにより Fyss31（`SC_Keitou_Proc`）・Fyss36（ループ④）で境界化したデリゲートの実体が揃った。
+
+- **`AccumulateScNt`**（=`Fyss3A_SC_NT_Sekisan`）: 回路要素='1' で予約語 SC/NT の各要素につき通電電流値を求め、上流積上区分='1' まで遡り積算。負荷名称 0KW は対象外（951002）。
+- **`CheckReservedWord`**（=`Fyss3A_Chk_Yoyaku`）: 回路要素='1' かつ予約語 NT→(ret0,flag1)/SC→(ret0,flag2)/他→(ret1,flag0)。`(int Ret, int Flag)` タプル返却で Fyss36 の `Func<int,(int,int)>` 境界に適合。
+- **`GetEnergizingCurrent`**（=`Fyss3A_Get_Tsuden`）: NT(flag1)は ep[2] 定格電流2(A2)。SC(flag2)は ep[2] 静電容量(UF)を回路電圧・相数で電流換算（単相=UF/V・三相=UF/(1.732*V)・他=UF）。UF=0 は KVAR 変換、１次側に MC 接続時は SC1次電流換算（`index>=1` ガードで C の `syu[-1]` UB 回避）。
+- **`ConvertKvarToUf`**（=`Fyss3A_Chg_KvarUf`）: UF=(KVAR*1000)/(2*3.14*回路周波数*回路電圧^2*0.000001)。
+- **`GetScPrimaryCurrent`**（=`Fyss3A_Get_SC_Pc`, 960329）: UF=2*3.14159*回路周波数*UF*回路電圧^2*1E-6（パイ定数が 3.14 と 3.14159 で異なる原典を忠実再現）。
+- **`ProcessAccumulation`**（=`Fyss3A_Prc_Seksan`）: 上流積上区分(`StackKind`)='1' まで親データ追番-1 を添字として遡り通電電流値(`%08.2f`)をセット。NT(flag1)は使用相 `UsedPhase`="N   " もセット。
+- **忠実性メモ**: C原典は配列添字ベース（データ追番が 1 始まりで配列順に連続する前提）で `oyatno-1` を次の添字とする→この添字ベースの振る舞いを踏襲。テスト`ScNtUpstreamAccumulatorTests.cs`18件。テストは 1366 → **1384**（+18）。
 
 
 
