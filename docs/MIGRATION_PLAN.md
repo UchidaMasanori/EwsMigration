@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1353** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **562** | — |
+| テスト成功数 | **1366** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **563** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
 | 直近コミット | `a5f49ef` | — |
-| 最終更新 | 2026-08-04 | — |
+| 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
@@ -182,7 +182,7 @@ graph LR
 |---|---|---|
 | Fyss05(960), Fyss06(273) | 複合回路作成 | ❌ |
 | Fyss17(913), Fyss18(1660), Fyss21(192), Fyss22(196) | 論理図/TB 挿入/終了処理 | ❌ |
-| Fyss30-39(≈5000): Fyss31(1076),33(572),36(832),37(939),39(757) ほか | 制御発生設定 等 | 🔶 **Fyss31 負荷発生元設定 本体移植**（LoadSourceSelector.SetLoadSource=Fyss31_FukaHassei_Set / set_error=MakeError / set_denryu・set_fky・get_ep・FYRT812 は移植済 / searchsgy→SearchAgainFlag 追加 / CT-AM特殊コピー・改訂<1><2><3><4><9>・951005上流遡り・1-2型dt_pntエラー を忠実移植。SC_Keitou_Proc(Fyss39/Fyss3A依存)はデリゲート境界化）/ 他 ❌ |
+| Fyss30-39(≈5000): Fyss31(1076),33(572),36(832),37(939),39(757) ほか | 制御発生設定 等 | 🔶 **Fyss31 負荷発生元設定 本体移植**（LoadSourceSelector.SetLoadSource=Fyss31_FukaHassei_Set / set_error=MakeError / set_denryu・set_fky・get_ep・FYRT812 は移植済 / searchsgy→SearchAgainFlag 追加 / CT-AM特殊コピー・改訂<1><2><3><4><9>・951005上流遡り・1-2型dt_pntエラー を忠実移植。SC_Keitou_Proc(Fyss39/Fyss3A依存)はデリゲート境界化）。**Fyss33 完了**(EquipmentSelectionKindSetter)。**Fyss36 完全移植完了**(AccumulationAreaSetter.SetTerminalCircuitCurrent=Fyss36_MattanKairo_Iset 本体4ループ統括+サブ全移植。SC積算はFyss3A委譲境界)。Fyss37完了(TerminalCurrentIntegrator) / 他 ❌ |
 | 検証 Prop 群(WhmChk/LgtChk/SenChk/LaClassChk/SpdFuseChk/BunkiHfChk/BunMcChk/LampKeiChk 等) | Fysk10 内の妥当性検証 | ❌ |
 
 ### フェーズ 8 — 線番付与・回路設計出力（Fyss3* 系, 約 12,300 行）

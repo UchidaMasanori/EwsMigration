@@ -18,6 +18,129 @@ public static class AccumulationAreaSetter
     private const int Seki = 6;
 
     /// <summary>
+    /// 末端回路の予約語の通電電流値を算出し、主回路エリアへセットする。下流パラメータ生成
+    /// (<c>Fyss15_Make_LowerParm</c>)のステップ。負荷発生元の積算エリアセット→末端の通電電流値
+    /// セット→通電電流値の積算→ＳＣ(系統)積算 の 4 段で構成する。
+    ///
+    /// 【C原典】<c>Fyss36_MattanKairo_Iset</c>(Pmainc, maina)(toku/sekkei/src/Fyss36.c)。
+    /// 積算本体 <see cref="TerminalCurrentIntegrator.IntegrateCurrent"/>(=<c>Fyss37_I_Set_Sub</c>)を利用。
+    /// ＳＣ(系統)積算は <c>Fyss3A_Chk_Yoyaku</c>/<c>Fyss3A_Prc_Seksan</c>(未移植)依存のため
+    /// デリゲートで境界化する(引数注入)。
+    /// </summary>
+    /// <param name="mains">主回路エリア(有効件数分)。【C原典】maina[0..Pmainc)。</param>
+    /// <param name="checkSystemReservedWord">
+    /// 系統予約語チェック(<c>Fyss3A_Chk_Yoyaku</c>)。添字 i を受け取り (ret, yflag) を返す。
+    /// ret!=0 は対象外、yflag==2 が ＳＣ(系統)。null なら ＳＣ積算ループを実行しない。
+    /// </param>
+    /// <param name="accumulateSystemCurrent">
+    /// 系統通電電流値の積算(<c>Fyss3A_Prc_Seksan</c>)。(添字, yflag, 通電電流値) を受け取る。
+    /// </param>
+    /// <param name="reportError">
+    /// 積算失敗時のエラー通知(<c>FyHcErrFunc(ER_SEKKEI, "Fyss36_MattanKairo_Iset()", 1, __FILE__)</c>)。
+    /// C原典はログ出力のみで処理は継続する。null なら通知しない。
+    /// </param>
+    public static void SetTerminalCircuitCurrent(
+        IReadOnlyList<MainCircuitResult> mains,
+        Func<int, (int Ret, int Flag)>? checkSystemReservedWord = null,
+        Action<int, int, double>? accumulateSystemCurrent = null,
+        Action<string>? reportError = null)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        // 負荷発生元区分='1'(制御電源番号が空)の通電電流値・負荷容量を積算エリアへセットする。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (d.LoadSourceKind == '1' && Matches(d.AttachedParameter.ControlPowerNumber, "  ", 2))
+            {
+                SetLoadSourceAccumulation(mains, EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3));
+            }
+        }
+
+        // 回路要素='1' かつ末端区分='1'(ＳＣ/ＮＴ を除く)の通電電流値をセットする。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (d.CircuitElement != '1' || d.TerminalKind != '1' ||
+                Matches(d.ReservedWord, "SC", 8) || Matches(d.ReservedWord, "NT", 8))
+            {
+                continue;
+            }
+
+            if (d.SwitchType == '1' || d.SwitchType == '2')
+            {
+                continue;
+            }
+
+            if (d.SpecialReservedWordKind == '6') // 改訂<1> 27端子台は対象外
+            {
+                continue;
+            }
+
+            PropagateCurrentFromLoadSource(mains, EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3));
+        }
+
+        // 末端回路行種先頭機器かつ回路要素='1' の通電電流値を積算する。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (mains[i].Work.LeadingEquipmentFlag != '1' || d.CircuitElement != '1')
+            {
+                continue;
+            }
+
+            if (d.SwitchType == '1' || d.SwitchType == '2')
+            {
+                continue;
+            }
+
+            // IntegrateCurrent の false は C の RETCD_NG(!=0) に対応。エラーはログ通知のみで処理継続。
+            if (!TerminalCurrentIntegrator.IntegrateCurrent(
+                    mains, EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3)))
+            {
+                reportError?.Invoke("Fyss36_MattanKairo_Iset()");
+            }
+        }
+
+        // 950927 単一/系統の ＳＣ について、上流積上区分='1' まで積算処理をする(Fyss3A 依存)。
+        if (checkSystemReservedWord is null || accumulateSystemCurrent is null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            (int ret, int yflag) = checkSystemReservedWord(i);
+            if (ret != 0 || yflag != 2)
+            {
+                continue;
+            }
+
+            MainCircuitData d = mains[i].Data;
+            if (!Matches(d.AttachedParameter.LoadName[1], "0KW", 3))
+            {
+                // 直前要素と同一階層・同一並列で末端の時、その通電電流値で積算する。i>=1 で C の maina[-1] UB を回避。
+                if (i >= 1)
+                {
+                    MainCircuitData prev = mains[i - 1].Data;
+                    if (Matches(d.HierarchyNumber, prev.HierarchyNumber, 3) &&
+                        Matches(d.ParallelNumber, prev.ParallelNumber, 3) &&
+                        prev.TerminalKind == '1')
+                    {
+                        double tsuden = EquipmentParameterFormatter.Stof(prev.EnergizingCurrent, 8);
+                        accumulateSystemCurrent(i - 1, yflag, tsuden);
+                    }
+                }
+            }
+            else
+            {
+                double tsuden = EquipmentParameterFormatter.Stof(d.EnergizingCurrent, 8);
+                accumulateSystemCurrent(i, yflag, tsuden);
+            }
+        }
+    }
+
+    /// <summary>
     /// 指定データ追番(負荷発生元)の通電電流値・負荷容量を積算エリアへセットする。
     /// 【C原典】Fyss36_Set_Seki(no, num, syu)。
     /// </summary>

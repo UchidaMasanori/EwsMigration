@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1353 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1366 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -146,6 +146,16 @@ EwsMigration/
 リーフ（`set_denryu`/`set_fky`/`get_ep`/`FYRT812`）は既存移植を利用。忠実移植ポイント:
 CT・AM 特殊コピー、改訂 `<1><2><3><4><9>`、951005 上流遡り、1-2 型 `dt_pnt` エラー、
 F(ヒューズ)特例で `searchsgy("C")` → `MainCircuitResult.SearchAgainFlag` を新設。テストは 1343 → **1353**（+10）。
+
+### 2026-08-05 セッション㐙 追加分（Fyss36 本体オーケストレータ移植 → Fyss36 完全移植完了）
+
+`Fyss36.c`（832 行）の未移植だった本体オーケストレータ `Fyss36_MattanKairo_Iset`（末端回路の通電電流値算出）を
+`AccumulationAreaSetter.SetTerminalCircuitCurrent` として移植し、**Fyss36 を完全移植完了**（サブ関数は前セッションで移植済）。
+本体は 4 ループを忠実再現: ①負荷発生元の積算セット（`SetLoadSourceAccumulation`）②通電電流0の末端へ上流伝播（`PropagateCurrentFromLoadSource`）
+③先頭機器の通電電流積算（`TerminalCurrentIntegrator.IntegrateCurrent`、失敗時は `FyHcErrFunc` 相当のログデリゲート）
+④950927 SC 系統積算（`Fyss3A_Chk_Yoyaku`/`Fyss3A_Prc_Seksan` をデリゲート境界化、Fyss3A 未移植のため null 時は早期 return）。
+忠実性メモ: ループ②の SC/NT 予約語・スイッチ 1/2・特殊予約語 '6'(27端子台)スキップ、
+ループ④の `maina[i-1]` アクセスに `i>=1` ガード（C原典は UB）、LoadName[1]=="0KW" 分岐。テストは 1353 → **1366**（+13）。
 
 
 

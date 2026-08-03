@@ -501,6 +501,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss36_Get_Are2,AccumulationAreaSetter.GetArea2,toku/sekkei/src/Fyss36.c,機器種別積算エリア(A/B/C/D/E/M/S)フラグ判定。負荷容量有無・負荷種類M・相数で分岐
 構造体,sk_work.sk_area/seki_area,CircuitWork.AccumulationSlots/AccumulationArea,fyrt800.h,積算エリア6スロット(相R/S/T/X/Y/N)。各a-e/m/s(A-Eに通電電流値・M/Sに負荷容量)
 関数,Fyss36_Get_Seki,AccumulationAreaSetter.PropagateCurrentFromLoadSource,toku/sekkei/src/Fyss36.c,通電電流値が0の末端は上流の負荷発生元('1')まで遡り通電電流値・積算エリアを対象と途中機器へ伝播。負荷発生元不在は安全終了(C原典はUB)
+関数,Fyss36_MattanKairo_Iset,AccumulationAreaSetter.SetTerminalCircuitCurrent,toku/sekkei/src/Fyss36.c,末端回路の通電電流値算出オーケストレータ。負荷発生元積算セット→末端伝播→先頭機器の通電電流積算→SC系統積算(Fyss3A/Chk_Yoyaku・Prc_Seksan委譲)の4ループ統括
 構造体,fyrt812/FYRT812,LoadCapacityDecisionTable/LoadCapacityEntry,fyrt812.h,負荷容量決定テーブル41件(予約語/電気パラメータ優先順位ep_pry[5]/予約語優先順位pry/負荷電流算出係数kei)。Fyss31/Fyss37共用
 関数,Fyss37_Get_Fuka/Get_DenIa/Get_DenIb/Kei_TR/Set_Tden/Set_Sden,TerminalCurrentIntegrator,toku/sekkei/src/Fyss37.c,通電電流積算の電流計算リーフ群。FYRT812優先解決/電流Ia(係数08)/Ib(積算エリア相和)/TR係数(V2/V1)/通電電流値/設定電流値Is算出
 関数,Fyss37_I_Set_Sub/Seki_Tsumi/Chk_Break/Mat_flg,TerminalCurrentIntegrator.IntegrateCurrent,toku/sekkei/src/Fyss37.c,通電電流積算本体。下流負荷発生元の積算エリアを親へ積上げ(seki_flag管理)、ブレーカ定格超過相はIa=定格×0.8で頭打ち、TR係数倍、通電/設定電流値セット
