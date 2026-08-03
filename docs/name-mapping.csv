@@ -580,3 +580,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,RST2_set,LoadSourceChanger.Rst2Set,toku/sekkei/src/Fyss3F.c,積算エリアのＲＳＴ相セット(2相補完)。sk_area[k1]==0で[k2]<-[k3]/[k4]<-[k5]・else [k6]==0で[k7]<-[k8]/[k9]<-[k10]
 関数,sou_clear,LoadSourceChanger.ClearPhase,toku/sekkei/src/Fyss3F.c,積算エリアの相クリア。指定相の全フィールド(a/b/c/d/e/m/s)を0にする
 関数,clear_ahassei,LoadSourceChanger.ClearLoadSourceFlag,toku/sekkei/src/Fyss3F.c,親の追い番を元に子供の負荷設定フラグをクリア。親追番=oyatnoの要素のahasseiを空白にし当該datanoで再帰(nest999上限)
+関数,Fyss38_NT_Proc,NtSpecialProcessor.ProcessNt,toku/sekkei/src/Fyss38.c,ＮＴの特殊処理。系統種別'1'&予約語'NT'に対し並列MCB(極数P=1)合計を極数[2]へ・ep[0]非0なら複写。MCB極数1のトリップ電流ATのMAXを求め使用相[1]をクリア(直列下流の極数001も[1..3]削り)・A2未入力のNTへMAXをセット。外部依存なし
+関数,Fyss38_Get_epap,NtSpecialProcessor.GetPoleCountSum,toku/sekkei/src/Fyss38.c,極数(P)合計取得。親追番oya&階層番号kai一致で予約語'MCB'かつ電気パラメータ[2]極数=1の件数を合計し奇数なら+1で偶数化して返す

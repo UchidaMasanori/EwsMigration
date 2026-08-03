@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1400 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1408 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -192,6 +192,16 @@ F(ヒューズ)特例で `searchsgy("C")` → `MainCircuitResult.SearchAgainFlag
 - **相振替**: XN/YN→`XySet`(dest の 0 相に origin 複写)・RN/SN/TN→`RstSet`(origin1 優先、0 なら origin2)・RS/ST/TR→`Rst2Set`(2 相補完)。振替後に不要な相を `ClearPhase` でクリア。
 - **`ClearLoadSourceFlag`**（=`clear_ahassei`）: 先頭機器の datano を親追番として `ParentSequenceNumber` が一致する子孫の `LoadSourceKind` を空白にし、再帰（nest 999 上限）で下流を輿る。
 - **実装メモ**: seki_area の 7 相(a/b/c/d/e/m/s)は Get/Set アクセサ配列で反復し原典の 7×展開を集約。テスト`LoadSourceChangerTests.cs`6件。テストは 1394 → **1400**（+6）。
+
+### 2026-08-05 セッションㄐ 追加分（Fyss38 ＮＴの特殊処理移植 → Fyss38 完全移植完了）
+
+`Fyss38.c`（約290 行、外部依存なし）のフル移植。ＮＴ(中性線端子)の特殊処理を
+Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
+
+- **`ProcessNt`**（=`Fyss38_NT_Proc`）: ①系統種別 `SystemKind`='1' かつ予約語 `ReservedWord`='NT' の要素につき、並列MCB極数合計(`GetPoleCountSum`)を電気パラメータ[2]極数 `P` へ（ep[0] 極数が非0ならそれを複写）。②予約語='MCB' で ep[2] 極数=1 の要素のトリップ電流 `At` の MAX を求め、使用相 `UsedPhase`[1] をスペースクリア。直列下流(同一階層・並列で直列番号が後続)の ep[0] 極数='001' は使用相[1..3] を削る。③予約語='NT' の定格電流2 `A2` が未入力("00000.000")なら MAX を、入力済ならその値を電気パラメータ[2] `A2` へセット。
+- **`GetPoleCountSum`**（=`Fyss38_Get_epap`）: 親追番・階層番号一致で予約語='MCB' かつ電気パラメータ[2]極数=1 の件数を合計し、奇数なら +1 で偶数化して返す。
+- **C原典UB**: 960322 の直列番号(chokuno)比較は原典 `memcmp` が長さ引数欠落(K&R)で未定義動作。直列番号の実幅である 3 バイト序数比較で決定化しコメント明記。
+- **テスト**: `NtSpecialProcessorTests.cs` 8件。テストは 1400 → **1408**（+8）。
 
 
 
