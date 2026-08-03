@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1279 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1302 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -229,6 +229,17 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
   - **CKS** は原典 `Set_CKS` が仮引数名 `prm2` で定義されるが呼出側は `prm1` を渡すため、C# でも `prm1` を渡す（`SetCks` の仮引数名 `parameter2SetRequired` に惑わされない）。
   - `ComputeParameterFlags` は prm2 も算出するが全 case が prm1 のみ使用するため prm2 は破棄（`out _`）。原典も prm2 を渡さない。
 - **完了（Fyss3G）**: Seek/Check/全デバイスセッタ/ディスパッチャ本体を結線し **Fyss3G は完全移植完了**。次候補は `Fyss3B_Breaker_Sentei`（機器選定本体）/`Fyss3R`/`Fyss31` 本体、順次移植後にオーケストレータへ結線。
+
+### 2026-08-03 セッション⑯ 追加分（Fyss3B フラグ設定部）
+
+末端回路ブレーカ機器選定 `Fyss3B_Breaker_Sentei` の**フラグ設定部**を移植。各主回路レコードに対し、機器選定指示フラグ `ksflg` と機器サーチフラグ `kikisflg` を設定する。テストは 1279 → **1302**（+23）。
+
+- **フラグ設定部（commit 予定）**: `src/Ews.Analysis/TerminalBreakerSelector.cs`（新規静的クラス）。`PrepareSelectionFlags`＝`Fyss3B_Breaker_Sentei` のフラグ設定ループ。
+  - **第1条件**: 負荷容量決定テーブル該当予約語（MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/NHMB/HPSB/HSB/CP/CKSの14語。**MC は明示除外**）かつ外部取付なし（`ExternalMountKind==' '`）・機器選定区分`EquipmentSelectionKind=='1'`・負荷種類非空白なら `ksflg`/`kikisflg` を '1' に設定。
+  - **第2条件**: 先頭機器フラグ `sentflg=='1'`（`LeadingEquipmentFlag`）かつ外部取付なしなら、予約語（MC 含む）・負荷種類に関わらずフラグを '1' に設定。
+  - **クリア**: どちらの条件も非成立なら両フラグを ' ' に（事前値をクリア）。
+- **ドメイン拡張**: `MainCircuitData` に `EquipmentSearchFlag`（=kikisflg）、`WorkArea` に `EquipmentSelectionKind`/`SelectionInstructionFlag`（=ksflg）を追加。
+- **保留（Fyss3B 残）**: ブレーカ選定本体（機器サーチ・品番決定）は未移植。本増分はフラグ設定部のみ。
 
 ### 2026-08-03 セッション⑭ 追加分（Fyss3G 依存付きセッタ: CT/MC）
 

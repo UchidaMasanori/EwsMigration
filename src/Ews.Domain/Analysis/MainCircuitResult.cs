@@ -109,6 +109,9 @@ public sealed class MainCircuitData
     /// </summary>
     public char SpecialReservedWordKind { get; set; } = ' ';
 
+    /// <summary>機器サーチフラグ。【C原典】kikisflg("C")。' ':非対象 '1':機器サーチ対象。</summary>
+    public char EquipmentSearchFlag { get; set; } = ' ';
+
     /// <summary>親データ追番(親機器の datano)。【C原典】oyatno[3]("9")。Find_Parent の親検索キー。</summary>
     public string ParentSequenceNumber { get; set; } = "000";
 
@@ -211,6 +214,9 @@ public sealed class CircuitWork
 
     /// <summary>末端回路行種先頭機器フラグ。【C原典】sk_work.sentflg。' ':非先頭 '1':先頭。</summary>
     public char LeadingEquipmentFlag { get; set; } = ' ';
+
+    /// <summary>機器選定指示フラグ。【C原典】sk_work.ksflg。' ':非対象 '1':機器選定対象。</summary>
+    public char SelectionInstructionFlag { get; set; } = ' ';
 
     /// <summary>設定電流値。【C原典】sk_work.setteii (DOUBLE)。</summary>
     public double SetCurrent { get; set; }
