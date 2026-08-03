@@ -557,3 +557,7 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 フィールド,siyouso,MainCircuitData.UsedPhase,toku/include/common/fydf806.h,使用相(R/S/T/N/X/Y)。プラグインブレーカ結線処理PropSetSouFor1sou/3souが接続相をセットする4バイト固定長フィールド
 関数,Fyss3R_TokuPlugIn_MainChk,PlugInBreakerConnector.CheckMainBreaker,toku/sekkei/src/Fyss3R.c,プラグインブレーカ主幹チェック。プラグイン(親同一なら1回)の親機器のトリップ電流(単相>250AT/三相>400AT改訂<4>)・極数(3P以外NG)・メーカー(ELB/MCBは三菱M・MN以外NG)を検査しNGならエラーFY-957E(FYMEE80)を返す。改訂<3>でCTPスキップ。親検索LibTreeSrchはデリゲート境界化
 関数,LibTreeSrch,PlugInBreakerConnector.CheckMainBreaker findParent引数,toku/lib,汎用二分探索(未移植)。データ追番datanoで親機器を検索。MainChkでは親データ追番oyatnoで親主幹を引く用途をFunc<string MainCircuitResult?>デリゲートで引数注入し境界化
+関数,Fyss31_FukaHassei_Set,LoadSourceSelector.SetLoadSource,toku/sekkei/src/Fyss31.c,負荷発生元設定本体。末端機器から負荷容量・電気パラメータを辿り負荷発生元区分ahassei・通電電流値denryuを設定。CT/AM特殊コピー・改訂<1>子計器判定・改訂<3>MMCB・直近末端fno探索(set_denryu)・同一並列階層のset_fky・951005上流同一行種遡り・改訂<2>MC/TB親食違い・上流遡り伝播・1-2型dt_pntエラー・改訂<4>主幹通電電流をSHORT 0/2で返す。SC処理はデリゲート境界化
+関数,set_error,LoadSourceSelector.MakeError,toku/sekkei/src/Fyss31.c,エラー情報生成。エラーコードFY-560E・行番gyo・桁atoi(keta)%03d・画面idFYMEE80をCircuitParseErrorに詰める。デバッグ情報001/002は対応フィールドが無く保持しない
+関数,SC_Keitou_Proc,LoadSourceSelector.SetLoadSource processSystemCircuit引数,toku/sekkei/src/Fyss31.c,ＳＣ(系統)の通電電流値算出。Fyss39_Chk_Yoyaku/Chk_Heiret/Get_Seiden・Fyss3A_Get_Tsuden(未移植)依存のため添字を受け取るAction<int>デリゲートで引数注入し境界化
+フィールド,searchsgy,MainCircuitData.SearchAgainFlag,toku/include/common/fydf806.h,制御回路で再サーチ('1':サーチ)。負荷発生元設定Fyss31のF(ヒューズ)特例(制御電源番号有・上流行種グループ不一致)で通電電流00000.80と共に立てる1バイト固定長フラグ

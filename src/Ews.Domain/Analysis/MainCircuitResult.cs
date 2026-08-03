@@ -121,6 +121,9 @@ public sealed class MainCircuitData
     /// <summary>•‰‰×”­¶Œ³‹æ•ªByCŒ´“Tzahassei("C")B</summary>
     public char LoadSourceKind { get; set; } = ' ';
 
+    /// <summary>§Œä‰ñ˜H‚ÅÄƒT[ƒ`('1':ƒT[ƒ`)ByCŒ´“Tzsearchsgy("C")B•‰‰×”­¶Œ³İ’è(Fyss31)‚Ì F(ƒqƒ…[ƒY)“Á—á‚Å—§‚Ä‚éB</summary>
+    public char SearchAgainFlag { get; set; } = ' ';
+
     /// <summary>ã—¬Ï‚İã‚°‹æ•ª('K':ŒğŒİ‰^“] ' ':’Êí‰^“])ByCŒ´“Tzjagekbn("C")B</summary>
     public char StackKind { get; set; } = ' ';
 

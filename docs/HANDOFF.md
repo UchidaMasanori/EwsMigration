@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1343 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1353 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -138,7 +138,16 @@ EwsMigration/
 - ❌ 制御回路 Fyss13/1k/1l・下流結線 Fyss15・制御電源 Fyss19/1p/U0・検証 Prop 群・線番 Fyss3*・Fysk10_Main 本体結線
 - ❌ 制御設計 libfysgy.a（Fysc20_Sekkei_Control 系, 別ライブラリ）… 完全移植に必須
 
-### 2026-07-31 セッション⑫ 追加分（Fyss3G 電流パラメータ設定: CNS ローダー4種＋ブレーカ系セッタ4種）
+### 2026-08-03 セッション㊸ 追加分（Fyss31 負荷発生元設定 本体移植 → 主要ロジック移植完了）
+
+`Fyss31.c`（1076 行）の未移植だったオーケストレータ本体を移植し、`Fyss31` の主要ロジックを移植完了。
+`Fyss31_FukaHassei_Set`（負荷発生元設定の中核）を `LoadSourceSelector.SetLoadSource` として移植、
+`set_error` を `MakeError`、SC 系統処理 `SC_Keitou_Proc`（Fyss39/Fyss3A 依存）はデリゲート境界化。
+リーフ（`set_denryu`/`set_fky`/`get_ep`/`FYRT812`）は既存移植を利用。忠実移植ポイント:
+CT・AM 特殊コピー、改訂 `<1><2><3><4><9>`、951005 上流遡り、1-2 型 `dt_pnt` エラー、
+F(ヒューズ)特例で `searchsgy("C")` → `MainCircuitResult.SearchAgainFlag` を新設。テストは 1343 → **1353**（+10）。
+
+
 
 電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set`（Fyss15 の M2 スライス）を段階移植。CNS マスタ読込4種と
 ブレーカ系デバイスセッタ4種、および共通下請け（`Check_fyrt800`/`Set_IM`/`PropSetELBKando`/`Fysk0e_SetELBkando`）を移植。テストは 1126 → **1151**（+25）。

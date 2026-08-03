@@ -128,4 +128,191 @@ public sealed class LoadSourceSelectorTests
 
         Assert.Equal(LoadSourceSelector.NotInTable, rc);
     }
+
+    // ---- Fyss31_FukaHassei_Set(SetLoadSource) 本体オーケストレータの検証 ----
+
+    /// <summary>負荷発生元設定用の主回路データを組み立てる。</summary>
+    private static MainCircuitResult Circuit(
+        string datano,
+        string yoyaku,
+        char kiryoso = '1',
+        char mattan = '1',
+        string hei = "001",
+        string kaiso = "001",
+        string nyuse = "001",
+        string oya = "000",
+        string gyoglno = "001",
+        string gyocd = "AA",
+        string loadCapacity = "0000000",
+        string loadKind = "H ",
+        char kpaph = '1',
+        string kpav = "100",
+        char kairobun = ' ',
+        string ysno = "00",
+        string gyo = "000",
+        string keta = "000")
+    {
+        var r = new MainCircuitResult
+        {
+            SequenceNumber = datano,
+            Data = new MainCircuitData
+            {
+                ReservedWord = yoyaku,
+                CircuitElement = kiryoso,
+                TerminalKind = mattan,
+                ParallelNumber = hei,
+                HierarchyNumber = kaiso,
+                IncomingNumber = nyuse,
+                ParentSequenceNumber = oya,
+                LineTypeGroupNumber = gyoglno,
+                LineTypeCode = gyocd,
+                CircuitPhaseCount = kpaph,
+                CircuitClass = kairobun,
+                DesignationNumber = ysno,
+                DescriptionRow = gyo,
+                DescriptionColumn = keta,
+            },
+        };
+        r.Data.CircuitVoltage[0] = kpav;
+        r.Data.AttachedParameter.LoadCapacity = loadCapacity;
+        r.Data.AttachedParameter.LoadKind = loadKind;
+        // 電気パラメータは eparm_set 整形後の「値無し」= 小数点付きゼロで初期化する
+        // (既定の "000000000" は get_ep のゼロ判定 "00000.000" と一致せず値有り扱いになるため)。
+        ElectricalParameters ep = r.Data.ElectricalParameterSlots[0];
+        ep.At = "00000.000";
+        ep.Af = "00000.000";
+        ep.A1 = "00000.000";
+        ep.A2 = "00000.000";
+        ep.W1 = "0000000.00";
+        ep.Va = "0000000.00";
+        return r;
+    }
+
+    [Fact]
+    public void 末端機器の負荷容量から通電電流値を求め負荷発生元区分を立てる()
+    {
+        MainCircuitResult mcb = Circuit("001", "MCB", loadCapacity: "0000050", loadKind: "H ", kpav: "100");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([mcb]);
+
+        Assert.Null(err);
+        Assert.Equal('1', mcb.Data.LoadSourceKind);
+        Assert.Equal("00000.50", mcb.Data.EnergizingCurrent); // 50 / 100
+    }
+
+    [Fact]
+    public void 負荷容量はあるが通電電流を算出できなければFY560Eエラーを返す()
+    {
+        MainCircuitResult mcb = Circuit("001", "MCB", loadCapacity: "0000050", loadKind: "ZZ", gyo: "004", keta: "011");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([mcb]);
+
+        Assert.NotNull(err);
+        Assert.Equal("FY-560E", err!.ErrorCode);
+        Assert.Equal(4, err.LineNumber);
+        Assert.Equal(11, err.Column);
+        Assert.Equal("FYMEE80", err.MessageId);
+    }
+
+    [Fact]
+    public void 負荷容量が無くても電気パラメータから負荷発生元を決定する()
+    {
+        MainCircuitResult mcb = Circuit("001", "MCB", loadCapacity: "0000000");
+        mcb.Data.ElectricalParameterSlots[0].At = "00050.000"; // AT=50 → 0.8×50=40
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([mcb]);
+
+        Assert.Null(err);
+        Assert.Equal('1', mcb.Data.LoadSourceKind);
+        Assert.Equal("00040.00", mcb.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 上流の同一行種グループを遡って負荷発生元を決定し中間要素へ電流を伝播する()
+    {
+        // 親(MCB,AT=50) ← 子(MG,末端,パラメータ無)。子は上流遡りで親を負荷発生元とする。
+        MainCircuitResult parent = Circuit("001", "MCB", kiryoso: '2', mattan: '2',
+            hei: "002", kaiso: "002", nyuse: "002", gyoglno: "005");
+        parent.Data.ElectricalParameterSlots[0].At = "00050.000";
+        MainCircuitResult child = Circuit("002", "MG", oya: "001", gyoglno: "005");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([parent, child]);
+
+        Assert.Null(err);
+        Assert.Equal('1', parent.Data.LoadSourceKind);
+        Assert.Equal("00040.00", parent.Data.EnergizingCurrent);
+        Assert.Equal("00040.00", child.Data.EnergizingCurrent); // 中間要素へ伝播
+    }
+
+    [Fact]
+    public void 親が無い末端機器で負荷発生元が見つからなければFY560Eエラーを返す()
+    {
+        MainCircuitResult mg = Circuit("001", "MG", oya: "000", gyo: "003", keta: "007");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([mg]);
+
+        Assert.NotNull(err);
+        Assert.Equal("FY-560E", err!.ErrorCode);
+        Assert.Equal(3, err.LineNumber);
+        Assert.Equal(7, err.Column);
+    }
+
+    [Fact]
+    public void Fヒューズで制御電源番号がある場合は固定電流と再サーチフラグを立てる()
+    {
+        MainCircuitResult parent = Circuit("001", "MC", kiryoso: '2', mattan: '2', gyoglno: "001");
+        MainCircuitResult fuse = Circuit("002", "F", oya: "001", gyoglno: "009");
+        fuse.Data.AttachedParameter.ControlPowerNumber = "01";
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([parent, fuse]);
+
+        Assert.Null(err);
+        Assert.Equal("00000.80", fuse.Data.EnergizingCurrent);
+        Assert.Equal('1', fuse.Data.SearchAgainFlag);
+    }
+
+    [Fact]
+    public void 一二型で予約語と指定番号が一致する両末端が負荷発生元エラーならFY560Eを返す()
+    {
+        MainCircuitResult parent = Circuit("001", "MC", kiryoso: '2', mattan: '2', gyoglno: "001");
+        MainCircuitResult a = Circuit("002", "CSDT", oya: "001", gyoglno: "009", ysno: "01", hei: "002");
+        MainCircuitResult b = Circuit("003", "CSDT", oya: "001", gyoglno: "009", ysno: "01", hei: "003");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([parent, a, b]);
+
+        Assert.NotNull(err);
+        Assert.Equal("FY-560E", err!.ErrorCode);
+    }
+
+    [Fact]
+    public void 主幹機器は負荷容量から通電電流をセットする()
+    {
+        // 末端でない主幹(kairobun='M',kiryoso='1',mattan='0')。改訂<4>でセットされる。
+        MainCircuitResult m = Circuit("001", "MCCB", mattan: '0', kairobun: 'M',
+            loadCapacity: "0000100", loadKind: "H ", kpav: "100");
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([m]);
+
+        Assert.Null(err);
+        Assert.Equal("00001.00", m.Data.EnergizingCurrent); // 100 / 100
+    }
+
+    [Fact]
+    public void SC系統は注入されたデリゲートで通電電流値を算出する()
+    {
+        MainCircuitResult sc = Circuit("001", "SC");
+        sc.Data.AttachedParameter.LoadName[1] = "0KW";
+        int? called = null;
+
+        CircuitParseError? err = LoadSourceSelector.SetLoadSource([sc], processSystemCircuit: i => called = i);
+
+        Assert.Null(err);
+        Assert.Equal(0, called);
+    }
+
+    [Fact]
+    public void 主回路エリアがnullなら例外を投げる()
+    {
+        Assert.Throws<ArgumentNullException>(() => LoadSourceSelector.SetLoadSource(null!));
+    }
 }
