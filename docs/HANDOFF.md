@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1258 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1279 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -214,6 +214,21 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
   - **ep[1] 再設定（prm1==0）**: CT 付きで ep[1].A1 非ゼロなら定格電流を再検索(1.2 倍なし)。負荷発生元(ahassei=='1')は ep[2].A1 に ep[1].A1 を複写。
 - **依存**: ゾーンコードは C の `FyGetZoneCD` を `SetAm(..., string zoneCode)` 引数化（既存 `IRuntimeParameterProvider.ZoneCode` から供給）。定格電流１検索は既存 `CurrentParameterTableSeeker.SeekRatedCurrent1`。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 依存]/CT[同一機器多重ループ]）。
+
+### 2026-08-03 セッション⑮ 追加分（Fyss3G ディスパッチャ本体 → Fyss3G 完全移植完了）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の**ディスパッチャ本体**を移植（Fyss3G の最終ピース）。系統種別・回路要素・負荷容量表チェックでフィルタし、`prm_tp` を検索して予約語別セッタへ振り分ける。テストは 1258 → **1279**（+21）。**これで Fyss3G は 100% 移植完了**。
+
+- **ディスパッチャ本体（commit 予定）**: `src/Ews.Analysis/CurrentParameterDispatcher.cs`（新規静的クラス `CurrentParameterDispatcher`）。`DispatchCurrentParameters`＝`Fyss3G_Denryuu_Parm_Set`。
+  - **引数注入**: CNS テーブル4種（`prmtp_cp`/`sqset_cp`/`a2set_cp`/`a1set_cp`）・製作仕様区分（`sshiykbn`→`seisakusiyou`＝先頭"01"判定）・ゾーンコード（`FyGetZoneCD`）・`kubun`（'M'＝主回路/他＝計器回路）を外部から受け取り、原典のグローバル依存を明示化。
+  - **フィルタ3段**: ①系統種別 `SystemKind!='1'` は skip。②`kubun=='M'` は `CircuitElement!='1'` を skip、計器側は `CircuitElement=='1'` を skip。③`CheckLoadCapacityTable`（=`Check_fyrt812`）が非0（ブレーカ系で機器選定区分1かつ負荷容量表該当）なら skip。
+  - **prm_tp 振り分け**: `SeekParameterSettingType` で `prm_tp` を取得し `switch`。MCB/ELB/MMCB/ELMB/MC/THR/MG/WH/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/SSW/CKS/L を対応セッタへ結線（`ComputeParameterFlags` の prm1 を各セッタへ受け渡し）。
+- **忠実性メモ（重大）**: 
+  - **MGFR(=72)** は MG 系 case（MG/MGSD/MGFRSD）に**含まれない**ため既定 no-op（原典どおり）。
+  - **DCPW** は原典 `Set_DCPW` が空関数のため明示 no-op。
+  - **CKS** は原典 `Set_CKS` が仮引数名 `prm2` で定義されるが呼出側は `prm1` を渡すため、C# でも `prm1` を渡す（`SetCks` の仮引数名 `parameter2SetRequired` に惑わされない）。
+  - `ComputeParameterFlags` は prm2 も算出するが全 case が prm1 のみ使用するため prm2 は破棄（`out _`）。原典も prm2 を渡さない。
+- **完了（Fyss3G）**: Seek/Check/全デバイスセッタ/ディスパッチャ本体を結線し **Fyss3G は完全移植完了**。次候補は `Fyss3B_Breaker_Sentei`（機器選定本体）/`Fyss3R`/`Fyss31` 本体、順次移植後にオーケストレータへ結線。
 
 ### 2026-08-03 セッション⑭ 追加分（Fyss3G 依存付きセッタ: CT/MC）
 
