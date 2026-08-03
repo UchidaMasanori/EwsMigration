@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1334 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1343 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -267,6 +267,14 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
 - **移植境界（重要）**: `PropJdgNothing`（回路記述ファイル FYDF805 の自由文字に "NOTHING" があるか検索）は未移植のため、`Func<MainCircuitResult, bool>`（true＝指定有）で引数注入し境界化。interface は使わない態標に合わせた。
 - **ドメイン追加**: `MainCircuitData.UsedPhase`＝siyouso[4]（使用相 R/S/T/N/X/Y）。
 - **テスト**: `PlugInBreakerConnectorTests.cs` +9（単相3/三相4/nullガード2）。
+
+### 2026-08-03 セッション⑧ 追加分（Fyss3R 主幹チェック: MainChk → Fyss3R 完全移植完了）
+
+`Fyss3R.c` の残り `Fyss3R_TokuPlugIn_MainChk`（主幹チェック）を移植し、**Fyss3R は完全移植完了**。テストは 1334 → **1343**（+9）。
+
+- **主幹チェック**: `PlugInBreakerConnector.CheckMainBreaker`＝`Fyss3R_TokuPlugIn_MainChk`。主回路エリアを走査し、プラグイン（親同一なら 1 回）の親機器についてトリップ電流（単相&gt;250AT / 三相&gt;400AT【改訂&lt;4&gt;】で NG）・極数（3P 以外 NG）・メーカー（ELB/MCB は三菱 "M  "/"MN " 以外 NG）を検査。NG で "FY-957E"（メッセージ FYMEE80）を返す。正常は null。改訂&lt;3&gt; で CTP はスキップ。
+- **移植境界（重要）**: 親機器検索 `LibTreeSrch`（未移植の汎用二分探索）は `Func<string, MainCircuitResult?>`（キー＝親データ追番 oyatno）で引数注入し境界化。エラーは `Err_Code_Set` 相当で `CircuitParseError`（=FYRT805）を戻り値として返却（*Perrc/Perra の副作用を返値化）。トリップ電流のパースは `EquipmentParameterFormatter.Stof`（=LibCharToDouble 相当）。
+- **テスト**: `PlugInBreakerConnectorTests.cs` +9（全OK/三相400超過/単相250超過/極数3P以外/ELB非三菱/三菱MN OK/CTP・非プラグイン・親なしスキップ/nullガード2）。
 - **ドメイン追加**: `Ews.Domain/Analysis/PlugInGroup.cs`（=`struct grp_plug`）。SourcePhaseWire（sousen）/Type（'C'/'K'）/StartIndex/EndIndex。
 - **保留（Fyss3R 残）**: 単相/三相の結線相セット（PropSetSouFor1sou/3sou, siyouso/kpav/datatype[3] 設定）・NOTHING 判定（PropJdgNothing, 回路記述ファイル FYDF805 依存）・主幹チェック（Fyss3R_TokuPlugIn_MainChk, LibTreeSrch/Err_Code_Set 依存）・結線オーケストレータ（Fyss3R_TokuPlugIn_Kes_Set）は未移植。
 

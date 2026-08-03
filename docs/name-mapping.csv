@@ -555,3 +555,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropSetSouFor1sou,PlugInBreakerConnector.SetSinglePhaseConnection,toku/sekkei/src/Fyss3R.c,単相の結線相セット。CV付きCTブレーカ電圧・NOTHING指定有無で回路電圧kpav[0](210:RT相結線/105:RN・TN相結線)決定。接続相タイプ未入力機器はXN/YN交互・入力済RN/TN機器は対応使用相をセット。改訂<3>でCTPスキップ
 関数,PropSetSouFor3sou,PlugInBreakerConnector.SetThreePhaseConnection,toku/sekkei/src/Fyss3R.c,三相の結線相セット。kpav[0]==210かつ極数epap!=003の機器のみ処理。アラームなしCHP・接続相タイプRN/TN・NOTHING指定有無に応じ使用相(RS/ST/RT)を順割当。NOTHING指定無は機器タイプdatatype[3]もRN/TN/NOTHINGを順セット
 フィールド,siyouso,MainCircuitData.UsedPhase,toku/include/common/fydf806.h,使用相(R/S/T/N/X/Y)。プラグインブレーカ結線処理PropSetSouFor1sou/3souが接続相をセットする4バイト固定長フィールド
+関数,Fyss3R_TokuPlugIn_MainChk,PlugInBreakerConnector.CheckMainBreaker,toku/sekkei/src/Fyss3R.c,プラグインブレーカ主幹チェック。プラグイン(親同一なら1回)の親機器のトリップ電流(単相>250AT/三相>400AT改訂<4>)・極数(3P以外NG)・メーカー(ELB/MCBは三菱M・MN以外NG)を検査しNGならエラーFY-957E(FYMEE80)を返す。改訂<3>でCTPスキップ。親検索LibTreeSrchはデリゲート境界化
+関数,LibTreeSrch,PlugInBreakerConnector.CheckMainBreaker findParent引数,toku/lib,汎用二分探索(未移植)。データ追番datanoで親機器を検索。MainChkでは親データ追番oyatnoで親主幹を引く用途をFunc<string MainCircuitResult?>デリゲートで引数注入し境界化

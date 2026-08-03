@@ -313,4 +313,148 @@ public class PlugInBreakerConnectorTests
         Assert.Throws<System.ArgumentNullException>(
             () => PlugInBreakerConnector.SetConnection([], null!));
     }
+
+    // ---- CheckMainBreaker (Fyss3R_TokuPlugIn_MainChk) ----
+
+    /// <summary>プラグイン子機器 1 件を生成する(主幹チェックテスト用)。</summary>
+    private static MainCircuitResult Child(string parent = "010", string dataType0 = "CH")
+    {
+        var r = new MainCircuitResult { SequenceNumber = "001" };
+        r.Data.DataType[0] = dataType0;
+        r.Data.ParentSequenceNumber = parent;
+        return r;
+    }
+
+    /// <summary>親機器(主幹)1 件を生成する(主幹チェックテスト用)。</summary>
+    private static MainCircuitResult ParentRec(
+        string sequence = "010",
+        char phase = '3',
+        string epaat = "00000.000",
+        string epap = "003",
+        string reservedWord = "MCB",
+        string makerCode = "M  ",
+        string gyo = "005",
+        string keta = "007")
+    {
+        var r = new MainCircuitResult { SequenceNumber = sequence };
+        r.Data.ReservedWord = reservedWord;
+        r.Data.CircuitPhaseCount = phase;
+        r.Data.ElectricalParameterSlots[1].At = epaat;
+        r.Data.ElectricalParameterSlots[0].P = epap;
+        r.Data.AttachedParameter.MakerCode = makerCode;
+        r.Data.DescriptionRow = gyo;
+        r.Data.DescriptionColumn = keta;
+        return r;
+    }
+
+    private static Func<string, MainCircuitResult?> Finder(params MainCircuitResult[] parents)
+    {
+        var map = new Dictionary<string, MainCircuitResult>();
+        foreach (MainCircuitResult p in parents)
+        {
+            map[p.SequenceNumber] = p;
+        }
+        return key => map.TryGetValue(key, out MainCircuitResult? v) ? v : null;
+    }
+
+    [Fact]
+    public void 主幹チェック_全条件OKはエラーなし()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.Null(err);
+    }
+
+    [Fact]
+    public void 主幹チェック_三相トリップ400AT超過はNG()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010", phase: '3', epaat: "00400.001");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.NotNull(err);
+        Assert.Equal("FY-957E", err!.ErrorCode);
+        Assert.Equal("FYMEE80", err.MessageId);
+        Assert.Equal(5, err.LineNumber);
+        Assert.Equal(7, err.Column);
+    }
+
+    [Fact]
+    public void 主幹チェック_単相トリップ250AT超過はNG()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010", phase: '1', epaat: "00250.001");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.NotNull(err);
+    }
+
+    [Fact]
+    public void 主幹チェック_極数3P以外はNG()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010", epap: "002");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.NotNull(err);
+    }
+
+    [Fact]
+    public void 主幹チェック_ELB_MCBで三菱以外はNG()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010", reservedWord: "ELB", makerCode: "K  ");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.NotNull(err);
+    }
+
+    [Fact]
+    public void 主幹チェック_ELB_MCBで三菱MNはOK()
+    {
+        var records = new List<MainCircuitResult> { Child(parent: "010") };
+        MainCircuitResult parent = ParentRec(sequence: "010", reservedWord: "MCB", makerCode: "MN ");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(parent));
+
+        Assert.Null(err);
+    }
+
+    [Fact]
+    public void 主幹チェック_CTPと非プラグインと親なしはスキップ()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Child(parent: "010", dataType0: "CTP"),  // 改訂<3> CTP スキップ
+            Child(parent: "011", dataType0: "MCB"),  // 非プラグイン スキップ
+            Child(parent: "999", dataType0: "CH"),   // 親なし スキップ
+        };
+        // 親 010 が NG 条件でも上記はスキップされるため検索されない。
+        MainCircuitResult ng = ParentRec(sequence: "010", epap: "002");
+
+        CircuitParseError? err = PlugInBreakerConnector.CheckMainBreaker(records, Finder(ng));
+
+        Assert.Null(err);
+    }
+
+    [Fact]
+    public void CheckMainBreakerのrecordsがnullなら例外()
+    {
+        Assert.Throws<System.ArgumentNullException>(
+            () => PlugInBreakerConnector.CheckMainBreaker(null!, _ => null));
+    }
+
+    [Fact]
+    public void CheckMainBreakerのfindParentがnullなら例外()
+    {
+        Assert.Throws<System.ArgumentNullException>(
+            () => PlugInBreakerConnector.CheckMainBreaker([], null!));
+    }
 }

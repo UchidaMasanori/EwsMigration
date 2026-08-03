@@ -13,7 +13,8 @@ namespace Ews.Analysis;
 /// <see cref="SetThreePhaseConnection"/>＝<c>PropSetSouFor3sou</c>)を対象とする。
 /// NOTHING 判定(<c>PropJdgNothing</c>, 回路記述ファイル FYDF805 依存)は未移植依存のため、
 /// 自由文字に "NOTHING" があるかを返すデリゲート(引数注入)で境界化する。
-/// 主幹チェック(Fyss3R_TokuPlugIn_MainChk)は後続増分で移植する。
+/// 主幹チェック(<see cref="CheckMainBreaker"/>＝<c>Fyss3R_TokuPlugIn_MainChk</c>)は、
+/// 親機器検索(<c>LibTreeSrch</c>, 未移植)を親検索デリゲートで境界化する。
 /// </summary>
 public static class PlugInBreakerConnector
 {
@@ -346,6 +347,115 @@ public static class PlugInBreakerConnector
         }
     }
 
+    /// <summary>
+    /// プラグインブレーカの主幹チェック処理。
+    /// 【C原典】Fyss3R_TokuPlugIn_MainChk(Fyss3R.c:69)。
+    ///
+    /// 主回路エリアを走査し、プラグインブレーカ(親が同一なら 1 回のみ)の親機器について
+    /// トリップ電流(単相 &gt;250AT / 三相 &gt;400AT〔改訂&lt;4&gt;〕で NG)・極数(3P 以外で NG)・
+    /// メーカー(ELB/MCB は三菱 "M  "/"MN " 以外で NG)を検査する。いずれか NG なら
+    /// エラー "FY-957E"(メッセージ FYMEE80)を返す。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】maina(件数 mainc)。</param>
+    /// <param name="findParent">
+    /// 親データ追番(datano)で親機器を検索するデリゲート。
+    /// 【C原典】LibTreeSrch(未移植の汎用二分探索)の移植境界。該当なしは null を返す。
+    /// </param>
+    /// <returns>NG があれば "FY-957E" エラー、正常なら null。【C原典】Err_Code_Set。</returns>
+    public static CircuitParseError? CheckMainBreaker(
+        IReadOnlyList<MainCircuitResult> records,
+        Func<string, MainCircuitResult?> findParent)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(findParent);
+
+        string? previousParent = null; // 【C原典】pre_oyatno(初期 {0,0,0} ≒ どの追番とも不一致)。
+        bool chkNg = false;
+        MainCircuitResult? parent = null; // 【C原典】oya。
+
+        for (int i = 0; i < records.Count; i++)
+        {
+            chkNg = false;
+            MainCircuitData dt = records[i].Data;
+
+            // 【C原典】前回と同じ親ならスキップ。
+            if (previousParent is not null && previousParent == dt.ParentSequenceNumber)
+            {
+                continue;
+            }
+
+            // 改訂<3>: CTP はスキップ。
+            if (FieldStarts(dt.DataType[0], "CTP"))
+            {
+                continue;
+            }
+
+            // 【C原典】プラグインタイプでなければスキップ。
+            if (!IsPlugInType(dt.DataType))
+            {
+                continue;
+            }
+
+            // 【C原典】親データ追番で親機器を検索(LibTreeSrch)。
+            parent = findParent(dt.ParentSequenceNumber);
+            if (parent is null)
+            {
+                continue;
+            }
+
+            MainCircuitData oya = parent.Data;
+
+            // 【C原典】親機器のトリップ電流チェック(単相>250AT / 三相>400AT〔改訂<4>〕)。
+            double epaat = EquipmentParameterFormatter.Stof(oya.ElectricalParameterSlots[1].At, 9);
+            if (oya.CircuitPhaseCount == '1')
+            {
+                if (epaat > 250.0)
+                {
+                    chkNg = true;
+                    break;
+                }
+            }
+            else if (oya.CircuitPhaseCount == '3')
+            {
+                if (epaat > 400.0)
+                {
+                    chkNg = true;
+                    break;
+                }
+            }
+
+            // 【C原典】親機器の極数チェック(3P 以外は NG)。
+            if (oya.ElectricalParameterSlots[0].P != "003")
+            {
+                chkNg = true;
+                break;
+            }
+
+            // 【C原典】親機器のメーカーチェック(ELB/MCB は三菱 "M  "/"MN " 以外 NG)。
+            if (FieldStarts(oya.ReservedWord, "ELB") || FieldStarts(oya.ReservedWord, "MCB"))
+            {
+                if (!FieldStarts(oya.AttachedParameter.MakerCode, "M  ") &&
+                    !FieldStarts(oya.AttachedParameter.MakerCode, "MN "))
+                {
+                    chkNg = true;
+                    break;
+                }
+            }
+
+            previousParent = dt.ParentSequenceNumber;
+        }
+
+        if (chkNg && parent is not null)
+        {
+            // 【C原典】Err_Code_Set(Perra, "FY-957E", oya->dt.gyo, oya->dt.keta, "FYMEE80")。
+            MainCircuitData oya = parent.Data;
+            return new CircuitParseError(
+                "FY-957E", ParseNumber(oya.DescriptionRow), ParseNumber(oya.DescriptionColumn), "FYMEE80");
+        }
+
+        return null;
+    }
+
     /// <summary>予約語が電源("P ")かを判定する。【C原典】memcmp(yoyaku,"P ",2)==0。</summary>
     private static bool IsPowerSource(string? reservedWord) =>
         (reservedWord ?? string.Empty).PadRight(2)[..2] == "P ";
@@ -360,4 +470,8 @@ public static class PlugInBreakerConnector
     /// </summary>
     private static bool FieldStarts(string? value, string prefix) =>
         (value ?? string.Empty).PadRight(prefix.Length)[..prefix.Length] == prefix;
+
+    /// <summary>数値文字列(行/桁など)を int へ変換する。空/非数は 0。</summary>
+    private static int ParseNumber(string? value) =>
+        int.TryParse(value, out int n) ? n : 0;
 }
