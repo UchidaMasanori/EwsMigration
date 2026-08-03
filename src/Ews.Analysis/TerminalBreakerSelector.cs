@@ -10,13 +10,39 @@ namespace Ews.Analysis;
 /// 存在するブレーカ系予約語の機器へ機器選定指示フラグ(<c>ksflg</c>)と機器サーチフラグ
 /// (<c>kikisflg</c>)を設定してから、主回路機器サーチ(<c>Fysk00_Kikisearch_SY</c>)を呼び出す。
 ///
-/// 【移植範囲(重要)】本移植はフラグ設定部(<see cref="PrepareSelectionFlags"/>)のみを対象とする。
-/// C 原典末尾の主回路機器サーチ <c>Fysk00_Kikisearch_SY</c>(Fysk00.c, 大規模 ISAM 依存の機器選定
-/// 本体)は未移植のため、その呼び出しは移植境界とする(leaf-not-wired)。機器サーチ移植後に
-/// 本メソッドの後段へ結線する。
+/// 【移植境界(重要)】C 原典末尾の主回路機器サーチ <c>Fysk00_Kikisearch_SY</c>(Fysk00.c, 大規模
+/// ISAM 依存の機器選定本体)は未移植のため、<see cref="SelectBreakers"/> ではデリゲート引数
+/// で注入される移植境界として扱う(コードベースの外部依存はインタフェースを使わず引数注入する
+/// 態標に合わせる)。機器サーチ移植後は当該デリゲートに実体を渡す。
 /// </summary>
 public static class TerminalBreakerSelector
 {
+    /// <summary>
+    /// 末端回路ブレーカの機器選定本体。
+    /// 【C原典】Fyss3B_Breaker_Sentei(Fyss3B.c:96-165)。
+    /// 機器選定指示/機器サーチフラグを設定(<see cref="PrepareSelectionFlags"/>)したのち、
+    /// 主回路機器サーチ(<c>Fysk00_Kikisearch_SY</c>)へ委譲しそのリターンコードをそのまま返す。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】maina(件数 Pmainc)。</param>
+    /// <param name="equipmentSearch">
+    /// 主回路機器サーチ。【C原典】Fysk00_Kikisearch_SY(未移植の移植境界)。
+    /// 戻り値は 0:正常 / 1:異常。
+    /// </param>
+    /// <returns>機器サーチのリターンコード(0:正常 / 1:異常)。【C原典】ret。</returns>
+    public static int SelectBreakers(
+        IReadOnlyList<MainCircuitResult> records,
+        Func<IReadOnlyList<MainCircuitResult>, int> equipmentSearch)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(equipmentSearch);
+
+        // 【C原典】前半 2 ループ：フラグクリア→ブレーカ系機器へ ksflg/kikisflg を設定。
+        PrepareSelectionFlags(records);
+
+        // 【C原典】ret = Fysk00_Kikisearch_SY(...); return(ret); を移植境界デリゲートへ委譲。
+        return equipmentSearch(records);
+    }
+
     /// <summary>
     /// 主回路機器サーチの前段としてブレーカ系機器の機器選定指示フラグ・機器サーチフラグを設定する。
     /// 【C原典】Fyss3B_Breaker_Sentei の前半 2 ループ(Fyss3B.c:106-152)。
@@ -62,7 +88,7 @@ public static class TerminalBreakerSelector
             }
         }
 
-        // 【C原典 移植境界】ret = Fysk00_Kikisearch_SY(...) は未移植のためここで結線しない。
+        // 【C原典 移植境界】ret = Fysk00_Kikisearch_SY(...) は <see cref="SelectBreakers"/> のデリゲートへ委譲。
     }
 
     /// <summary>

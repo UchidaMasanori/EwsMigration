@@ -159,4 +159,48 @@ public class TerminalBreakerSelectorTests
         AssertFlags(skip, ' ');
         AssertFlags(lead, '1');
     }
+
+    [Fact]
+    public void 機器選定本体はフラグ設定後に機器サーチへ委譲する()
+    {
+        var r = Rec("MCB", equipmentSelectionKind: '1', externalMountKind: ' ', loadKind: "M");
+        char flagAtSearch = '?';
+
+        int ret = TerminalBreakerSelector.SelectBreakers([r], records =>
+        {
+            // 機器サーチ呼出時点でフラグ設定が完了していること。
+            flagAtSearch = records[0].Data.EquipmentSearchFlag;
+            return 0;
+        });
+
+        Assert.Equal(0, ret);
+        Assert.Equal('1', flagAtSearch);
+        AssertFlags(r, '1');
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void 機器選定本体は機器サーチのリターンコードをそのまま返す(int searchResult)
+    {
+        var r = Rec("F");
+
+        int ret = TerminalBreakerSelector.SelectBreakers([r], _ => searchResult);
+
+        Assert.Equal(searchResult, ret);
+    }
+
+    [Fact]
+    public void 機器選定本体はrecordsがnullなら例外()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => TerminalBreakerSelector.SelectBreakers(null!, _ => 0));
+    }
+
+    [Fact]
+    public void 機器選定本体はequipmentSearchがnullなら例外()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => TerminalBreakerSelector.SelectBreakers([Rec("MCB")], null!));
+    }
 }

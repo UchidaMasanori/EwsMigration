@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1302 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1307 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -240,6 +240,14 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
   - **クリア**: どちらの条件も非成立なら両フラグを ' ' に（事前値をクリア）。
 - **ドメイン拡張**: `MainCircuitData` に `EquipmentSearchFlag`（=kikisflg）、`WorkArea` に `EquipmentSelectionKind`/`SelectionInstructionFlag`（=ksflg）を追加。
 - **保留（Fyss3B 残）**: ブレーカ選定本体（機器サーチ・品番決定）は未移植。本増分はフラグ設定部のみ。
+
+### 2026-08-03 セッション⑰ 追加分（Fyss3B 本体オーケストレータ → Fyss3B 完全移植完了）
+
+末端回路ブレーカ機器選定 `Fyss3B_Breaker_Sentei` の**本体（制御フロー）**を移植。C 原典の Fyss3B 固有ロジックは「フラグ設定 2 ループ → `Fysk00_Kikisearch_SY` へ委譲 → ret 返却」のみで、主回路機器サーチ本体は Fysk00.c（12k 行）にあり Fyss3B にはない。テストは 1302 → **1307**（+5）。**これで Fyss3B 固有ロジックは 100% 移植完了**。
+
+- **本体オーケストレータ（commit 予定）**: `src/Ews.Analysis/TerminalBreakerSelector.cs` に `SelectBreakers`（=`Fyss3B_Breaker_Sentei`）を追加。`PrepareSelectionFlags` でフラグ設定後、主回路機器サーチへ委譲し ret（0:正常/1:異常）をそのまま返す。
+- **移植境界（重要）**: `Fysk00_Kikisearch_SY`（Fysk00.c, 大規模 ISAM 依存の機器選定本体・品番決定）は未移植のため、`Func<IReadOnlyList<MainCircuitResult>, int>` デリゲートで注入する境界とした。コードベースはインタフェースを使わず引数注入（CNS テーブル・ゾーンコード等）で外部依存を表現する態標のため、それに合わせた（コードベース全体に interface は 0 件）。
+- **テスト**: `TerminalBreakerSelectorTests.cs` +5（フラグ設定後にサーチ呼出/ret そのまま返却 Theory2/records null/equipmentSearch null）。
 
 ### 2026-08-03 セッション⑭ 追加分（Fyss3G 依存付きセッタ: CT/MC）
 
