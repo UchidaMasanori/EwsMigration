@@ -6,11 +6,14 @@ namespace Ews.Analysis;
 /// 特注盤対応 プラグインブレーカの結線処理。
 /// 【C原典】Fyss3R.c(toku/sekkei/src/Fyss3R.c, 主回路設計処理／プラグインブレーカ)。
 ///
-/// 本移植は基盤部として、プラグインタイプ照合(<see cref="IsPlugInType"/>＝
-/// <c>FyHcPlugInJdgType</c>)と電源・分岐グルーピング(<see cref="GroupBySource"/>＝
-/// <c>PropGrouping</c>)を対象とする。単相/三相の結線相セット(PropSetSouFor1sou/3sou)・
-/// 主幹チェック(Fyss3R_TokuPlugIn_MainChk)・NOTHING 判定(PropJdgNothing, 回路記述
-/// ファイル FYDF805 依存)は後続増分で移植する。
+/// プラグインタイプ照合(<see cref="IsPlugInType"/>＝<c>FyHcPlugInJdgType</c>)・
+/// 電源・分岐グルーピング(<see cref="GroupBySource"/>＝<c>PropGrouping</c>)・
+/// 結線処理オーケストレータ(<see cref="SetConnection"/>＝<c>Fyss3R_TokuPlugIn_Kes_Set</c>)と
+/// 単相/三相の結線相セット(<see cref="SetSinglePhaseConnection"/>＝<c>PropSetSouFor1sou</c> /
+/// <see cref="SetThreePhaseConnection"/>＝<c>PropSetSouFor3sou</c>)を対象とする。
+/// NOTHING 判定(<c>PropJdgNothing</c>, 回路記述ファイル FYDF805 依存)は未移植依存のため、
+/// 自由文字に "NOTHING" があるかを返すデリゲート(引数注入)で境界化する。
+/// 主幹チェック(Fyss3R_TokuPlugIn_MainChk)は後続増分で移植する。
 /// </summary>
 public static class PlugInBreakerConnector
 {
@@ -138,6 +141,211 @@ public static class PlugInBreakerConnector
         return (grp, groupCount);
     }
 
+    /// <summary>
+    /// プラグインブレーカの結線相・接続相パラメータをセットする(結線処理本体)。
+    /// 【C原典】Fyss3R_TokuPlugIn_Kes_Set(Fyss3R.c:405)。
+    ///
+    /// <see cref="GroupBySource"/> で電源・分岐固まりにグループ分けし、電源相線が
+    /// 13(単相3線)なら <see cref="SetSinglePhaseConnection"/>、33(三相3線)なら
+    /// <see cref="SetThreePhaseConnection"/> を呼び、対象範囲の <paramref name="records"/> の
+    /// 使用相(siyouso)・回路電圧(kpav[0])・機器タイプ(datatype[3])をその場で更新する。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】maina(件数 mainc)。その場で更新される。</param>
+    /// <param name="hasNothingInFreeText">
+    /// 自由文字(回路記述ファイル FYDF805)に "NOTHING" があるかを返すデリゲート。
+    /// 【C原典】PropJdgNothing(FYDF805 依存)の移植境界。true＝指定有(戻り値 1 相当)。
+    /// </param>
+    public static void SetConnection(
+        IReadOnlyList<MainCircuitResult> records,
+        Func<MainCircuitResult, bool> hasNothingInFreeText)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(hasNothingInFreeText);
+
+        (IReadOnlyList<PlugInGroup> groups, int groupCount) = GroupBySource(records);
+
+        for (int i = 0; i < groupCount; i++)
+        {
+            PlugInGroup group = groups[i];
+            if (group.SourcePhaseWire == 13)
+            {
+                SetSinglePhaseConnection(group, records, hasNothingInFreeText);
+            }
+            else if (group.SourcePhaseWire == 33)
+            {
+                SetThreePhaseConnection(group, records, hasNothingInFreeText);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 単相の結線相・接続相パラメータセット。
+    /// 【C原典】PropSetSouFor1sou(Fyss3R.c:349)。
+    ///
+    /// グループ範囲(<see cref="PlugInGroup.StartIndex"/>～<see cref="PlugInGroup.EndIndex"/>)を走査し、
+    /// CT付き(CV)ブレーカの電圧・NOTHING 指定有無に応じて回路電圧 kpav[0](210:RT相結線/
+    /// 105:RN・TN相結線)を決め、接続相タイプ未入力機器には XN/YN を交互に、
+    /// 接続相タイプ入力済み(RN/TN)機器には対応する使用相をセットする。
+    /// </summary>
+    private static void SetSinglePhaseConnection(
+        PlugInGroup group,
+        IReadOnlyList<MainCircuitResult> records,
+        Func<MainCircuitResult, bool> hasNothingInFreeText)
+    {
+        // 【C原典】ptype[2][8]={"RN     ","TN     "}, sou[2][5]={"XN  ","YN  "}。
+        string[] ptype = ["RN     ", "TN     "];
+        string[] sou = ["XN  ", "YN  "];
+        int lr = 0; // 0:XN, 1:YN
+
+        for (int i = group.StartIndex; i <= group.EndIndex; i++)
+        {
+            MainCircuitData dt = records[i].Data;
+
+            // 改訂<3>: CTP はスキップ。
+            if (FieldStarts(dt.DataType[0], "CTP"))
+            {
+                continue;
+            }
+
+            // 【C原典】プラグインタイプでなければスキップ。
+            if (!IsPlugInType(dt.DataType))
+            {
+                continue;
+            }
+
+            int nothing = 0; // 0:未判定, 1:自由文字指定有, 2:指定無
+            if (FieldStarts(dt.DataType[3], "NOTHING"))
+            {
+                nothing = hasNothingInFreeText(records[i]) ? 1 : 2;
+            }
+
+            // 【C原典】MCB2P2E+(CV) CT付きブレーカの電圧セット。
+            if (FieldStarts(dt.DataType[1], "CV "))
+            {
+                dt.CircuitVoltage[0] = nothing == 1 ? "210" : "105";
+            }
+            else if (nothing == 1)
+            {
+                dt.CircuitVoltage[0] = "210"; // RT相結線
+            }
+
+            if (FieldStarts(dt.DataType[3], "NOTHING"))
+            {
+                if (dt.CircuitVoltage[0] == "105")
+                {
+                    // 接続相のタイプ入力なしの機器。
+                    dt.DataType[3] = ptype[lr];
+                    dt.UsedPhase = sou[lr];
+                }
+                else if (dt.CircuitVoltage[0] == "210")
+                {
+                    dt.UsedPhase = "XY  ";
+                }
+            }
+            else if (dt.CircuitVoltage[0] == "105")
+            {
+                if (FieldStarts(dt.DataType[3], "RN "))
+                {
+                    lr = 0;
+                    dt.UsedPhase = sou[lr];
+                }
+                else if (FieldStarts(dt.DataType[3], "TN "))
+                {
+                    lr = 1;
+                    dt.UsedPhase = sou[lr];
+                }
+            }
+
+            lr = lr == 0 ? 1 : 0; // X->Y, Y->X
+        }
+    }
+
+    /// <summary>
+    /// 三相の結線相・接続相パラメータセット。
+    /// 【C原典】PropSetSouFor3sou(Fyss3R.c:471)。
+    ///
+    /// グループ範囲を走査し、回路電圧 kpav[0] が "210" かつ極数 epap が "003" でない機器のみ処理する。
+    /// アラームなし CHP タイプ・接続相タイプ(RN/TN)・NOTHING 指定有無に応じて使用相
+    /// (RS/ST/RT)を順に割り当てる。NOTHING 指定無の機器には機器タイプ(datatype[3])も
+    /// RN/TN/NOTHING を順にセットする。
+    /// </summary>
+    private static void SetThreePhaseConnection(
+        PlugInGroup group,
+        IReadOnlyList<MainCircuitResult> records,
+        Func<MainCircuitResult, bool> hasNothingInFreeText)
+    {
+        // 【C原典】sou[3][5]={"RS  ","ST  ","RT  "}, ptype[3][8]={"RN     ","TN     ","NOTHING"}。
+        string[] sou = ["RS  ", "ST  ", "RT  "];
+        string[] ptype = ["RN     ", "TN     ", "NOTHING"];
+        int idx = 0;
+
+        for (int i = group.StartIndex; i <= group.EndIndex; i++)
+        {
+            MainCircuitData dt = records[i].Data;
+
+            // 【C原典】kpav[0]!="210" または epap=="003" ならスキップ。
+            if (dt.CircuitVoltage[0] != "210" ||
+                records[i].Data.ElectricalParameterSlots[0].P == "003")
+            {
+                continue;
+            }
+
+            // 改訂<3>: CTP はスキップ。
+            if (FieldStarts(dt.DataType[0], "CTP"))
+            {
+                continue;
+            }
+
+            // 【C原典】プラグインタイプでなければスキップ。
+            if (!IsPlugInType(dt.DataType))
+            {
+                continue;
+            }
+
+            int nothing = 0;
+            if (FieldStarts(dt.DataType[3], "NOTHING"))
+            {
+                nothing = hasNothingInFreeText(records[i]) ? 1 : 2;
+            }
+
+            if (nothing == 2 &&
+                FieldStarts(dt.DataType[0], "CHP ") &&
+                FieldStarts(dt.DataType[2], "NOTHING"))
+            {
+                // 電源3相で、アラームなしCHPタイプの機器。
+                dt.UsedPhase = "RT  ";
+                idx = 0;
+            }
+            else if (FieldStarts(dt.DataType[3], "RN"))
+            {
+                dt.UsedPhase = "RS  ";
+                idx = 0;
+            }
+            else if (FieldStarts(dt.DataType[3], "TN"))
+            {
+                dt.UsedPhase = "ST  ";
+                idx = 0;
+            }
+            else if (nothing == 1)
+            {
+                dt.UsedPhase = "RT  ";
+                idx = 0;
+            }
+            else if (nothing == 2)
+            {
+                // 順に３相の結線相・接続相パラメータをセット。
+                dt.UsedPhase = sou[idx];
+                dt.DataType[3] = ptype[idx];
+
+                idx++;
+                if (idx >= 3)
+                {
+                    idx = 0;
+                }
+            }
+        }
+    }
+
     /// <summary>予約語が電源("P ")かを判定する。【C原典】memcmp(yoyaku,"P ",2)==0。</summary>
     private static bool IsPowerSource(string? reservedWord) =>
         (reservedWord ?? string.Empty).PadRight(2)[..2] == "P ";
@@ -145,4 +353,11 @@ public static class PlugInBreakerConnector
     /// <summary>機器タイプ先頭文字を得る。【C原典】datatype[0][0]。空文字は '\0'。</summary>
     private static char FirstChar(string? value) =>
         string.IsNullOrEmpty(value) ? '\0' : value[0];
+
+    /// <summary>
+    /// 固定長フィールドの先頭 <paramref name="prefix"/> 長分が一致するか。
+    /// 【C原典】strncmp/memcmp(field, prefix, len)==0。field は空白詰め固定長とみなす。
+    /// </summary>
+    private static bool FieldStarts(string? value, string prefix) =>
+        (value ?? string.Empty).PadRight(prefix.Length)[..prefix.Length] == prefix;
 }

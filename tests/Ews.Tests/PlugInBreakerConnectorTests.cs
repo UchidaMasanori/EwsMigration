@@ -162,4 +162,155 @@ public class PlugInBreakerConnectorTests
 
         Assert.Equal(0, count);
     }
+
+    // ---- SetConnection (PropSetSouFor1sou/3sou/Kes_Set) ----
+
+    /// <summary>プラグインブレーカ 1 件を生成する(結線処理テスト用)。</summary>
+    private static MainCircuitResult Plug(
+        string dataType0 = "CH",
+        string dataType1 = "",
+        string dataType2 = "",
+        string dataType3 = "",
+        string kpav0 = "000",
+        string epap = "000")
+    {
+        var r = new MainCircuitResult { SequenceNumber = "002" };
+        r.Data.DataType[0] = dataType0;
+        r.Data.DataType[1] = dataType1;
+        r.Data.DataType[2] = dataType2;
+        r.Data.DataType[3] = dataType3;
+        r.Data.CircuitVoltage[0] = kpav0;
+        r.Data.ElectricalParameterSlots[0].P = epap;
+        return r;
+    }
+
+    [Fact]
+    public void 単相_NOTHING指定無_接続相タイプ未入力はXN_YNを交互()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '1', wire: '3'),           // 電源 単相3線=13
+            Plug(dataType3: "NOTHING", kpav0: "105"),
+            Plug(dataType3: "NOTHING", kpav0: "105"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false); // nothing=2
+
+        Assert.Equal("XN  ", records[1].Data.UsedPhase);
+        Assert.Equal("RN     ", records[1].Data.DataType[3]);
+        Assert.Equal("YN  ", records[2].Data.UsedPhase);
+        Assert.Equal("TN     ", records[2].Data.DataType[3]);
+    }
+
+    [Fact]
+    public void 単相_CV付きでNOTHING指定有はRT相結線210_XY()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '1', wire: '3'),
+            Plug(dataType1: "CV ", dataType3: "NOTHING", kpav0: "105"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => true); // nothing=1
+
+        Assert.Equal("210", records[1].Data.CircuitVoltage[0]);
+        Assert.Equal("XY  ", records[1].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 単相_接続相タイプ入力済RNはXN_TNはYN()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '1', wire: '3'),
+            Plug(dataType3: "RN ", kpav0: "105"),
+            Plug(dataType3: "TN ", kpav0: "105"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false);
+
+        Assert.Equal("XN  ", records[1].Data.UsedPhase);
+        Assert.Equal("YN  ", records[2].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 三相_NOTHING指定無は順にRS_ST_RTと機器タイプをセット()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '3', wire: '3'),          // 三相3線=33
+            Plug(dataType3: "NOTHING", kpav0: "210"),
+            Plug(dataType3: "NOTHING", kpav0: "210"),
+            Plug(dataType3: "NOTHING", kpav0: "210"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false); // nothing=2
+
+        Assert.Equal("RS  ", records[1].Data.UsedPhase);
+        Assert.Equal("RN     ", records[1].Data.DataType[3]);
+        Assert.Equal("ST  ", records[2].Data.UsedPhase);
+        Assert.Equal("TN     ", records[2].Data.DataType[3]);
+        Assert.Equal("RT  ", records[3].Data.UsedPhase);
+        Assert.Equal("NOTHING", records[3].Data.DataType[3]);
+    }
+
+    [Fact]
+    public void 三相_アラームなしCHPタイプはRT()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '3', wire: '3'),
+            Plug(dataType0: "CHP ", dataType2: "NOTHING", dataType3: "NOTHING", kpav0: "210"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false); // nothing=2
+
+        Assert.Equal("RT  ", records[1].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 三相_接続相タイプRNはRS_TNはST()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '3', wire: '3'),
+            Plug(dataType3: "RN ", kpav0: "210"),
+            Plug(dataType3: "TN ", kpav0: "210"),
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false);
+
+        Assert.Equal("RS  ", records[1].Data.UsedPhase);
+        Assert.Equal("ST  ", records[2].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 三相_kpav210でないか極数003は処理しない()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(reservedWord: "P", phase: '3', wire: '3'),
+            Plug(dataType3: "NOTHING", kpav0: "105"),               // kpav!=210 → スキップ
+            Plug(dataType3: "NOTHING", kpav0: "210", epap: "003"),  // epap==003 → スキップ
+        };
+
+        PlugInBreakerConnector.SetConnection(records, _ => false);
+
+        Assert.Equal(string.Empty, records[1].Data.UsedPhase);
+        Assert.Equal(string.Empty, records[2].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void SetConnectionのrecordsがnullなら例外()
+    {
+        Assert.Throws<System.ArgumentNullException>(
+            () => PlugInBreakerConnector.SetConnection(null!, _ => false));
+    }
+
+    [Fact]
+    public void SetConnectionのデリゲートがnullなら例外()
+    {
+        Assert.Throws<System.ArgumentNullException>(
+            () => PlugInBreakerConnector.SetConnection([], null!));
+    }
 }

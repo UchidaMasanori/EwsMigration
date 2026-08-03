@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1325 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1334 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -256,6 +256,17 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
 - **プラグインタイプ照合（commit 予定）**: `src/Ews.Analysis/PlugInBreakerConnector.cs`（新規静的クラス）の `IsPlugInType`＝`FyHcPlugInJdgType`（cmnplugin.c）。`datatype[0]` の末尾空白を除去し、有効プラグインタイプ（ハーフサイズ CTP/CH/CHP・KC タイプ KP）に一致で真。改訂&lt;2&gt; で無効化された CSP/CP/CPP/BB/CV/FL は非対象。C 原典の 0:照合OK/-1:NG を真偽に読み替え。
 - **電源分岐グルーピング（commit 予定）**: `GroupBySource`＝`PropGrouping`（Fyss3R.c）。予約語 "P "（電源）区切りで走査し、プラグインタイプ先頭文字（'K':アダプタ / 他:'C' ハーフサイズ）が連続する範囲を 1 グループ化。改訂&lt;2&gt;: プラグインを含むグループでのみ新グループ境界を前進（`p_ari` ゲート）。返却は全グループ列＋有効グループ数（呼出元は先頭 GroupCount 件を参照）。
   - **忠実性メモ**: `st_idx==0` を「未設定」の番兵として扱う C 原典の癖をそのまま再現。電源 "P " が先行せず `j==-1` のままのプラグインは C では `grp[-1]` 書込（未定義動作）だが、実データは電源先行前提のためスキップにした。
+
+### 2026-08-03 セッション⑧ 追加分（Fyss3R 結線処理: PropSetSouFor1sou/3sou/Kes_Set）
+
+`Fyss3R.c` の結線処理を移植。電源・分岐グループごとに使用相 siyouso（新 `MainCircuitData.UsedPhase`）・回路電圧 kpav[0]・機器タイプ datatype[3] をセットする。テストは 1325 → **1334**（+9）。
+
+- **結線処理本体**: `PlugInBreakerConnector.SetConnection`＝`Fyss3R_TokuPlugIn_Kes_Set`。`GroupBySource` でグループ分けし、電源相線 13（単相3線）なら `SetSinglePhaseConnection`、33（三相3線）なら `SetThreePhaseConnection` を呼び、対象範囲のレコードをその場更新する。
+- **単相 `PropSetSouFor1sou`**: CV付（CT付）ブレーカの電圧・NOTHING指定有無で kpav[0]（210:RT相結線/105:RN・TN相結線）を決め、接続相タイプ未入力機器は XN/YN を交互、入力済 RN/TN 機器は対応使用相をセット。改訂&lt;3&gt; で CTP はスキップ。
+- **三相 `PropSetSouFor3sou`**: kpav[0]=="210" かつ極数 epap!="003" の機器のみ処理。アラームなしCHP・接続相タイプRN/TN・NOTHING指定有無に応じ使用相（RS/ST/RT）を順割当。NOTHING指定無は datatype[3] も RN/TN/NOTHING を順セット。
+- **移植境界（重要）**: `PropJdgNothing`（回路記述ファイル FYDF805 の自由文字に "NOTHING" があるか検索）は未移植のため、`Func<MainCircuitResult, bool>`（true＝指定有）で引数注入し境界化。interface は使わない態標に合わせた。
+- **ドメイン追加**: `MainCircuitData.UsedPhase`＝siyouso[4]（使用相 R/S/T/N/X/Y）。
+- **テスト**: `PlugInBreakerConnectorTests.cs` +9（単相3/三相4/nullガード2）。
 - **ドメイン追加**: `Ews.Domain/Analysis/PlugInGroup.cs`（=`struct grp_plug`）。SourcePhaseWire（sousen）/Type（'C'/'K'）/StartIndex/EndIndex。
 - **保留（Fyss3R 残）**: 単相/三相の結線相セット（PropSetSouFor1sou/3sou, siyouso/kpav/datatype[3] 設定）・NOTHING 判定（PropJdgNothing, 回路記述ファイル FYDF805 依存）・主幹チェック（Fyss3R_TokuPlugIn_MainChk, LibTreeSrch/Err_Code_Set 依存）・結線オーケストレータ（Fyss3R_TokuPlugIn_Kes_Set）は未移植。
 

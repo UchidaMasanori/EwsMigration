@@ -139,6 +139,12 @@ public sealed class MainCircuitData
     /// <summary>生成回路番号サフィックス。【C原典】kairsfx[5]("C")。</summary>
     public string CircuitNumberSuffix { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 使用相(R,S,T,N,X,Y)。【C原典】siyouso[4]("C")。
+    /// プラグインブレーカ結線処理(Fyss3R PropSetSouFor1sou/3sou)が接続相をセットする。
+    /// </summary>
+    public string UsedPhase { get; set; } = string.Empty;
+
     // ---------------------------------------------------------------------
     // 回路電気値(回路パラメータから決定される電気値)。【C原典】dt.kpa*(fydf806.h)。
     // 上流パラメータ生成(Fyss14 Make_UpperParm / Kairo_Parm_Set)が設定し、
