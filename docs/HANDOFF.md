@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1384 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1394 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -170,6 +170,18 @@ F(ヒューズ)特例で `searchsgy("C")` → `MainCircuitResult.SearchAgainFlag
 - **`GetScPrimaryCurrent`**（=`Fyss3A_Get_SC_Pc`, 960329）: UF=2*3.14159*回路周波数*UF*回路電圧^2*1E-6（パイ定数が 3.14 と 3.14159 で異なる原典を忠実再現）。
 - **`ProcessAccumulation`**（=`Fyss3A_Prc_Seksan`）: 上流積上区分(`StackKind`)='1' まで親データ追番-1 を添字として遡り通電電流値(`%08.2f`)をセット。NT(flag1)は使用相 `UsedPhase`="N   " もセット。
 - **忠実性メモ**: C原典は配列添字ベース（データ追番が 1 始まりで配列順に連続する前提）で `oyatno-1` を次の添字とする→この添字ベースの振る舞いを踏襲。テスト`ScNtUpstreamAccumulatorTests.cs`18件。テストは 1366 → **1384**（+18）。
+
+### 2026-08-05 セッション㐙 追加分（Fyss39 ＳＣの特殊処理移植 → Fyss39 生存パス移植完了）
+
+`Fyss39.c`（757 行）の生存パス移植。ＳＣ(進相コンデンサ)の静電容量(UF)／定格容量(KVAR)生成処理を
+`ScSpecialProcessor`（新規静的クラス）に移植。`CircuitWork` に `ScProcessedFlag`(=scflg)フィールドを追加。
+
+- **`ProcessSc`**（=`Fyss39_SC_Proc`）: 全要素 scflg クリア → 予約語 SC で UF/KVAR 入力済みは `%08.1f`/`%06.2f` 整形して ep[2] へコピー・scflg='1'。未入力(UF=KVAR=0)はデータ追番を記録し階層番号降順ソート後、電動機容量から静電容量を算出。950928 直近負荷（負荷種類='M'なら fpalw2、空白なら同一行種の最小 ep[0].W1、無ければ上流遡りの M）を Pm に加算。`Get_Seiden` で SCuf 算出し ep[2] へ。2003.05.13 容量0(`000000.0`)時は前方/後方の非0ＳＣから流用。
+- **`CheckReservedWord`**（=`Fyss39_Chk_Yoyaku`）: 系統種別='1' かつ予約語 SC の時 ep[0] の UF/KVAR を返す(ret0)、他は ret1。
+- **`SortByHierarchy`**（=`Fyss39_Srt_Kaisno`）: データ追番配列を階層番号(kaisono)降順に選択ソート。
+- **`GetCapacitance`**（=`Fyss39_Get_Seiden`）: 電動機容量 Pkm=pm/1000 と回路相数/電圧/周波数で係数 a/b を決め SCuf=(Pkm)^a*b（三相≤220/>220×50/60Hz容量帯・単相≤105・他）。1998.05.19 乗数変更(0.91/18.71)含む。
+- **デッドコード（未移植）**: `Fyss39_Chk_Heiret`/`Get_ParmSC`/`Chg_KvarUf`/`Set_ParmSC`。SC_Proc の負荷容量合計ループ手前 951002 `continue` により `sc_flag` が常に 0 となり、並列ＳＣ分岐(`if(sc_flag==0)` の else)が到達不能のため未移植（Fyss33 Shori2 の前例に倣う）。
+- **忠実性メモ**: C原典は配列添字ベース（`no-1`）で `maina[no-2]` 等 UB を含むため範囲ガードを追加。空白負荷種の探索ループ内 `if(i==j)` は datano 添字 i と配列添字 j の比較（原典どおり）。テスト`ScSpecialProcessorTests.cs`10件。テストは 1384 → **1394**（+10）。
 
 
 

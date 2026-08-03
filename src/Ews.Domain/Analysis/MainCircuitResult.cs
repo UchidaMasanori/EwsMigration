@@ -227,6 +227,9 @@ public sealed class CircuitWork
     /// <summary>機器選定指示フラグ。【C原典】sk_work.ksflg。' ':非対象 '1':機器選定対象。</summary>
     public char SelectionInstructionFlag { get; set; } = ' ';
 
+    /// <summary>ＳＣ処理済フラグ。【C原典】sk_work.scflg。' ':未処理 '1':処理済。ＳＣの特殊処理(Fyss39)が使用。</summary>
+    public char ScProcessedFlag { get; set; } = ' ';
+
     /// <summary>設定電流値。【C原典】sk_work.setteii (DOUBLE)。</summary>
     public double SetCurrent { get; set; }
 

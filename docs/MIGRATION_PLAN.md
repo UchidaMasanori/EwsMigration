@@ -57,8 +57,8 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1384** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **569** | — |
+| テスト成功数 | **1394** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **575** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
 | 直近コミット | `60c5e76` | — |
 | 最終更新 | 2026-08-05 | — |
@@ -182,7 +182,7 @@ graph LR
 |---|---|---|
 | Fyss05(960), Fyss06(273) | 複合回路作成 | ❌ |
 | Fyss17(913), Fyss18(1660), Fyss21(192), Fyss22(196) | 論理図/TB 挿入/終了処理 | ❌ |
-| Fyss30-39(≈5000): Fyss31(1076),33(572),36(832),37(939),39(757) ほか | 制御発生設定 等 | 🔶 **Fyss31 負荷発生元設定 本体移植**（LoadSourceSelector.SetLoadSource=Fyss31_FukaHassei_Set / set_error=MakeError / set_denryu・set_fky・get_ep・FYRT812 は移植済 / searchsgy→SearchAgainFlag 追加 / CT-AM特殊コピー・改訂<1><2><3><4><9>・951005上流遡り・1-2型dt_pntエラー を忠実移植。SC_Keitou_Proc(Fyss39/Fyss3A依存)はデリゲート境界化）。**Fyss33 完了**(EquipmentSelectionKindSetter)。**Fyss36 完全移植完了**(AccumulationAreaSetter.SetTerminalCircuitCurrent=Fyss36_MattanKairo_Iset 本体4ループ統括+サブ全移植。SC積算はFyss3A委譲境界)。**Fyss3A 完全移植完了**(ScNtUpstreamAccumulator=SC/NT上流積算6関数。Fyss31/Fyss36のデリゲート境界を実体化)。Fyss37完了(TerminalCurrentIntegrator) / 他 ❌ |
+| Fyss30-39(≈5000): Fyss31(1076),33(572),36(832),37(939),39(757) ほか | 制御発生設定 等 | 🔶 **Fyss31 負荷発生元設定 本体移植**（LoadSourceSelector.SetLoadSource=Fyss31_FukaHassei_Set / set_error=MakeError / set_denryu・set_fky・get_ep・FYRT812 は移植済 / searchsgy→SearchAgainFlag 追加 / CT-AM特殊コピー・改訂<1><2><3><4><9>・951005上流遡り・1-2型dt_pntエラー を忠実移植。SC_Keitou_Proc(Fyss39/Fyss3A依存)はデリゲート境界化）。**Fyss33 完了**(EquipmentSelectionKindSetter)。**Fyss36 完全移植完了**(AccumulationAreaSetter.SetTerminalCircuitCurrent=Fyss36_MattanKairo_Iset 本体4ループ統括+サブ全移植。SC積算はFyss3A委譲境界)。**Fyss3A 完全移植完了**(ScNtUpstreamAccumulator=SC/NT上流積算6関数。Fyss31/Fyss36のデリゲート境界を実体化)。**Fyss39 移植完了**(ScSpecialProcessor=ＳＣ特殊処理。SC_Proc/Chk_Yoyaku/Srt_Kaisno/Get_Seiden の生存パスを移植。静電容量UF/定格容量KVAR→ep[2]・電動機容量からSCuf=(Pkm)^a*b算出・2003.05.13容量0流用。scflg→ScProcessedFlag追加。並列ＳＣ分岐Chk_Heiret/Get_ParmSC/Chg_KvarUf/Set_ParmSCは951002 continueでsc_flag常時0のデッドコードのため未移植)。Fyss37完了(TerminalCurrentIntegrator) / 他 ❌ |
 | 検証 Prop 群(WhmChk/LgtChk/SenChk/LaClassChk/SpdFuseChk/BunkiHfChk/BunMcChk/LampKeiChk 等) | Fysk10 内の妥当性検証 | ❌ |
 
 ### フェーズ 8 — 線番付与・回路設計出力（Fyss3* 系, 約 12,300 行）

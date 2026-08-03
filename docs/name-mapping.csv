@@ -568,3 +568,9 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3A_Chg_KvarUf,ScNtUpstreamAccumulator.ConvertKvarToUf,toku/sekkei/src/Fyss3A.c,定格容量(KVAR)→静電容量(UF)変換。UF=(KVAR*1000)/(2*3.14*回路周波数*回路電圧^2*0.000001)
 関数,Fyss3A_Get_SC_Pc,ScNtUpstreamAccumulator.GetScPrimaryCurrent,toku/sekkei/src/Fyss3A.c,ＳＣの1次電流取得(960329)。UF=2*3.14159*回路周波数*UF*回路電圧^2*1E-6
 関数,Fyss3A_Prc_Seksan,ScNtUpstreamAccumulator.ProcessAccumulation,toku/sekkei/src/Fyss3A.c,積算処理。上流積上区分'1'のテーブル要素まで親データ追番-1を辿り通電電流値(%08.2f)をセット。NT(flag1)は使用相"N   "も。Fyss36本体のSC積算ループへ委譲
+関数,Fyss39_SC_Proc,ScSpecialProcessor.ProcessSc,toku/sekkei/src/Fyss39.c,ＳＣの特殊処理。予約語SCで静電容量UF/定格容量KVAR入力済みはep[2]へ整形コピー・未入力は電動機容量から静電容量算出(950928直近負荷M/同一行種最小W1/上流遡り)しSCuf=(Pkm)^a*bをep[2]へ・2003.05.13容量0時は前後の非0ＳＣから流用。並列ＳＣ分岐(sc_flag)は951002 continueによりデッドコードのため未移植
+関数,Fyss39_Chk_Yoyaku,ScSpecialProcessor.CheckReservedWord,toku/sekkei/src/Fyss39.c,対象データチェック。系統種別'1'かつ予約語SCの時ep[0]静電容量(UF)・定格容量(KVAR)を返す(ret0)・他はret1
+関数,Fyss39_Srt_Kaisno,ScSpecialProcessor.SortByHierarchy,toku/sekkei/src/Fyss39.c,階層番号ソート処理。データ追番配列を階層番号kaisonoの降順に選択ソート
+関数,Fyss39_Get_Seiden,ScSpecialProcessor.GetCapacitance,toku/sekkei/src/Fyss39.c,ＳＣの静電容量算出。電動機容量Pkm=pm/1000と回路相数/電圧/周波数で係数a/bを決めSCuf=(Pkm)^a*b(三相?220/>220×50/60Hz容量帯・単相?105・他)。1998.05.19乗数変更(0.91/18.71)含む
+フィールド,scflg,CircuitWork.ScProcessedFlag,toku/include/common/fyrt800.h,ＳＣ処理済フラグ(' ':未処理 '1':処理済)。Fyss39が使用する1バイト固定長ワーク
+関数,Fyss39_Chk_Heiret/Get_ParmSC/Chg_KvarUf/Set_ParmSC,(未移植),toku/sekkei/src/Fyss39.c,並列ＳＣ処理群。SC_Procの負荷容量合計ループ手前951002 continueによりsc_flagが常に0となり到達不能(デッドコード)のため未移植
