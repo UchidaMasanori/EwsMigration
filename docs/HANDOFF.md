@@ -124,9 +124,9 @@ EwsMigration/
 
 ---
 
-## 5. 移植の進捗（2026-07-31 時点）
+## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1208 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1224 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -175,7 +175,7 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
 - **忠実性メモ**: denryu は `%08.2f`（8桁）格納のため、C の `memcpy("00000.000",9)`→`memcpy(denryu,8)` は末尾 '0' が残り `%09.3f` 相当の9桁になる（`AtFromEnergizingCurrent` ヘルパで再現）。回路相数→Set_IM 負荷種別（'3'→1/'1'→2、他は C 未初期化のため決定性 0）は `PhaseToLoadKind` で再現。ep[1] 判定の memcmp は整形ゼロ（"00000.000"）比較のため、テストは ep[1] を整形ゼロで明示設定。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 下流抽出依存]/AM/CT/TB/CON/TR/ELR/LGR/RRY/MCDT/F/TS/SU/DCPW/SSW/CKS/L 等）。
 
-### 2026-07-31 セッション⑧ 追加分（Fyss3G リーフセッタ10種: CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L）
+### 2026-07-31 セッション⑩ 追加分（Fyss3G リーフセッタ10種: CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L）
 
 電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の非ブレーカ系デバイスセッタのうち、下流抽出やゾーンコードなど
 外部依存のない自完結な10種（リーフセッタ群）を一括移植。既存 `CurrentParameterSetter` に追加。テストは 1188 → **1208**（+20）。
@@ -188,6 +188,18 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
   - `SetCks`（=`Fyss3G_Set_CKS`）: prm2==0 のとき、設定電流(setteii)!=0 はその値、それ以外は通電電流値を整形して A2 に設定。
 - **ヘルパリネーム変更**: A2 でも使うため `AtFromEnergizingCurrent` → `EnergizingCurrentToNine` にリネーム（機能不変、SetThr/SetMg の呼出しも更新）。
 - **移植省略**: `Fyss3G_Set_DCPW` は C 原典が空関数（no-op）のため移植しない（ディスパッチャで no-op 扱い）。
+
+### 2026-08-03 セッション⑫ 追加分（Fyss3G 依存付きセッタ: TB/TR/RRY）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` の非ブレーカ系デバイスセッタのうち、外部依存を伴う３種を移植。
+既存 `CurrentParameterSetter` に追加。テストは 1208 → **1224**（+16）。
+
+- **TB/TR/RRY セッタ（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs` に追加。
+  - `SetTb`（=`Fyss3G_Set_TB`, TB/LGT）: ep[2].A2 に通電電流値。電線サイズ SQ は `CurrentParameterTableSeeker.SeekWireSize`（=`Fyss3G_CnsSQsetSeek`）で決定。改訂<9> 動力電源(fpalwkbn=='W')かつ三相(kpaph=='3')は負荷容量帯（2200〜5500→5500〜11000→7.1/11000超→7.5 相当）で通電電流値を補正。改訂<7> 26.669〜26.876 帯は 30.1 に補正。LGT は SQ 非設定で終了。負荷発生元(ahassei=='1')は ep[2].SQ に ep[1].SQ を複写。
+  - `SetTr`（=`Fyss3G_Set_TR`, TR）: datatype[0] 未設定時は VA≦500 で "RO" を設定。ep[2].VA 未設定時は下流抽出 `DownstreamSelector.SelectDownstream`（=`Fyss35_Select_Karyu_Sub`）で負荷発生元の負荷種類 "M " を積算し VA を決定。
+  - `SetRry`（=`Fyss3G_Set_RRY`, RRY）: 改訂<1> LACSL(datatype[1]=="LA ")は ep[1].A2＝16A 固定で終了。それ以外は親(oyatno)を遡り、同一階層(kaisono)かつ ep[0].AT 設定済の親の AT を ep[2].A2 に採用。見つからなければ通電電流値を A2 に設定。
+- **忠実性メモ**: `Set_TR` の C 原典は `if(ret = -1)`（== の誤記の代入）で常に真となり、VA は常に `lw2*1.5` 分岐を通る（`denryu*kpav*1.2` の else は死コード）。この挙動を忠実再現し else 節は移植しない。`Set_TR` の VA 参照元は ep[0].VA を判定しつつ非ゼロ時 ep[1].VA を読む原典の癖も再現。
+- **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 依存]/AM[ゾーンコード gyocd]/CT[同一機器複数ループ]）。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／複雑なセッタ（AM[ゾーンコード/gyocd]/CT[同一機器多重ループ]/TB[SQseek+改訂]/TR[Fyss35 下流抽出]/RRY[親 oyatno 遡行]/MC[Set_MC_SC]）。
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）

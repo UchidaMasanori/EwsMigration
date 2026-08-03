@@ -540,3 +540,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3G_Set_SSW,CurrentParameterSetter.SetSsw,toku/sekkei/src/Fyss3G.c,電流パラメータセット(SSW/LSW/DSW/TSW)。ep[2].A2に通電電流値を設定
 関数,Fyss3G_Set_CKS,CurrentParameterSetter.SetCks,toku/sekkei/src/Fyss3G.c,電流パラメータセット(CKS)。prm2offで設定電流有はその値/無は通電電流値をA2設定
 関数,Fyss3G_Set_L,CurrentParameterSetter.SetL,toku/sekkei/src/Fyss3G.c,電流パラメータセット(L)。ep[2].A2は通電40A未満で30A/以上は60A
+関数,Fyss3G_Set_TB,CurrentParameterSetter.SetTb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(TB/LGT)。A2に通電電流値・電線サイズSQをCnsSQsetSeekで決定/改訂<9>動力三相の負荷容量帯補正・改訂<7>26.669～26.876帯は30.1補正
+関数,Fyss3G_Set_TR,CurrentParameterSetter.SetTr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(TR)。datatype[0]未設定でVA<=500はRO/ep[2].VA未設定は下流の負荷種類Mを積算しVA=lw2*1.5(原典ret代入バグ再現)
+関数,Fyss3G_Set_RRY,CurrentParameterSetter.SetRry,toku/sekkei/src/Fyss3G.c,電流パラメータセット(RRY)。datatype[1]==LAは16A固定/親を遡り同一階層でAT設定済の親ATを複写・無ければ通電電流値をA2設定

@@ -5,7 +5,8 @@ namespace Ews.Analysis;
 /// <summary>
 /// 電流に関するパラメータのセット処理(ブレーカ系＋非ブレーカ系一部)。
 /// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH /
-///   Set_CON / Set_MCDT / Set_F / Set_ELR / Set_LGR / Set_TS / Set_SU / Set_SSW / Set_CKS / Set_L
+///   Set_CON / Set_MCDT / Set_F / Set_ELR / Set_LGR / Set_TS / Set_SU / Set_SSW / Set_CKS / Set_L /
+///   Set_TB / Set_TR / Set_RRY
 ///   および補助関数 Check_fyrt800 / Set_IM / PropSetELBKando(toku/sekkei/src/Fyss3G.c)、
 ///   Fysk0e_SetELBkando(toku/sekkei/src/Fysk0e.c)。
 ///
@@ -15,10 +16,12 @@ namespace Ews.Analysis;
 ///
 /// 【段階移植の範囲】
 ///   本クラスではブレーカ系 4 種(MCB系/ELB系/MMCB系/ELMB系)のセッタ、非ブレーカ系の
-///   THR/MG/WH のセッタおよびリーフセッタ群(CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L)、
-///   およびその依存(Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando、
+///   THR/MG/WH のセッタ、リーフセッタ群(CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L)、
+///   および依存関数を伴うセッタ(TB は電線サイズ検索 <c>CurrentParameterTableSeeker.SeekWireSize</c>、
+///   TR は下流抽出 <c>DownstreamSelector.SelectDownstream</c>、RRY は親遡行)、
+///   その依存(Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando、
 ///   CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
-///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT/TB/TR/RRY 等の
+///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT 等の
 ///   残りの機器セッタは後続増分で移植する(Set_DCPW は C 原典が空関数のため移植省略)。
 ///
 /// 【C 原典のバグ再現】Set_MCB 内 <c>dwork == Stof(...)</c> は代入 <c>=</c> の誤記(<c>==</c>)で
@@ -865,6 +868,229 @@ public static class CurrentParameterSetter
         }
     }
 
+    /// <summary>
+    /// 電流パラメータのセット処理(TB 用)。【C原典】Fyss3G_Set_TB。
+    /// A2 に通電電流値を設定し、電線サイズ(SQ)を CnsSQsetSeek で決定する。
+    /// 改訂&lt;9&gt;: 動力電源(fpalwkbn=='W')かつ三相(kpaph=='3')で負荷容量帯により通電電流値を補正。
+    /// 改訂&lt;7&gt;: 通電電流値が 26.669～26.876 の帯なら 30.1 に補正。LGT は電線サイズ非設定で終了。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="wireSizeTable">電線サイズ設定表。【C原典】sqset_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetTb(
+        int parameter1SetRequired,
+        IReadOnlyList<MainCircuitResult> records,
+        int index,
+        IReadOnlyList<WireSizeSetting> wireSizeTable,
+        int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(wireSizeTable);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // 【C原典】通電電流値を取得(この double は電線サイズ検索用。A2 には生の denryu 文字列を使う)。
+        double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+
+        // 【C原典 改訂<9>】動力電源(fpalwkbn=='W')かつ三相(kpaph=='3')は負荷容量帯で通電電流値を補正。
+        if (dt.AttachedParameter.LoadUnitKind == 'W' && dt.CircuitPhaseCount == '3')
+        {
+            int fuka = EquipmentParameterFormatter.Stoi(dt.AttachedParameter.LoadCapacity, 7);
+            if (fuka > 2200 && fuka <= 5500)
+            {
+                denryu = 15.1;
+            }
+            else if (fuka > 5500 && fuka <= 11000)
+            {
+                denryu = 30.1;
+            }
+            else if (fuka > 11000)
+            {
+                denryu = 71.5;
+            }
+        }
+
+        // 【C原典 改訂<7>】26.669～26.876 の帯は 30.1 に補正。
+        if (denryu > 26.669 && denryu < 26.876)
+        {
+            denryu = 30.1;
+        }
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A2 = 通電電流値(生の denryu 8桁 + '0')。
+            ep[2].A2 = EnergizingCurrentToNine(dt.EnergizingCurrent);
+
+            // 【C原典】LGT は電線サイズを設定せず終了。
+            if (MatchesSpace(dt.ReservedWord, "LGT     "))
+            {
+                return;
+            }
+
+            // 【C原典】ep[2].SQ が未設定("000.00")なら CnsSQsetSeek で電線サイズを決定。
+            if (MatchesZero(ep[2].Sq, ZeroSq))
+            {
+                double sq = CurrentParameterTableSeeker.SeekWireSize(denryu, wireSizeTable);
+                ep[2].Sq = Format6(sq);
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[1].SQ が未設定("000.00")なら CnsSQsetSeek で電線サイズを決定。
+            if (MatchesZero(ep[1].Sq, ZeroSq))
+            {
+                double sq = CurrentParameterTableSeeker.SeekWireSize(denryu, wireSizeTable);
+                ep[1].Sq = Format6(sq);
+            }
+
+            // 【C原典】負荷発生区分 ahassei=='1' のとき ep[2].SQ = ep[1].SQ。
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].Sq = Fix(ep[1].Sq, 6);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(TR 用)。【C原典】Fyss3G_Set_TR。
+    /// タイプ[0] 未設定時は負荷容量(VA)&lt;=500 で "RO" を設定。ep[2].VA 未設定時は下流の
+    /// 負荷容量(負荷種類 M)を積算して VA を決定する(prm1/Pmainc は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetTr(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- タイプ設定処理 ----
+        // 【C原典】datatype[0] が未設定(空白7)なら負荷容量(VA)を取得し 500 以下で "RO" を設定。
+        if (MatchesSpace(dt.DataType[0], "       "))
+        {
+            // 【C原典 バグ】条件は ep[0].VA を見るが、非ゼロ時に読むのは ep[1].VA(原典どおりの挙動)。
+            string vaSource = MatchesZero(ep[0].Va, ZeroVa) ? ep[2].Va : ep[1].Va;
+            double va0 = EquipmentParameterFormatter.Stof(vaSource, 10);
+            if (va0 <= 500.0)
+            {
+                dt.DataType[0] = "RO     ";
+            }
+        }
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】ep[2].VA が未設定("0000000.00")のときのみ算出。
+            if (MatchesZero(ep[2].Va, ZeroVa))
+            {
+                // 【C原典】下流データ追番を抽出(Fyss35_Select_Karyu_Sub)。lw2 は決定性のため 0.0 初期化。
+                double lw2 = 0.0;
+                IReadOnlyList<int>? downstream = DownstreamSelector.SelectDownstream(records, index + 1);
+                if (downstream is not null)
+                {
+                    int num = downstream.Count;
+                    for (int lp = 0; lp < num; lp++)
+                    {
+                        // 【C原典】d_no = *dno + lp(下流追番は連続するため先頭 + lp)。
+                        int dno = downstream[0] + lp;
+                        MainCircuitData child = records[dno - 1].Data;
+
+                        // 【C原典】負荷発生元区分が '1' の下流のみ対象。
+                        if (child.LoadSourceKind == '1')
+                        {
+                            // 【C原典】負荷種類が "M " のとき自身(rt800[no])の fpalw2 を積算(原典どおり自身を参照)。
+                            if (MatchesSpace(child.AttachedParameter.LoadKind, "M "))
+                            {
+                                lw2 += EquipmentParameterFormatter.Stof(dt.AttachedParameter.LoadCapacity, 7);
+                            }
+                            else
+                            {
+                                // 【C原典】ret = lp; break;(ret は後段の代入バグで上書きされる)。
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 【C原典 バグ】if(ret = -1) は比較 == の誤記で常に真。よって常に va = lw2 * 1.5。
+                //   else 節(denryu * kpav * 1.2)は到達しない死コードのため移植しない。
+                double va = lw2 * 1.5;
+                ep[2].Va = Fix(EquipmentParameterFormatter.SprintfF("%10.2f", va), 10);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(RRY 用)。【C原典】Fyss3G_Set_RRY。
+    /// 改訂&lt;1&gt;: LACSL リモコン(datatype[1]=="LA")は ep[1].A2 を 16A 固定。
+    /// それ以外は直列上位(親)を遡り、同一階層かつ AT 設定済みの親の AT を A2 に採り、
+    /// 見つからなければ通電電流値を A2 に設定する(prm1 は未使用)。
+    /// </summary>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    public static void SetRry(IReadOnlyList<MainCircuitResult> records, int index, int inputFlag)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (!ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            return;
+        }
+
+        // 【C原典 改訂<1>】LACSL リモコンは ep[1].A2 を 16A 強制設定して終了。
+        if (MatchesSpace(dt.DataType[1], "LA "))
+        {
+            ep[1].A2 = "00016.000";
+            return;
+        }
+
+        // 【C原典】直列上位(親)を遡り、同一階層かつ AT 設定済みの親の AT を A2 に採る。
+        int lp = index + 1;
+        while (true)
+        {
+            int parentNumber = EquipmentParameterFormatter.Stoi(records[lp - 1].Data.ParentSequenceNumber, 3);
+            if (parentNumber < 1)
+            {
+                break;
+            }
+
+            MainCircuitData parent = records[parentNumber - 1].Data;
+            if (string.CompareOrdinal(Fix(parent.HierarchyNumber, 3), Fix(dt.HierarchyNumber, 3)) == 0 &&
+                !MatchesZero(parent.ElectricalParameterSlots[0].At, ZeroAt))
+            {
+                ep[2].A2 = Fix(parent.ElectricalParameterSlots[0].At, 9);
+                break;
+            }
+
+            lp = parentNumber;
+        }
+
+        // 【C原典】親から採れなければ通電電流値を A2 に設定。
+        if (MatchesZero(ep[2].A2, ZeroAt))
+        {
+            ep[2].A2 = EnergizingCurrentToNine(dt.EnergizingCurrent);
+        }
+    }
+
     // ---------------------------------------------------------------------
     //  補助関数
     // ---------------------------------------------------------------------
@@ -1009,6 +1235,12 @@ public static class CurrentParameterSetter
     /// <summary>AM の初期(未設定)値。【C原典】"000"(3)。</summary>
     private const string ZeroAm = "000";
 
+    /// <summary>電線サイズ(SQ)の初期(未設定)値。【C原典】"000.00"(6)。</summary>
+    private const string ZeroSq = "000.00";
+
+    /// <summary>負荷容量(VA)の初期(未設定)値。【C原典】"0000000.00"(10)。</summary>
+    private const string ZeroVa = "0000000.00";
+
     /// <summary>
     /// 電気パラメータ設定要否(先頭機器フラグ×データデッドフラグ)を判定する。
     /// 【C原典】(inpflg==1 &amp;&amp; sentflg=='1') || (inpflg==2 &amp;&amp; sentflg!='1')。
@@ -1024,6 +1256,10 @@ public static class CurrentParameterSetter
     /// <summary>C の <c>sprintf("%03.0lf", v)</c> + <c>memcpy(dest, work, 3)</c> 相当(先頭 3 桁)。</summary>
     private static string Format3(double value) =>
         Fix(EquipmentParameterFormatter.SprintfF("%03.0f", value), 3);
+
+    /// <summary>C の <c>sprintf("%06.2lf", v)</c> + <c>memcpy(dest, work, 6)</c> 相当(先頭 6 桁, 電線サイズ用)。</summary>
+    private static string Format6(double value) =>
+        Fix(EquipmentParameterFormatter.SprintfF("%06.2f", value), 6);
 
     /// <summary>
     /// 通電電流値(denryu 8桁)を AT/A1/A2 用の 9 桁へ設定する。
