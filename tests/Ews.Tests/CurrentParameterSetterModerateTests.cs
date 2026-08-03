@@ -7,9 +7,9 @@ namespace Ews.Tests;
 
 /// <summary>
 /// <see cref="CurrentParameterSetter"/> の中位セッタ群
-/// (【C原典】Fyss3G_Set_TB / Set_TR / Set_RRY, toku/sekkei/src/Fyss3G.c)の単体テスト。
+/// (【C原典】Fyss3G_Set_TB / Set_TR / Set_RRY / Set_AM, toku/sekkei/src/Fyss3G.c)の単体テスト。
 /// TB は電線サイズ検索(CnsSQsetSeek)、TR は下流抽出(Fyss35_Select_Karyu_Sub)、
-/// RRY は親遡行を伴う。
+/// RRY は親遡行、AM は延長目盛りタイプ判定＋定格電流１検索(CnsA1setSeek)を伴う。
 /// </summary>
 public class CurrentParameterSetterModerateTests
 {
@@ -293,4 +293,200 @@ public class CurrentParameterSetterModerateTests
         Assert.Equal(RawZero9, row.Data.ElectricalParameterSlots[1].A2);
         Assert.Equal(RawZero9, row.Data.ElectricalParameterSlots[2].A2);
     }
+
+    // ==== Set_AM ====
+
+    /// <summary>定格電流１設定表(10/20/30A)。SeekRatedCurrent1 は key より大きい最初の値を返す。</summary>
+    private static readonly List<RatedCurrent1Setting> RatedCurrents =
+    [
+        new RatedCurrent1Setting(10.0),
+        new RatedCurrent1Setting(20.0),
+        new RatedCurrent1Setting(30.0),
+    ];
+
+    [Fact]
+    public void SetAm_タイプ0が未設定なら通常目盛りNBKを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("NBK    ", row.Data.DataType[0]);
+    }
+
+    [Fact]
+    public void SetAm_BOMSかつ電動機なら3倍目盛り3BKを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00", loadKind: "M ");
+        row.Data.LineTypeCode = "B  ";
+        row.Data.LineTypeGroupNumber = "001";
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("3BK    ", row.Data.DataType[0]);
+    }
+
+    [Fact]
+    public void SetAm_タイプ6が未設定でAC区分ならACを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        row.Data.CircuitVoltageKind = 'A';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("AC     ", row.Data.DataType[6]);
+    }
+
+    [Fact]
+    public void SetAm_タイプ6が未設定でDC区分ならDCを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        row.Data.CircuitVoltageKind = 'D';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("DC     ", row.Data.DataType[6]);
+    }
+
+    [Fact]
+    public void SetAm_主回路はep2A1を初期化しA2に1_2倍値を設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        // denryu=50 -> a1=60.0(境界補正なし)。
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00000.000", row.Data.ElectricalParameterSlots[2].A1);
+        Assert.Equal("00060.000", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetAm_河村標準の境界で強制値に補正する()
+    {
+        var row = Rec(energizingCurrent: "00008.00");
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        // denryu=8 -> a1=9.6 は (7.7520,10.00) に入り 10.01 へ補正。
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00010.010", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetAm_公共建築仕様の境界で強制値に補正する()
+    {
+        var row = Rec(energizingCurrent: "00008.50");
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        // denryu=8.5 -> a1=10.2 は (10.000,11.148) に入り 10.00 へ補正(seisakusiyou=0)。
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 0, "");
+
+        Assert.Equal("00010.000", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetAm_計器用回路CT付きはA1をA1SET検索しA2を5固定する()
+    {
+        var row = Rec(energizingCurrent: "00015.00");
+        row.Data.CircuitElement = '2';
+        var records = new List<MainCircuitResult> { row };
+
+        // denryu=15 -> 1.2倍=18 -> A1SET 検索で 18 より大きい最初の 20。
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00020.000", row.Data.ElectricalParameterSlots[2].A1);
+        Assert.Equal("00005.000", row.Data.ElectricalParameterSlots[2].A2);
+    }
+
+    [Fact]
+    public void SetAm_prm1が1ならep1処理へ進まず負荷発生複写もしない()
+    {
+        var row = Rec(energizingCurrent: "00050.00", loadSourceKind: '1');
+        row.Data.CircuitElement = '1';
+        row.Data.ElectricalParameterSlots[1].A1 = "00012.340";
+        var records = new List<MainCircuitResult> { row };
+
+        // prm1=1: ep[2].A1 は主回路初期化のまま、ep[1].A1 の複写は行われない。
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00000.000", row.Data.ElectricalParameterSlots[2].A1);
+    }
+
+    [Fact]
+    public void SetAm_prm1が0かつ負荷発生ならep2A1にep1A1を複写する()
+    {
+        var row = Rec(energizingCurrent: "00050.00", loadSourceKind: '1');
+        row.Data.CircuitElement = '1';
+        row.Data.ElectricalParameterSlots[1].A1 = "00012.340";
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(0, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00012.340", row.Data.ElectricalParameterSlots[2].A1);
+    }
+
+    [Fact]
+    public void SetAm_CT付きでep1A1が非ゼロなら定格電流を再検索する()
+    {
+        var row = Rec(energizingCurrent: "00015.00");
+        row.Data.CircuitElement = '2';
+        row.Data.ElectricalParameterSlots[1].A1 = "00010.000";
+        var records = new List<MainCircuitResult> { row };
+
+        // ep1 側は denryu(1.2倍なし)=15 で再検索 -> 20。
+        CurrentParameterSetter.SetAm(0, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("00020.000", row.Data.ElectricalParameterSlots[1].A1);
+    }
+
+    [Fact]
+    public void SetAm_改訂5_ヒータで同系統に三相があれば3BKを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00", loadKind: "H ", circuitPhaseCount: '3');
+        row.Data.CircuitElement = '1';
+        row.Data.SystemNumber = "005";
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "");
+
+        Assert.Equal("3BK    ", row.Data.DataType[0]);
+    }
+
+    [Fact]
+    public void SetAm_改訂11_特定ゾーンでタイプ2がAS以外なら3BKを設定する()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "78007");
+
+        Assert.Equal("3BK    ", row.Data.DataType[0]);
+    }
+
+    [Fact]
+    public void SetAm_改訂11_特定ゾーンでもタイプ2がASなら通常目盛りのまま()
+    {
+        var row = Rec(energizingCurrent: "00050.00");
+        row.Data.CircuitElement = '1';
+        row.Data.DataType[2] = "AS     ";
+        var records = new List<MainCircuitResult> { row };
+
+        CurrentParameterSetter.SetAm(1, records, 0, 1, RatedCurrents, 1, 1, "78007");
+
+        Assert.Equal("NBK    ", row.Data.DataType[0]);
+    }
 }
+

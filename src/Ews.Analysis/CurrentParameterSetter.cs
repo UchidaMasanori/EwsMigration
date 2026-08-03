@@ -6,7 +6,7 @@ namespace Ews.Analysis;
 /// 電流に関するパラメータのセット処理(ブレーカ系＋非ブレーカ系一部)。
 /// 【C原典】Fyss3G_Set_MCB / Set_ELB / Set_MMCB / Set_ELMB / Set_THR / Set_MG / Set_WH /
 ///   Set_CON / Set_MCDT / Set_F / Set_ELR / Set_LGR / Set_TS / Set_SU / Set_SSW / Set_CKS / Set_L /
-///   Set_TB / Set_TR / Set_RRY
+///   Set_TB / Set_TR / Set_RRY / Set_AM
 ///   および補助関数 Check_fyrt800 / Set_IM / PropSetELBKando(toku/sekkei/src/Fyss3G.c)、
 ///   Fysk0e_SetELBkando(toku/sekkei/src/Fysk0e.c)。
 ///
@@ -18,10 +18,11 @@ namespace Ews.Analysis;
 ///   本クラスではブレーカ系 4 種(MCB系/ELB系/MMCB系/ELMB系)のセッタ、非ブレーカ系の
 ///   THR/MG/WH のセッタ、リーフセッタ群(CON/MCDT/F/ELR/LGR/TS/SU/SSW/CKS/L)、
 ///   および依存関数を伴うセッタ(TB は電線サイズ検索 <c>CurrentParameterTableSeeker.SeekWireSize</c>、
-///   TR は下流抽出 <c>DownstreamSelector.SelectDownstream</c>、RRY は親遡行)、
+///   TR は下流抽出 <c>DownstreamSelector.SelectDownstream</c>、RRY は親遡行、
+///   AM は延長目盛りタイプ判定＋定格電流１検索 <c>CurrentParameterTableSeeker.SeekRatedCurrent1</c>)、
 ///   その依存(Check_fyrt800/Set_IM/PropSetELBKando/Fysk0e_SetELBkando、
 ///   CNS Seek 群は <c>CurrentParameterTableSeeker</c>)を移植する。
-///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/AM/CT 等の
+///   ディスパッチャ Fyss3G_Denryuu_Parm_Set 本体、および MC/CT 等の
 ///   残りの機器セッタは後続増分で移植する(Set_DCPW は C 原典が空関数のため移植省略)。
 ///
 /// 【C 原典のバグ再現】Set_MCB 内 <c>dwork == Stof(...)</c> は代入 <c>=</c> の誤記(<c>==</c>)で
@@ -1088,6 +1089,177 @@ public static class CurrentParameterSetter
         if (MatchesZero(ep[2].A2, ZeroAt))
         {
             ep[2].A2 = EnergizingCurrentToNine(dt.EnergizingCurrent);
+        }
+    }
+
+    /// <summary>
+    /// 電流パラメータのセット処理(AM 用)。【C原典】Fyss3G_Set_AM。
+    /// </summary>
+    /// <param name="parameter1SetRequired">パラメータ1設定フラグ 0:on 1:off。【C原典】prm1。</param>
+    /// <param name="records">主回路エリア。【C原典】rt800[]。</param>
+    /// <param name="index">処理対象データ追番。【C原典】no。</param>
+    /// <param name="count">主回路エリアの有効件数。【C原典】Pmainc。</param>
+    /// <param name="ratedCurrent1Table">定格電流１設定一覧。【C原典】a1set_p。</param>
+    /// <param name="inputFlag">データデッドフラグ(1 or 2)。【C原典】inpflg。</param>
+    /// <param name="productionSpec">製作仕様(改訂&lt;3&gt;)。1:河村標準 0:その他。【C原典】seisakusiyou(sshiykbn=="01"→1)。</param>
+    /// <param name="zoneCode">運用地区(工場)コード。【C原典】FyGetZoneCD(zone_cd)。</param>
+    public static void SetAm(
+        int parameter1SetRequired, IReadOnlyList<MainCircuitResult> records, int index, int count,
+        IReadOnlyList<RatedCurrent1Setting> ratedCurrent1Table, int inputFlag, int productionSpec,
+        string zoneCode)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(ratedCurrent1Table);
+        ArgumentNullException.ThrowIfNull(zoneCode);
+        MainCircuitResult row = records[index];
+        MainCircuitData dt = row.Data;
+        ElectricalParameters[] ep = dt.ElectricalParameterSlots;
+
+        // 【C原典】通電電流値を取得。
+        double denryu = EquipmentParameterFormatter.Stof(dt.EnergizingCurrent, DenryuWidth);
+
+        // ---- タイプ設定処理 ----
+        // 【C原典】タイプ[0]延長目盛り設定。datatype[0] が未設定(空白7)のときのみ決定。
+        if (MatchesSpace(dt.DataType[0], "       "))
+        {
+            // 【C原典】行種コードが B/O/M/S のとき、同一行種・同一行種グループの機器を no から辿り、
+            //         負荷種類が電動機("M ")なら 3 倍公称目盛り("3BK")。行種が変わったら打ち切り。
+            if (MatchesSpace(dt.LineTypeCode, "B  ") || MatchesSpace(dt.LineTypeCode, "O  ") ||
+                MatchesSpace(dt.LineTypeCode, "M  ") || MatchesSpace(dt.LineTypeCode, "S  "))
+            {
+                for (int i = index; i < count; i++)
+                {
+                    MainCircuitData other = records[i].Data;
+                    if (string.CompareOrdinal(Fix(other.LineTypeCode, 3), Fix(dt.LineTypeCode, 3)) == 0 &&
+                        string.CompareOrdinal(Fix(other.LineTypeGroupNumber, 3), Fix(dt.LineTypeGroupNumber, 3)) == 0)
+                    {
+                        // 【C原典】機器サーチflg 未確定のため kikiskbn は見ず fpalw1=="M " のみで判定。
+                        if (MatchesSpace(other.AttachedParameter.LoadKind, "M "))
+                        {
+                            dt.DataType[0] = "3BK    ";
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // 【C原典】上で決まらなければ通常目盛り("NBK")。
+            if (MatchesSpace(dt.DataType[0], "       "))
+            {
+                dt.DataType[0] = "NBK    ";
+            }
+
+            // 【C原典 改訂<5>】負荷種類がヒータ("H ")で、同一系統番号かつ回路相数=='3' の機器があれば "3BK"。
+            if (MatchesSpace(dt.AttachedParameter.LoadKind, "H "))
+            {
+                for (int n = 0; n < count; n++)
+                {
+                    MainCircuitData other = records[n].Data;
+                    if (string.CompareOrdinal(Fix(dt.SystemNumber, 3), Fix(other.SystemNumber, 3)) == 0)
+                    {
+                        if (other.CircuitPhaseCount == '3')
+                        {
+                            dt.DataType[0] = "3BK    ";
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 【C原典 改訂<11>/<12>】特定ゾーンでは datatype[2]!="AS" のとき "3BK"。
+            //   C の内側 for は index=no 固定条件の冪等ループ(break 無し)のため、単一判定と等価。
+            if (zoneCode == "78007" || zoneCode == "01212" || zoneCode == "98025" ||
+                zoneCode == "98024" || zoneCode == "98026")
+            {
+                if (count > 0 && !MatchesSpace(dt.DataType[2], "AS     "))
+                {
+                    dt.DataType[0] = "3BK    ";
+                }
+            }
+        }
+
+        // 【C原典】タイプ[6]電源種別設定。datatype[6] が未設定(空白7)なら AC/DC 区分から決定。
+        if (MatchesSpace(dt.DataType[6], "       "))
+        {
+            if (dt.CircuitVoltageKind == 'A')
+            {
+                dt.DataType[6] = "AC     ";
+            }
+            if (dt.CircuitVoltageKind == 'D')
+            {
+                dt.DataType[6] = "DC     ";
+            }
+        }
+
+        // ---- 電気パラメータ２設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定。主回路(kiryoso=='1')は初期化、計器用回路CT付き(=='2')は 1.2 倍後に A1SET 検索。
+            if (dt.CircuitElement == '1')
+            {
+                ep[2].A1 = ZeroAt;
+            }
+            if (dt.CircuitElement == '2')
+            {
+                // 【C原典 No.1022】CT 付きも 1.2 倍後の値でテーブルを見る。
+                double a1 = CurrentParameterTableSeeker.SeekRatedCurrent1(denryu * 1.2, ratedCurrent1Table);
+                ep[2].A1 = Format9(a1);
+            }
+
+            // 【C原典】A2 設定。主回路は 1.2 倍後に製作仕様別の境界補正、計器用回路CT付きは 5 固定。
+            if (dt.CircuitElement == '1')
+            {
+                double a1 = denryu * 1.2;
+
+                // 【C原典 改訂<3>】河村標準(seisakusiyou==1)の境界強制値。
+                if (productionSpec == 1)
+                {
+                    if (a1 > 0.7921 && a1 < 1.00) { a1 = 1.01; }
+                    if (a1 > 2.7000 && a1 < 3.00) { a1 = 3.01; }
+                    if (a1 > 4.3921 && a1 < 5.00) { a1 = 5.01; }
+                    if (a1 > 7.7520 && a1 < 10.00) { a1 = 10.01; }
+                    if (a1 > 11.1480 && a1 < 15.00) { a1 = 15.01; }
+                    if (a1 > 18.2520 && a1 < 20.00) { a1 = 20.01; }
+                }
+
+                // 【C原典 改訂<6>】公共建築仕様(seisakusiyou==0)の境界強制値。
+                if (productionSpec == 0 && a1 > 10.000 && a1 < 11.148) { a1 = 10.00; }
+                if (productionSpec == 0 && a1 > 11.148 && a1 < 18.252) { a1 = 20.00; }
+                if (productionSpec == 0 && a1 > 4.4279 && a1 < 10.000) { a1 = 10.00; }
+
+                ep[2].A2 = Format9(a1);
+            }
+            if (dt.CircuitElement == '2')
+            {
+                ep[2].A2 = "00005.000";
+            }
+        }
+
+        // 【C原典】if(prm1!=0) return;
+        if (parameter1SetRequired != 0)
+        {
+            return;
+        }
+
+        // ---- 電気パラメータ１設定処理 ----
+        if (ShouldSet(inputFlag, row.Work.LeadingEquipmentFlag))
+        {
+            // 【C原典】A1 設定。計器用回路CT付き(kiryoso=='2')かつ ep[1].A1!=0 のとき A1SET 再検索。
+            if (dt.CircuitElement == '2' && !MatchesZero(ep[1].A1, ZeroAt))
+            {
+                double a1 = CurrentParameterTableSeeker.SeekRatedCurrent1(denryu, ratedCurrent1Table);
+                ep[1].A1 = Format9(a1);
+            }
+
+            // ---- 電気パラメータ２再設定処理(負荷発生区分) ----
+            if (dt.LoadSourceKind == '1')
+            {
+                ep[2].A1 = Fix(ep[1].A1, 9);
+            }
         }
     }
 

@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1224 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1238 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -201,6 +201,19 @@ CNS Seek 群を消費する3種を移植。既存 `CurrentParameterSetter` に�
 - **忠実性メモ**: `Set_TR` の C 原典は `if(ret = -1)`（== の誤記の代入）で常に真となり、VA は常に `lw2*1.5` 分岐を通る（`denryu*kpav*1.2` の else は死コード）。この挙動を忠実再現し else 節は移植しない。`Set_TR` の VA 参照元は ep[0].VA を判定しつつ非ゼロ時 ep[1].VA を読む原典の癖も再現。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 依存]/AM[ゾーンコード gyocd]/CT[同一機器複数ループ]）。
 - **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／複雑なセッタ（AM[ゾーンコード/gyocd]/CT[同一機器多重ループ]/TB[SQseek+改訂]/TR[Fyss35 下流抽出]/RRY[親 oyatno 遡行]/MC[Set_MC_SC]）。
+
+### 2026-08-03 セッション⑬ 追加分（Fyss3G 依存付きセッタ: AM）
+
+電流パラメータ設定 `Fyss3G_Denryuu_Parm_Set` のメーカー定格電流セッタ AM を移植。
+既存 `CurrentParameterSetter` に追加。テストは 1224 → **1238**（+14）。
+
+- **AM セッタ（commit 予定）**: `src/Ews.Analysis/CurrentParameterSetter.cs` に `SetAm`（=`Fyss3G_Set_AM`）を追加。
+  - **タイプ[0] 延長目盛り**: datatype[0] 未設定時のみ決定。行種コード(gyocd)が B/O/M/S かつ同一行種・同一行種グループ(gyoglno)の機器を辿り負荷種類=="M "(電動機)なら "3BK"、行種が変われば打ち切り。決まらなければ "NBK"。改訂<5> 負荷種類=="H "(ヒータ)で同一系統番号(kno)かつ回路相数=='3' の機器があれば "3BK"。改訂<11>/<12> 特定ゾーン(78007/01212/98025/98024/98026)で datatype[2]!="AS" なら "3BK"（C 原典の内側 for は冪等ループのため単一判定と等価）。
+  - **タイプ[6] 電源種別**: datatype[6] 未設定時に回路電圧 AC/DC 区分(kpavkbn)で "AC"/"DC"。
+  - **ep[2] 設定**: 主回路(kiryoso=='1')は A1 初期化・A2＝通電電流×1.2 に製作仕様別境界補正（改訂<3> 河村標準=1: 0.7921〜1.00→1.01 ほか 6 帯、改訂<6> 公共=0: 10.000〜11.148→10.00 ほか 3 帯）。計器回路 CT 付き(kiryoso=='2')は A1＝A1SET 検索(1.2 倍後・`SeekRatedCurrent1`)、A2＝5 固定。
+  - **ep[1] 再設定（prm1==0）**: CT 付きで ep[1].A1 非ゼロなら定格電流を再検索(1.2 倍なし)。負荷発生元(ahassei=='1')は ep[2].A1 に ep[1].A1 を複写。
+- **依存**: ゾーンコードは C の `FyGetZoneCD` を `SetAm(..., string zoneCode)` 引数化（既存 `IRuntimeParameterProvider.ZoneCode` から供給）。定格電流１検索は既存 `CurrentParameterTableSeeker.SeekRatedCurrent1`。
+- **保留（Fyss3G 残）**: ディスパッチャ本体 `Fyss3G_Denryuu_Parm_Set`／残デバイスセッタ（MC[Set_MC_SC は Fyss35 依存]/CT[同一機器多重ループ]）。
 
 ### 2026-07-31 セッション⑤ 追加分（②マスタ検索の中間結線層 ①〜⑤）
 

@@ -543,3 +543,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3G_Set_TB,CurrentParameterSetter.SetTb,toku/sekkei/src/Fyss3G.c,電流パラメータセット(TB/LGT)。A2に通電電流値・電線サイズSQをCnsSQsetSeekで決定/改訂<9>動力三相の負荷容量帯補正・改訂<7>26.669～26.876帯は30.1補正
 関数,Fyss3G_Set_TR,CurrentParameterSetter.SetTr,toku/sekkei/src/Fyss3G.c,電流パラメータセット(TR)。datatype[0]未設定でVA<=500はRO/ep[2].VA未設定は下流の負荷種類Mを積算しVA=lw2*1.5(原典ret代入バグ再現)
 関数,Fyss3G_Set_RRY,CurrentParameterSetter.SetRry,toku/sekkei/src/Fyss3G.c,電流パラメータセット(RRY)。datatype[1]==LAは16A固定/親を遡り同一階層でAT設定済の親ATを複写・無ければ通電電流値をA2設定
+関数,Fyss3G_Set_AM,CurrentParameterSetter.SetAm,toku/sekkei/src/Fyss3G.c,電流パラメータセット(AM)。datatype[0]延長目盛り(BOMS電動機/改訂<5>ヒータ三相/改訂<11>特定ゾーンで3BK・他はNBK)・datatype[6]電源種別(AC/DC)・主回路A2は1.2倍後に製作仕様別境界補正・計器回路CT付きはA1SET検索でA2は5固定
