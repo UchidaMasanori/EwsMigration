@@ -1162,6 +1162,48 @@ public static class PhaseAssigner
         }
     }
 
+    // 電源が DC または 1相2線 極数2 のケースの使用相セット(P と同系統の下流を XY)。【C原典】Fyss3D_PH_Kettei DC/1P2W-2 ケース。
+    public static void AssignPhaseDcOr1P2WPole2(IReadOnlyList<MainCircuitResult> mains, int pIdx)
+    {
+        MainCircuitData pd = mains[pIdx].Data;
+        pd.UsedPhase = Fixed("XY  ", 4); // P の使用相セット
+        for (int j = pIdx + 1; j < mains.Count; j++)
+        {
+            MainCircuitData dj = mains[j].Data;
+            if (!Matches(pd.SystemNumber, dj.SystemNumber, 3))
+            {
+                break; // 系統番号が変わったら終了
+            }
+
+            dj.UsedPhase = Fixed("XY  ", 4); // 下流の使用相セット
+        }
+    }
+
+    // 電源が 1相2線 極数1 のケースの使用相セット(P と同系統の下流を XN)。【C原典】Fyss3D_PH_Kettei 1P2W-1 ケース(改訂19)。
+    public static CircuitParseError? AssignPhase1P2WPole1(IReadOnlyList<MainCircuitResult> mains, int pIdx)
+    {
+        MainCircuitData pd = mains[pIdx].Data;
+        pd.UsedPhase = Fixed("XN  ", 4); // P の使用相セット
+        for (int j = pIdx + 1; j < mains.Count; j++)
+        {
+            MainCircuitData dj = mains[j].Data;
+            if (!Matches(pd.SystemNumber, dj.SystemNumber, 3))
+            {
+                break; // 系統番号が変わったら終了
+            }
+
+            dj.UsedPhase = Fixed("XN  ", 4); // 下流の使用相セット
+
+            CircuitParseError? err = CheckElement1P2W(dj); // 改訂19: エレメント数チェック
+            if (err is not null)
+            {
+                return err;
+            }
+        }
+
+        return null;
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {

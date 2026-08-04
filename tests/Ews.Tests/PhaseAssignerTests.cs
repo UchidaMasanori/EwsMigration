@@ -738,6 +738,50 @@ public sealed class PhaseAssignerTests
         Assert.Equal("S   ", am1.Data.UsedPhase);
         Assert.Equal("X   ", am2.Data.UsedPhase);
     }
+
+    // ── AssignPhaseDcOr1P2WPole2 / AssignPhase1P2WPole1 ───────────────────────
+
+    [Fact]
+    public void 電源DCまたは1P2W極2_同系統の下流をXYにする()
+    {
+        var p = Row(yoyaku: "P       ", siyouso: "    ");
+        p.Data.SystemNumber = "001";
+        var child = Row(yoyaku: "MCB     ", siyouso: "    ");
+        child.Data.SystemNumber = "001";
+        var other = Row(yoyaku: "MCB     ", siyouso: "    ");
+        other.Data.SystemNumber = "002";
+        PhaseAssigner.AssignPhaseDcOr1P2WPole2([p, child, other], 0);
+        Assert.Equal("XY  ", p.Data.UsedPhase);
+        Assert.Equal("XY  ", child.Data.UsedPhase);
+        Assert.Equal("    ", other.Data.UsedPhase); // 系統番号が変わったら対象外
+    }
+
+    [Fact]
+    public void 電源1P2W極1_同系統の下流をXNにする()
+    {
+        var p = Row(yoyaku: "P       ", siyouso: "    ");
+        p.Data.SystemNumber = "001";
+        var child = Row(yoyaku: "MCB     ", siyouso: "    ");
+        child.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase1P2WPole1([p, child], 0);
+        Assert.Null(err);
+        Assert.Equal("XN  ", p.Data.UsedPhase);
+        Assert.Equal("XN  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源1P2W極1_エレメント数不正でエラーを返す()
+    {
+        var p = Row(yoyaku: "P       ", siyouso: "    ");
+        p.Data.SystemNumber = "001";
+        var child = Row(yoyaku: "CT      ", gyocd: "B  ", siyouso: "    ");
+        child.Data.SystemNumber = "001";
+        child.Data.ElectricalParameterSlots[0].E = "1";
+        child.Data.DataType[0] = "CT ";
+        var err = PhaseAssigner.AssignPhase1P2WPole1([p, child], 0);
+        Assert.NotNull(err);
+        Assert.Equal("FY-144E", err!.ErrorCode);
+    }
 }
 
 
