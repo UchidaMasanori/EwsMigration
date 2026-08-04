@@ -820,4 +820,109 @@ public static class BranchArraySorter
 
         return -1;
     }
+
+    /// <summary>
+    /// 構成機器の定格キー(fyrt701 union)から予約語別にフレーム/トリップ電流を取り出し、ソートキー
+    /// KEY6/KEY7 に設定する。【C原典】<c>KouseiGetElement</c>(Fyss3C.c:2016)。
+    /// af/at バッファ初期値 "00000.000"。<c>GetYNUM(km_key.yoyaku)</c> のスイッチで、
+    /// af/at を抽出する予約語(MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/HPSB/HSB/CP/NHMB)
+    /// のみ定格キーの該当バイトを取り出して <see cref="SetDecimalPoint"/> で小数点を打ち、
+    /// それ以外は 0 のまま。KEY6=<c>%09.3f</c>(af)、KEY7=<c>%09.3f</c>(at)。
+    /// </summary>
+    public static void SetComponentSortCurrent(ComponentEquipment component, SortKey key)
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        ArgumentNullException.ThrowIfNull(key);
+
+        string teikkey = component.MachineKey.RatingKey ?? string.Empty;
+        string afbuf = "00000.000";
+        string atbuf = "00000.000";
+
+        switch (GetReservedWordKind(component.MachineKey.ReservedWord))
+        {
+            case ReservedWordKind.MCB:
+                afbuf = CopyRatingField(teikkey, 2, 4, 0);
+                atbuf = CopyRatingField(teikkey, 6, 4, 0);
+                break;
+            case ReservedWordKind.ELB:
+                afbuf = CopyRatingField(teikkey, 2, 4, 0);
+                atbuf = CopyRatingField(teikkey, 6, 4, 0);
+                break;
+            case ReservedWordKind.MMCB:
+                afbuf = CopyRatingField(teikkey, 2, 3, 0);
+                atbuf = CopyRatingField(teikkey, 5, 5, 2);
+                break;
+            case ReservedWordKind.ELMB:
+                afbuf = CopyRatingField(teikkey, 2, 3, 0);
+                atbuf = CopyRatingField(teikkey, 5, 5, 2);
+                break;
+            case ReservedWordKind.SB:
+                afbuf = CopyRatingField(teikkey, 2, 2, 0);
+                atbuf = CopyRatingField(teikkey, 4, 2, 0);
+                break;
+            case ReservedWordKind.RMCB:
+                afbuf = CopyRatingField(teikkey, 2, 2, 0);
+                atbuf = CopyRatingField(teikkey, 4, 2, 0);
+                break;
+            case ReservedWordKind.RELB:
+                afbuf = CopyRatingField(teikkey, 2, 2, 0);
+                atbuf = CopyRatingField(teikkey, 4, 2, 0);
+                break;
+            case ReservedWordKind.RMMCB:
+                afbuf = CopyRatingField(teikkey, 2, 2, 0);
+                atbuf = CopyRatingField(teikkey, 4, 4, 2);
+                break;
+            case ReservedWordKind.RELMB:
+                afbuf = CopyRatingField(teikkey, 2, 2, 0);
+                atbuf = CopyRatingField(teikkey, 4, 4, 2);
+                break;
+            case ReservedWordKind.HPSB:
+                afbuf = CopyRatingField(teikkey, 1, 3, 0);
+                atbuf = CopyRatingField(teikkey, 4, 3, 0);
+                break;
+            case ReservedWordKind.HSB:
+                afbuf = CopyRatingField(teikkey, 1, 3, 0);
+                atbuf = CopyRatingField(teikkey, 4, 3, 0);
+                break;
+            case ReservedWordKind.CP:
+                afbuf = CopyRatingField(teikkey, 1, 2, 0);
+                atbuf = CopyRatingField(teikkey, 3, 2, 0);
+                break;
+            case ReservedWordKind.NHMB:
+                atbuf = CopyRatingField(teikkey, 1, 4, 2);
+                break;
+            default:
+                break;
+        }
+
+        key.Key6 = FormatCurrent(afbuf);
+        key.Key7 = FormatCurrent(atbuf);
+    }
+
+    /// <summary>
+    /// 定格キーの指定オフセットから <paramref name="length"/> バイトを取り出し、小数点を打つ。
+    /// 【C原典】<c>FIELD_AF_COPY/FIELD_AT_COPY</c>(memcpy→'\0'終端→<c>SetPoint</c>)。
+    /// </summary>
+    private static string CopyRatingField(string ratingKey, int offset, int length, int decimalDigits)
+    {
+        string source = ratingKey.PadRight(offset + length);
+        string field = source.Substring(offset, length);
+        return SetDecimalPoint(field, decimalDigits);
+    }
+
+    /// <summary>
+    /// 電流バッファを 9 桁の "%09.3f" 文字列にする。【C原典】<c>atof</c>→<c>sprintf("%09.3f")</c>→
+    /// <c>memcpy(key6/7, buf, 9)</c>(9 バイト切り出し)。
+    /// </summary>
+    private static string FormatCurrent(string buffer)
+    {
+        if (!double.TryParse(buffer, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+        {
+            value = 0.0;
+        }
+
+        string formatted = value.ToString("00000.000", CultureInfo.InvariantCulture);
+        return formatted.Length > 9 ? formatted[..9] : formatted;
+    }
 }
+

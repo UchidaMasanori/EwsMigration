@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1606 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1611 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -409,6 +409,16 @@ SortIndex/KouseiGetElement が構成機器を参照するための土台とな�
 - **`FindComponentByDataNumber`**(=SortIndex 内の構成機器スキャン): 主回路のデータ追番(FYRT800.datano=MainCircuitResult.SequenceNumber)に一致する構成機器のインデックス(memcmp datano 3桁、該当なし -1)。
 - **テスト**: `BranchArraySorterTests.cs` +2。テストは 1604 → **1606**。
   次は段階25(KouseiGetElement: teikkey を fyrt701 union として予約語別に af/at 抽出→KEY6/7)、段階26(SortIndex 本体 KEY1/KEY9 と構成機器/YOYAKU_TBL 注入)、段階27(並べ替え本体)、段階28(オーケストレータ)。
+
+### 段階25: KouseiGetElement(構成機器の定格キー→KEY6/7)
+
+構成機器の定格キー(teikkey[80]=fyrt701 union)から、予約語別にフレーム電流(AF)/トリップ電流(AT)を取り出し、ソートキー KEY6/KEY7 を生成。
+
+- **`SetComponentSortCurrent`**(=KouseiGetElement, Fyss3C.c:2016): af/at バッファ初期値 "00000.000"。`GetReservedWordKind(km_key.yoyaku)` のスイッチで、af/at を抽出する **13 予約語のみ**(MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/HPSB/HSB/CP/NHMB)定格キーの該当バイトを取り出し `SetDecimalPoint` で小数点を打つ。他は 0 のまま。KEY6=`%09.3f`(af)、KEY7=`%09.3f`(at)。
+- **fyrt701 union オフセット**(全て `p`(1)+`e`(1) の後に af/at。ただし HPSB/HSB/NHMB は `e` 無しで `p`(1) の後): MCB/ELB af@2 len4 z0/at@6 len4 z0、MMCB/ELMB af@2 len3 z0/at@5 len5 z2、SB/RMCB/RELB af@2 len2 z0/at@4 len2 z0、RMMCB/RELMB af@2 len2 z0/at@4 len4 z2、HPSB/HSB af@1 len3 z0/at@4 len3 z0、CP af@1 len2 z0/at@3 len2 z0、NHMB は at@1 len4 z2 のみ(af 無し)。
+- **ヘルパ**: `CopyRatingField`(=FIELD_AF/AT_COPY: 該当バイト取出→SetDecimalPoint)、`FormatCurrent`(=atof→%09.3f→9桁切出)。
+- **テスト**: `BranchArraySorterTests.cs` +5。テストは 1606 → **1611**。
+  次は段階26(SortIndex 本体 KEY1 kikirui/KEY9 typetjg と構成機器/YOYAKU_TBL 注入)、段階27(並べ替え本体)、段階28(オーケストレータ)。
 
 
 

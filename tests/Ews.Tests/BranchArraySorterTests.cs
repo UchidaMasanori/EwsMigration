@@ -438,4 +438,64 @@ public class BranchArraySorterTests
         var components = new[] { new ComponentEquipment { DataNumber = "001" } };
         Assert.Equal(-1, BranchArraySorter.FindComponentByDataNumber(components, "999"));
     }
+
+    private static ComponentEquipment Component(string reservedWord, string ratingKey)
+        => new()
+        {
+            MachineKey = new MachineMasterKey { ReservedWord = reservedWord, RatingKey = ratingKey },
+        };
+
+    [Fact]
+    public void SetComponentSortCurrentはMCBのAFATを09_3f形式で設定する()
+    {
+        // p(1)+e(1)+af[4]@2+at[4]@6。af="0100"→100.0、at="0050"→50.0。
+        var key = new BranchArraySorter.SortKey();
+        BranchArraySorter.SetComponentSortCurrent(Component("MCB", "3201000050"), key);
+
+        Assert.Equal("00100.000", key.Key6);
+        Assert.Equal("00050.000", key.Key7);
+    }
+
+    [Fact]
+    public void SetComponentSortCurrentはMMCBのATに小数2桁を打つ()
+    {
+        // p(1)+e(1)+af[3]@2(z0)+at[5]@5(z2)。af="100"→100.0、at="00500"→005.00→5.0。
+        var key = new BranchArraySorter.SortKey();
+        BranchArraySorter.SetComponentSortCurrent(Component("MMCB", "3210000500"), key);
+
+        Assert.Equal("00100.000", key.Key6);
+        Assert.Equal("00005.000", key.Key7);
+    }
+
+    [Fact]
+    public void SetComponentSortCurrentはHPSBのeなしレイアウトを扱う()
+    {
+        // p(1)+af[3]@1+at[3]@4(e無し)。af="050"→50.0、at="030"→30.0。
+        var key = new BranchArraySorter.SortKey();
+        BranchArraySorter.SetComponentSortCurrent(Component("HPSB", "3050030"), key);
+
+        Assert.Equal("00050.000", key.Key6);
+        Assert.Equal("00030.000", key.Key7);
+    }
+
+    [Fact]
+    public void SetComponentSortCurrentはNHMBはATのみ設定しAFは0のまま()
+    {
+        // p(1)+at[4]@1(z2)。at="1000"→10.00→10.0。af無し→0。
+        var key = new BranchArraySorter.SortKey();
+        BranchArraySorter.SetComponentSortCurrent(Component("NHMB", "31000"), key);
+
+        Assert.Equal("00000.000", key.Key6);
+        Assert.Equal("00010.000", key.Key7);
+    }
+
+    [Fact]
+    public void SetComponentSortCurrentは対象外予約語で両方0を設定する()
+    {
+        var key = new BranchArraySorter.SortKey();
+        BranchArraySorter.SetComponentSortCurrent(Component("MC", "9999999999"), key);
+
+        Assert.Equal("00000.000", key.Key6);
+        Assert.Equal("00000.000", key.Key7);
+    }
 }

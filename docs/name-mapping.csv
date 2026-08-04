@@ -641,3 +641,4 @@ GetFloorElementsNotForSort,BranchArraySorter.GetFloorElementsNotForSort,BranchAr
 struct FYDF811,ComponentEquipment,ComponentEquipment,toku/include/common/fydf811.h,構成機器レコードの最小サブセット(datano・機器マスターキーMachineKey)。SortIndex/KouseiGetElementのソートキー生成で参照
 struct p805_key,MachineMasterKey,MachineMasterKey,toku/include/common/fydm805.h,機器マスターキー(予約語yoyaku[8]・メーカーコードmkcd[3]・パラメータタイプptype[7][7]・定格キーteikkey[80])
 SortIndex(構成機器検索),BranchArraySorter.FindComponentByDataNumber,BranchArraySorter.FindComponentByDataNumber,toku/sekkei/src/Fyss3C.c,主回路のデータ追番に一致する構成機器のインデックス(memcmp datano 3桁、該当なし-1)
+KouseiGetElement,BranchArraySorter.SetComponentSortCurrent,BranchArraySorter.SetComponentSortCurrent,toku/sekkei/src/Fyss3C.c,構成機器の定格キー(fyrt701 union)から予約語別にAF/ATを抽出しKEY6/7を%09.3fで設定。MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/HPSB/HSB/CP/NHMBのみ抽出、他は0
