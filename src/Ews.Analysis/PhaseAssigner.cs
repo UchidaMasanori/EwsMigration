@@ -1950,6 +1950,145 @@ public static class PhaseAssigner
         }
     }
 
+    // 使用相決定の統括本体。電源(予約語 P)を検索し電源種別ごとにサブケースへ振り分ける。【C原典】Fyss3D_PH_Kettei 本体。
+    public static CircuitParseError? AssignPhases(
+        IReadOnlyList<MainCircuitResult> mains, char hycpskbn,
+        Action<int>? reportDesignError = null)
+    {
+        // 初期化: 全機器の使用相をクリア。特注プラグインタイプは既に設定済みのためスキップ。改訂<22><28>
+        foreach (MainCircuitResult r in mains)
+        {
+            MainCircuitData d = r.Data;
+            if ((hycpskbn == '3' || hycpskbn == '7') &&
+                (Matches(d.DataType[0], "CH", 2) || Matches(d.DataType[0], "KP", 2)))
+            {
+                continue;
+            }
+
+            d.UsedPhase = Fixed("    ", 4);
+        }
+
+        // 使用相セット: 予約語 'P' を検索する。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData pd = mains[i].Data;
+            if (!Matches(pd.ReservedWord, "P       ", 8))
+            {
+                continue;
+            }
+
+            int mcCount = 0; // MC機器数初期化。改訂<16>
+
+            // 電源が DC、または 1相2線 極数2 のケース。
+            if ((pd.CircuitPhaseCount == '0' && pd.CircuitWireType == '0') ||
+                (pd.CircuitPhaseCount == '1' && pd.CircuitWireType == '2' && pd.CircuitPoleCount == '2'))
+            {
+                AssignPhaseDcOr1P2WPole2(mains, i);
+            }
+            // 電源が 1相2線 極数1 のケース。
+            else if (pd.CircuitPhaseCount == '1' && pd.CircuitWireType == '2' && pd.CircuitPoleCount == '1')
+            {
+                CircuitParseError? err = AssignPhase1P2WPole1(mains, i);
+                if (err is not null)
+                {
+                    return err;
+                }
+            }
+            // 電源が 1相3線 のケース。
+            else if (pd.CircuitPhaseCount == '1' && pd.CircuitWireType == '3')
+            {
+                var processed = new HashSet<string>(); // sumino[0]初期化
+                pd.UsedPhase = Fixed("XNY ", 4); // P の使用相セット(3P4W接続時は下流で RNS に変更)。改訂<32>
+
+                for (int j = i + 1; j < mains.Count; j++)
+                {
+                    MainCircuitData dj = mains[j].Data;
+                    if (!Matches(pd.SystemNumber, dj.SystemNumber, 3))
+                    {
+                        break; // 系統番号が変わったら終了
+                    }
+
+                    // 改訂<22><28>: プラグインタイプは設定不要。
+                    if ((hycpskbn == '3' || hycpskbn == '7') &&
+                        (Matches(dj.DataType[0], "CH", 2) || Matches(dj.DataType[0], "KP", 2)))
+                    {
+                        continue;
+                    }
+
+                    int k = EquipmentParameterFormatter.Stoi(dj.ParentSequenceNumber, 3) - 1;
+                    if (k < 0 || k >= mains.Count)
+                    {
+                        continue; // 親要素番号の範囲ガード(原典 UB)
+                    }
+
+                    MainCircuitData dk = mains[k].Data;
+
+                    // 親が 1相3線 極数3 のケース。
+                    if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '3' && dk.CircuitPoleCount == '3')
+                    {
+                        AssignParent1P3WPole3(mains, j, k, hycpskbn, ref mcCount, processed, reportDesignError);
+                    }
+                    // 親が 1相2線 極数2 のケース。
+                    else if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '2' && dk.CircuitPoleCount == '2')
+                    {
+                        CircuitParseError? err = AssignParent1P2WPole2(mains, j, k, processed, reportDesignError);
+                        if (err is not null)
+                        {
+                            return err;
+                        }
+                    }
+                    // 親が 1相2線 極数1 のケース。
+                    else if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '2' && dk.CircuitPoleCount == '1')
+                    {
+                        CircuitParseError? err = AssignParent1P2WPole1(mains, j, k, processed, reportDesignError);
+                        if (err is not null)
+                        {
+                            return err;
+                        }
+                    }
+                }
+            }
+            // 電源が 3相3線 のケース。
+            else if (pd.CircuitPhaseCount == '3' && pd.CircuitWireType == '3')
+            {
+                CircuitParseError? err = AssignPhase3P3W(mains, i, hycpskbn, reportDesignError);
+                if (err is not null)
+                {
+                    return err;
+                }
+            }
+            // 電源が 3相4線 (回路電圧v2なし) のケース。
+            else if (pd.CircuitPhaseCount == '3' && pd.CircuitWireType == '4' &&
+                     Matches(pd.CircuitVoltage[2], "000", 3))
+            {
+                CircuitParseError? err = AssignPhase3P4WNoV2(mains, i, reportDesignError);
+                if (err is not null)
+                {
+                    return err;
+                }
+            }
+            // 電源が 3相4線 (回路電圧v2あり) のケース。
+            else if (pd.CircuitPhaseCount == '3' && pd.CircuitWireType == '4' &&
+                     !Matches(pd.CircuitVoltage[2], "000", 3))
+            {
+                CircuitParseError? err = AssignPhase3P4WWithV2(mains, i, reportDesignError);
+                if (err is not null)
+                {
+                    return err;
+                }
+            }
+        }
+
+        // 末尾処理。
+        CopyMeterPhaseByIdentity(mains); // WH/CT の使用相を同一番号からコピー
+        ReducePhaseForRelayAndAmmeter(mains); // RRY/RMCB の2極→1極変更、AM の相調整
+        AdjustKatagiriPhase(mains); // MC/RRY 片切り使用時の使用相処理
+        SetMeterCircuitPhase(mains); // 計器回路の使用相セット
+        ChangeSiyousouFor3P4W(mains); // 3P4W と繋がる 1P3W の使用相変更。改訂<32>
+
+        return null;
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {

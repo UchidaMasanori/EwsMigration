@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1507 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1516 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -311,7 +311,14 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 `Fyss3D_PH_Kettei` の 3P4W(回路電圧v2あり)電源ケースを移植。
 
 - **`AssignPhase3P4WWithV2`**→CircuitParseError?: Pの使用相=RSTN、j-loopで同系統子機器を親種別の5つの別ifでディスパッチ。親3P4W4v≠0: 子3P4W4はF800Index34P('3','4','4')収集後taを3P3W相・tbをRST・tを親コピー(改訁18)/子3P3W3はRST/子1P3W3はRNS/else reportDesignError(9)。親3P3W3: 子3P3W3コピー/子1P2W2はF800Index34収集後3P3W相/else(10)。親1P2W2: 子1P2W2コピー/else(11)。親1P3W3: 子1P3W3コピー/子1P2W2はRS/子1P2W1はF800Index34('1','2','1')収集後RN・SN交互/else(12)。親1P2W1: 子1P2W1コピー/else(13)。dedupはsumino[5/6/7]対応HashSet×3。ヘルパSetPhaseRnSnAlternate追加(m%2 RN/SN)。
-- **テスト**: `PhaseAssignerTests.cs` +7件。テストは 1500 → **1507**（+7）。★★Fyss3D残り=初期化ループ・統括本体AssignPhases組立(全電源ケースメソッドは揃った)。
+- **テスト**: `PhaseAssignerTests.cs` +7件。テストは 1500 → **1507**（+7）。
+
+### 段階14: Fyss3D 使用相決定 統括本体 AssignPhases 組立
+
+`Fyss3D_PH_Kettei` 本体(初期化ループ + 電源振り分け + 末尾処理)を移植し、`Fyss3D_PH_Kettei` 全体の移植を完了。
+
+- **`AssignPhases(mains, hycpskbn, reportDesignError)`**→CircuitParseError?: (1)初期化=全機器の使用相を"    "にクリア、hycpskbn∈{3,7}かつDataType[0]∈{CH,KP}の特注プラグインはスキップ。(2)予約語Pの電源を検索し電源種別でサブケースへ委譲: DC/1P2W2→AssignPhaseDcOr1P2WPole2・1P2W1→AssignPhase1P2WPole1・1P3W→j-loop(同系統内・プラグイン除外・親要素番号範囲ガード・親型でAssignParent1P3WPole3/AssignParent1P2WPole2/AssignParent1P2WPole1へ else-if ディスパッチ、mcCount共有・処理済み親HashSet共有)・3P3W→AssignPhase3P3W・3P4Wv0→AssignPhase3P4WNoV2・3P4Wvあり→AssignPhase3P4WWithV2。(3)末尾=CopyMeterPhaseByIdentity/ReducePhaseForRelayAndAmmeter/AdjustKatagiriPhase/SetMeterCircuitPhase/ChangeSiyousouFor3P4W。エラーはCircuitParseError?で境界化。
+- **テスト**: `PhaseAssignerTests.cs` +9件(統括_DC/1P2W1/1P3W/3P3W/3P4Wv0/3P4Wvあり委譲・特注プラグイン非クリア・電源以外対象外・設計エラー通知)。テストは 1507 → **1516**（+9）。★Fyss3D_PH_Kettei 全移植完了。次はFyss15呼出順の残り(Fyss3C/3E/3I/3H等)。
 
 
 
