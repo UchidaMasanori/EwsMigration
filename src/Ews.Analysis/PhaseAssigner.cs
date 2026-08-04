@@ -1763,6 +1763,193 @@ public static class PhaseAssigner
         return null;
     }
 
+    // 3P4W(回路電圧 v2 あり)電源(powerIndex)配下の同系統機器の使用相をセットする。【C原典】Fyss3D_PH_Kettei 3P4Wv≠0 ケース。
+    public static CircuitParseError? AssignPhase3P4WWithV2(
+        IReadOnlyList<MainCircuitResult> mains, int powerIndex,
+        Action<int>? reportDesignError = null)
+    {
+        var processed5 = new HashSet<string>(); // sumi[5]/sumino[5]
+        var processed6 = new HashSet<string>(); // sumi[6]/sumino[6]
+        var processed7 = new HashSet<string>(); // sumi[7]/sumino[7]
+        MainCircuitData dp = mains[powerIndex].Data;
+        dp.UsedPhase = "RSTN"; // P の使用相セット
+
+        for (int j = powerIndex + 1; j < mains.Count; j++)
+        {
+            MainCircuitData dj = mains[j].Data;
+            if (!Matches(dp.SystemNumber, dj.SystemNumber, 3))
+            {
+                break; // 系統番号が変わったら終了
+            }
+
+            int k = EquipmentParameterFormatter.Stoi(dj.ParentSequenceNumber, 3) - 1;
+            if (k < 0 || k >= mains.Count)
+            {
+                continue; // 親要素番号の範囲ガード(原典 UB)
+            }
+
+            MainCircuitData dk = mains[k].Data;
+
+            // 親が 3相4線 極数4 v≠0 のケース。
+            if (dk.CircuitPhaseCount == '3' && dk.CircuitWireType == '4' && dk.CircuitPoleCount == '4' &&
+                !Matches(dk.CircuitVoltage[2], "000", 3))
+            {
+                if (dj.CircuitPhaseCount == '3' && dj.CircuitWireType == '4' && dj.CircuitPoleCount == '4')
+                {
+                    // 改訂<18>: 同じ親を持つ機器を極数別に相設定。
+                    if (!processed7.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                    {
+                        continue; // 特殊処理済みならば次のデータへ
+                    }
+
+                    F800IndexResult r = CollectF800Index34P(mains, dj.ParentSequenceNumber, '3', '4', '4');
+                    int[] t = [.. r.T];
+                    int[] ta = [.. r.Ta];
+                    int[] tb = [.. r.Tb];
+                    SortByParallelNumber(mains, t, t.Length);
+                    SortByParallelNumber(mains, ta, ta.Length);
+                    SortByParallelNumber(mains, tb, tb.Length);
+                    SetPhase3P3WDevices(mains, ta, ta.Length); // 2P 機器へ RS/ST/TR
+                    foreach (int idx in tb)
+                    {
+                        mains[idx].Data.UsedPhase = "RST "; // 3P 機器へ RST
+                    }
+                    foreach (int idx in t)
+                    {
+                        mains[idx].Data.UsedPhase = Fixed(dk.UsedPhase, 4); // その他機器へ親の使用相
+                    }
+                }
+                else if (dj.CircuitPhaseCount == '3' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+                {
+                    dj.UsedPhase = "RST ";
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+                {
+                    dj.UsedPhase = "RNS ";
+                }
+                else
+                {
+                    reportDesignError?.Invoke(9); // FyHcErrFunc(ER_SEKKEI, err_func, 9)
+                }
+            }
+
+            // 親が 3相3線 極数3 のケース(原典は別 if)。
+            if (dk.CircuitPhaseCount == '3' && dk.CircuitWireType == '3' && dk.CircuitPoleCount == '3')
+            {
+                if (dj.CircuitPhaseCount == '3' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+                {
+                    if (!processed5.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                    {
+                        continue; // 特殊処理済みならば次のデータへ
+                    }
+
+                    F800IndexResult r = CollectF800Index34(mains, dj.ParentSequenceNumber, '1', '2', '2');
+                    int[] t = [.. r.T];
+                    int[] ta = [.. r.Ta];
+                    int[] tb = [.. r.Tb];
+                    if (t.Length <= 2)
+                    {
+                        SortByParallelNumber(mains, t, t.Length);
+                        SetPhase3P3WDevices(mains, t, t.Length); // RS/ST セット
+                    }
+                    else
+                    {
+                        SortByParallelNumber(mains, ta, ta.Length);
+                        SetPhase3P3WDevices(mains, ta, ta.Length); // RS/ST/TR セット
+                        SortByParallelNumber(mains, tb, tb.Length);
+                        SetPhase3P3WDevices(mains, tb, tb.Length);
+                    }
+                }
+                else
+                {
+                    reportDesignError?.Invoke(10); // FyHcErrFunc(ER_SEKKEI, err_func, 10)
+                }
+            }
+
+            // 親が 1相2線 極数2 のケース(原典は別 if)。
+            if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '2' && dk.CircuitPoleCount == '2')
+            {
+                if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else
+                {
+                    reportDesignError?.Invoke(11); // FyHcErrFunc(ER_SEKKEI, err_func, 11)
+                }
+            }
+
+            // 親が 1相3線 極数3 のケース(原典は別 if)。
+            if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '3' && dk.CircuitPoleCount == '3')
+            {
+                if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+                {
+                    dj.UsedPhase = "RS  ";
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '1')
+                {
+                    if (!processed6.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                    {
+                        continue; // 特殊処理済みならば次のデータへ
+                    }
+
+                    F800IndexResult r = CollectF800Index34(mains, dj.ParentSequenceNumber, '1', '2', '1');
+                    int[] t = [.. r.T];
+                    int[] ta = [.. r.Ta];
+                    int[] tb = [.. r.Tb];
+                    if (t.Length <= 2)
+                    {
+                        SortByParallelNumber(mains, t, t.Length);
+                        SetPhaseRnSnAlternate(mains, t); // RN/SN 交互
+                    }
+                    else
+                    {
+                        SortByParallelNumber(mains, ta, ta.Length);
+                        SetPhaseRnSnAlternate(mains, ta);
+                        SortByParallelNumber(mains, tb, tb.Length);
+                        SetPhaseRnSnAlternate(mains, tb);
+                    }
+                }
+                else
+                {
+                    reportDesignError?.Invoke(12); // FyHcErrFunc(ER_SEKKEI, err_func, 12)
+                }
+            }
+
+            // 親が 1相2線 極数1 のケース(原典は別 if)。
+            if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '2' && dk.CircuitPoleCount == '1')
+            {
+                if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '1')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else
+                {
+                    reportDesignError?.Invoke(13); // FyHcErrFunc(ER_SEKKEI, err_func, 13)
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // 収集機器へ RN/SN を並列追い番順に交互セットする。【C原典】3P4Wv≠0 親1P3W3-子1P2W1 の m%2 ロジック。
+    private static void SetPhaseRnSnAlternate(IReadOnlyList<MainCircuitResult> mains, int[] tbl)
+    {
+        for (int m = 0; m < tbl.Length; m++)
+        {
+            mains[tbl[m]].Data.UsedPhase = m % 2 == 0 ? "RN  " : "SN  ";
+        }
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {

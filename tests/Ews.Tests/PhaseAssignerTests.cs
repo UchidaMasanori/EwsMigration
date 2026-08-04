@@ -1234,6 +1234,130 @@ public sealed class PhaseAssignerTests
         PhaseAssigner.AssignPhase3P4WNoV2([p, parent, child], 0, n => reported = n);
         Assert.Equal(8, reported);
     }
+
+    // ── AssignPhase3P4WWithV2 ────────────────────────────────────────────────
+
+    [Fact]
+    public void 電源3P4Wv2_親3P4W4の子3P3W3はRSTにする()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ", kpav0: "210");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210"; // v2あり
+        p.Data.SystemNumber = "001";
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '3', '3', '3');
+        child.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase3P4WWithV2([p, child], 0);
+        Assert.Null(err);
+        Assert.Equal("RSTN", p.Data.UsedPhase);
+        Assert.Equal("RST ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親3P4W4の子1P3W3はRNSにする()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '3', '3');
+        child.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase3P4WWithV2([p, child], 0);
+        Assert.Null(err);
+        Assert.Equal("RNS ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親3P4W4で想定外の子種別は設計エラー9を通知する()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '2'); // 想定外
+        child.Data.SystemNumber = "001";
+        int? reported = null;
+        PhaseAssigner.AssignPhase3P4WWithV2([p, child], 0, n => reported = n);
+        Assert.Equal(9, reported);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親1P3W3の子1P2W2はRSにする()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var parent = Row(datano: "002", oyatno: "005", yoyaku: "MCB     ", siyouso: "XNY ");
+        SetKpa(parent, '1', '3', '3');
+        parent.Data.SystemNumber = "001";
+        var child = Row(datano: "003", oyatno: "002", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '2');
+        child.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase3P4WWithV2([p, parent, child], 0);
+        Assert.Null(err);
+        Assert.Equal("RS  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親1P3W3の子1P2W1はRNSNを交互設定する()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var parent = Row(datano: "002", oyatno: "005", yoyaku: "MCB     ", siyouso: "XNY ");
+        SetKpa(parent, '1', '3', '3');
+        parent.Data.SystemNumber = "001";
+        var c1 = Row(datano: "003", oyatno: "002", heino: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(c1, '1', '2', '1');
+        c1.Data.SystemNumber = "001";
+        var c2 = Row(datano: "004", oyatno: "002", heino: "002", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(c2, '1', '2', '1');
+        c2.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase3P4WWithV2([p, parent, c1, c2], 0);
+        Assert.Null(err);
+        Assert.Equal("RN  ", c1.Data.UsedPhase);
+        Assert.Equal("SN  ", c2.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親1P2W1の子1P2W1は親の使用相をコピーする()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var parent = Row(datano: "002", oyatno: "005", yoyaku: "MCB     ", siyouso: "RN  ");
+        SetKpa(parent, '1', '2', '1');
+        parent.Data.SystemNumber = "001";
+        var child = Row(datano: "003", oyatno: "002", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '1');
+        child.Data.SystemNumber = "001";
+        var err = PhaseAssigner.AssignPhase3P4WWithV2([p, parent, child], 0);
+        Assert.Null(err);
+        Assert.Equal("RN  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電源3P4Wv2_親1P3W3で想定外の子種別は設計エラー12を通知する()
+    {
+        var p = Row(datano: "001", yoyaku: "P       ", siyouso: "    ");
+        SetKpa(p, '3', '4', '4');
+        p.Data.CircuitVoltage[2] = "210";
+        p.Data.SystemNumber = "001";
+        var parent = Row(datano: "002", oyatno: "005", yoyaku: "MCB     ", siyouso: "XNY ");
+        SetKpa(parent, '1', '3', '3');
+        parent.Data.SystemNumber = "001";
+        var child = Row(datano: "003", oyatno: "002", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '3', '4', '4'); // 想定外
+        child.Data.SystemNumber = "001";
+        int? reported = null;
+        PhaseAssigner.AssignPhase3P4WWithV2([p, parent, child], 0, n => reported = n);
+        Assert.Equal(12, reported);
+    }
 }
 
 
