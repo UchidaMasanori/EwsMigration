@@ -60,7 +60,7 @@
 | テスト成功数 | **1700** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **676** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `WLHASH` | Fyss14 SetParam_ep2(list版) に WL/GL/RL/OL/BL(表示灯) case を追加。MCB_V2 後に製作仕様区分(sshiykbn=bukken1->com.kyo.sshiykbn を引数注入)の先頭2文字 01/02 で径サイズ epaksize=025.0 他=030.0(改訂<13>)、直前レコードが F 且つ datatype[0]=TR なら回路電圧を 005/000/000・ep[2].epav2[0]=000005.5 に上書き。list版ディスパッチャに物件注入引数 manufacturingSpecKind を追加 |
+| 直近コミット | `92ffed3` | Fyss14 SetParam_ep2(list版) に WL/GL/RL/OL/BL(表示灯) case を追加。MCB_V2 後に製作仕様区分(sshiykbn=bukken1->com.kyo.sshiykbn を引数注入)の先頭2文字 01/02 で径サイズ epaksize=025.0 他=030.0(改訂<13>)、直前レコードが F 且つ datatype[0]=TR なら回路電圧を 005/000/000・ep[2].epav2[0]=000005.5 に上書き。list版ディスパッチャに物件注入引数 manufacturingSpecKind を追加 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
