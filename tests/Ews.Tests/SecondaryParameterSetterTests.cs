@@ -1349,5 +1349,77 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("100", ol.CircuitVoltage[0]); // 上書きされない
         Assert.Equal("000100.0", ol.ElectricalParameterSlots[2].V2[0]);
     }
+
+    // ---- SetParam_ep2 WH (list+index) ---------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_WHはVT無で自身の回路電圧を公称電圧に変換しV2にする()
+    {
+        MainCircuitData wh = NewData();
+        wh.ReservedWord = "WH";
+        wh.CircuitElement = '3'; // 計器用回路(VT無)
+        wh.CircuitVoltage = ["000", "000", "105"];
+        wh.CircuitVoltageKind = 'A';
+        wh.CircuitFrequency = "60";
+        wh.CircuitPhaseCount = '1';
+        wh.CircuitWireType = '2';
+
+        MainCircuitResult[] maina = [Res("001", wh)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        ElectricalParameters ep2 = wh.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        Assert.Equal("000100.0", ep2.V2[0]); // 105 → 公称100
+        Assert.Equal("000000.0", ep2.V1[0]); // VT無は V1=0
+        Assert.Equal("1", ep2.Ph2[0]);
+        Assert.Equal("2", ep2.Wr2[0]);
+        Assert.Equal('A', ep2.V2Kbn);
+        Assert.Equal("60", ep2.Hz);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WHはVT付で上方VTの回路電圧をV1にしV2は110固定にする()
+    {
+        MainCircuitData vt = NewData();
+        vt.ReservedWord = "VT";
+        vt.CircuitVoltage = ["000", "000", "210"];
+
+        MainCircuitData wh = NewData();
+        wh.ReservedWord = "WH";
+        wh.CircuitElement = '4'; // 計器用回路(VT付)
+        wh.CircuitVoltage = ["000", "000", "105"];
+        wh.CircuitFrequency = "50";
+
+        MainCircuitResult[] maina = [Res("001", vt), Res("002", wh)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        ElectricalParameters ep2 = wh.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        Assert.Equal("000200.0", ep2.V1[0]); // VT 210 → 公称200
+        Assert.Equal("000110.0", ep2.V2[0]); // VT付は 110 固定
+        Assert.Equal("50", ep2.Hz);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WHは周波数不整合なら設定せず抜ける()
+    {
+        MainCircuitData wh = NewData();
+        wh.ReservedWord = "WH";
+        wh.CircuitElement = '3';
+        wh.CircuitVoltage = ["000", "000", "105"];
+        wh.CircuitFrequency = "60";
+        wh.ElectricalParameterSlots[0].Hz = "50"; // ep[0].Hz が "00" 以外かつ kpahz と相違
+
+        MainCircuitResult[] maina = [Res("001", wh)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        ElectricalParameters ep2 = wh.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        Assert.Equal("000000.0", ep2.V2[0]); // 初期化のみで電圧未設定
+        Assert.Equal("00", ep2.Hz);          // Hz は設定されない
+    }
 }
 

@@ -273,12 +273,13 @@ public static class SecondaryParameterSetter
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
-    ///   ・記録列参照 WH/VT/TR。
-    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
+    ///   ・記録列参照 VT/TR。
+    ///   ・物件(FYDF801)依存 VT/TR/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
     /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)・
     /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap/子機エレメント修正)・
     /// TB(記述行/系統走査で端子台極数epap+電圧２)・
+    /// WH(周波数チェック+回路要素別 V1/V2 を公称電圧変換で決定)・
     /// WL/GL/RL/OL/BL(製作仕様区分で径サイズ+直前F・TRで電圧上書き)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
@@ -646,6 +647,10 @@ public static class SecondaryParameterSetter
 
             case "TB":
                 SetTb(maina, index);
+                return null;
+
+            case "WH":
+                SetWh(maina, index);
                 return null;
 
             case "WL":
@@ -1403,6 +1408,102 @@ public static class SecondaryParameterSetter
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// WH(電力量計)の ep[2] 設定。【C原典】Parm_Set_WH(引数 Hz/pprmp/newpprmp は未使用)。
+    /// 周波数不整合(ep[0].Hz が "00" 以外かつ回路周波数と相違)なら設定せず抜ける。
+    /// PH2/WR2 を回路相数・線式から設定し、回路要素(kiryoso)='3'(VT無)/'4'(VT付)で V1/V2 を決める。
+    /// VT 付は上方の VT の回路電圧を、VT 無は自身の回路電圧を公称電圧変換し 0 でない最小値を採る。
+    /// </summary>
+    private static void SetWh(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】周波数チェック: ep[0].epahz!="00" かつ kpahz と相違なら r=1 で抜ける(設定せず)。
+        if (ep0.Hz != "00" && ep0.Hz != data.CircuitFrequency)
+        {
+            return;
+        }
+
+        // 【C原典】PH2/WR2。
+        ep2.Ph2[0] = data.CircuitPhaseCount.ToString();
+        ep2.Ph2[1] = "0";
+        ep2.Wr2[0] = data.CircuitWireType.ToString();
+        ep2.Wr2[1] = "0";
+
+        // 【C原典】V1。
+        if (data.CircuitElement == '3')
+        {
+            ep2.V1[0] = "000000.0";
+            ep2.V1[1] = "000000.0";
+            ep2.V1[2] = "000000.0";
+        }
+        if (data.CircuitElement == '4')
+        {
+            // 【C原典】上方の VT を探す(kiryoso=='4'=VT付は VT が必ず存在する前提)。
+            int vt = -1;
+            for (int i = index - 1; i >= 0; i--)
+            {
+                if (maina[i].Data.ReservedWord == "VT")
+                {
+                    vt = i;
+                    break;
+                }
+            }
+
+            if (vt >= 0)
+            {
+                short[] v = ToVoltageArray(maina[vt].Data.CircuitVoltage);
+                VoltageInheritance.RightAlignVoltage(v);
+                VoltageInheritance.ConvertVoltage(v, v);
+                int n = v[0] < v[1] && v[0] != 0 ? 0 : 1;
+                n = v[n] < v[1] && v[n] != 0 ? n : 2;
+                // 【C原典】epav1[0] はレコード初期化の "000000.0" 前提で 4 桁目に memcpy する。
+                ep2.V1[0] = ReplaceSegment("000000.0", 3, Format3(v[n]));
+                ep2.V1[1] = "000000.0";
+                ep2.V1[2] = "000000.0";
+            }
+        }
+
+        // 【C原典】V2。
+        if (data.CircuitElement == '3')
+        {
+            short[] v = ToVoltageArray(data.CircuitVoltage);
+            VoltageInheritance.RightAlignVoltage(v);
+            VoltageInheritance.ConvertVoltage(v, v);
+            int n = v[0] < v[1] && v[0] != 0 ? 0 : 1;
+            n = v[n] < v[1] && v[n] != 0 ? n : 2;
+            ep2.V2[0] = ReplaceSegment(ep2.V2[0], 3, Format3(v[n]));
+            ep2.V2[1] = "000000.0";
+            ep2.V2[2] = "000000.0";
+        }
+        if (data.CircuitElement == '4')
+        {
+            ep2.V2[0] = "000110.0";
+            ep2.V2[1] = "000000.0";
+            ep2.V2[2] = "000000.0";
+        }
+
+        ep2.V2Kbn = data.CircuitVoltageKind;
+        ep2.Hz = data.CircuitFrequency;
+    }
+
+    /// <summary>回路電圧 3 スロット(各 3 桁)を atoi して short 配列にする。【C原典】v[i]=atoi(kpav[i])。</summary>
+    private static short[] ToVoltageArray(string[] voltage) =>
+        [(short)AtoiC(voltage[0]), (short)AtoiC(voltage[1]), (short)AtoiC(voltage[2])];
+
+    /// <summary>C の <c>sprintf(buf,"%.3d",v); memcpy(dst,buf,3)</c> を再現し、先頭 3 文字を返す。</summary>
+    private static string Format3(int value)
+    {
+        string s = value.ToString("D3", CultureInfo.InvariantCulture);
+        return s.Length > 3 ? s[..3] : s;
     }
 
     /// <summary>
