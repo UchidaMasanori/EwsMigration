@@ -200,4 +200,106 @@ public class BranchArraySorterTests
         Assert.Equal(2, BranchArraySorter.GetMinimumHierarchyNumber(sd));
         Assert.Equal(5, BranchArraySorter.GetMaximumHierarchyNumber(sd));
     }
+
+    private static BranchArraySorter.SortKey Key(
+        int index = 0,
+        int joheino = 0,
+        char key0 = '0',
+        char key1 = '0',
+        char key2 = '0',
+        string key3 = "000",
+        string key4 = "00000000",
+        string key5 = "00",
+        string key6 = "000000000",
+        string key7 = "000000000",
+        char key8 = '0',
+        char key9 = '0',
+        int heino = 0)
+        => new()
+        {
+            Index = index,
+            UpperParallelNumber = joheino,
+            Key0 = key0,
+            Key1 = key1,
+            Key2 = key2,
+            Key3 = key3,
+            Key4 = key4,
+            Key5 = key5,
+            Key6 = key6,
+            Key7 = key7,
+            Key8 = key8,
+            Key9 = key9,
+            ParallelNumber = heino,
+        };
+
+    [Fact]
+    public void CompareSortIndex‚Íã—¬•À—ñ’Ç”Ô‚ğÅ—Dæ‚Å”äŠr‚·‚é()
+    {
+        Assert.True(BranchArraySorter.CompareSortIndex(Key(joheino: 1), Key(joheino: 2)) < 0);
+        Assert.True(BranchArraySorter.CompareSortIndex(Key(joheino: 3), Key(joheino: 2)) > 0);
+    }
+
+    [Fact]
+    public void CompareSortIndex‚Í—\–ñŒêí•Ê‚ğ“dˆ³‚æ‚è—Dæ‚·‚é()
+    {
+        // KEY5(—\–ñŒêí•Ê)‚ªˆÙ‚È‚ê‚Î KEY4(“dˆ³)‚ğŒ©‚¸‚ÉŒˆ‚Ü‚éB
+        var a = Key(key5: "01", key4: "00000000");
+        var b = Key(key5: "02", key4: "99999999");
+        Assert.True(BranchArraySorter.CompareSortIndex(a, b) < 0);
+    }
+
+    [Fact]
+    public void CompareSortIndex‚Ì“dˆ³‚Í‹t‡‚Å‘å‚«‚¢‚Ù‚Çæ()
+    {
+        // KEY4(“dˆ³)‚Í‹t‡(~‡)B’l‚ª‘å‚«‚¢•û‚ªæ(•‰)‚É‚È‚éB
+        var high = Key(key4: "00200000");
+        var low = Key(key4: "00100000");
+        Assert.True(BranchArraySorter.CompareSortIndex(high, low) < 0);
+    }
+
+    [Fact]
+    public void CompareSortIndex‚Ì‹É”‚Í‹t‡‚Å”äŠr‚·‚é()
+    {
+        // KEY3(‹É”)‚Í‹t‡B‘å‚«‚¢•û‚ªæ(•‰)B
+        Assert.True(BranchArraySorter.CompareSortIndex(Key(key3: "004"), Key(key3: "002")) < 0);
+    }
+
+    [Fact]
+    public void CompareSortIndex‚ÌƒGƒŒƒƒ“ƒg”‚Í‹t‡‚Å”äŠr‚·‚é()
+    {
+        // KEY8 ‚Í‹t‡(k2-k1)B‘å‚«‚¢•û‚ªæ(•‰)B
+        Assert.True(BranchArraySorter.CompareSortIndex(Key(key8: '5'), Key(key8: '3')) < 0);
+    }
+
+    [Fact]
+    public void CompareSortIndex‚Í‘SƒL[ˆê’v‚É•À—ñ’Ç”Ô‰ß‹’l‚ÅŒˆ‚ß‚é()
+    {
+        Assert.True(BranchArraySorter.CompareSortIndex(Key(heino: 1), Key(heino: 2)) < 0);
+        Assert.Equal(0, BranchArraySorter.CompareSortIndex(Key(heino: 4), Key(heino: 4)));
+    }
+
+    [Fact]
+    public void GetMinimumParallelNumber‚Í“¯ˆêŠK‘w‚ÌÅ¬heino‚ğ•Ô‚·()
+    {
+        var mains = new[]
+        {
+            Node(kaisono: "003", heino: "005"),
+            Node(kaisono: "003", heino: "002"),
+            Node(kaisono: "007", heino: "001"), // •ÊŠK‘w‚Í‘ÎÛŠO
+        };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        var klist = new[] { Key(index: 0), Key(index: 1), Key(index: 2) };
+
+        Assert.Equal(2, BranchArraySorter.GetMinimumParallelNumber(sd, klist, 3));
+    }
+
+    [Fact]
+    public void GetMinimumParallelNumber‚ÍŠY“–‚È‚µ‚Å0x7FFF‚ğ•Ô‚·()
+    {
+        var mains = new[] { Node(kaisono: "001", heino: "001") };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        var klist = new[] { Key(index: 0) };
+
+        Assert.Equal(0x7FFF, BranchArraySorter.GetMinimumParallelNumber(sd, klist, 9));
+    }
 }

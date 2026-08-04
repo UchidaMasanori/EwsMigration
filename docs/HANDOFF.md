@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1565 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1573 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -369,6 +369,16 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **収集**: `GetFloorElements`/`GetFloorTopElements`/`GetFloorElementsOfSeries`/`GetFloorElementsOfVt`/`GetFloorElementsOfCt`/`GetBrothers`・`GetMinimumHierarchyNumber`/`GetMaximumHierarchyNumber`。
 - **テスト**: `BranchArraySorterTests.cs` +15。テストは 1550 → **1565**。
   次は段階21(KDATAソートキー: CompareSortIndex/SortIndex/KouseiGetElement―YOYAKU_TBL・機器構成は引数/delegate注入、GetMinimumHeino/GetFloorElementsForSortX/NotForSort もここ)。
+
+### 段階21: Fyss3C_Bunki_Sort ソートキーと比較
+
+`BranchArraySorter` にソート作業の自己完結部分を移植。外部依存(YOYAKU_TBL・fyrt701 union・構成機器FYRT804)を持つ SortIndex/KouseiGetElement は段階22 へ繰越。
+
+- **`SortKey`**(=KDATA): index/joheino と KEY0〜9 の固定長ソートキーを保持する public sealed class。
+- **`CompareSortIndex`**(=CompareSortIndex): joheino→KEY0→1→2→3(極数逆)→KEY5(予約語種別)→KEY4(電圧逆)→KEY6/7(電流逆)→KEY8(逆)→KEY9→heino。固定長キーは `string.CompareOrdinal`(符号のみ使用)。**95.03.13** 変更で KEY5(予約語種別)を KEY4(電圧)より優先。
+- **`GetMinimumParallelNumber`**(=GetMinimumHeino): ソートキーリストの index が指す作業データのうち、階層番号一致の最小 heino(該当なしは 0x7FFF)。
+- **テスト**: `BranchArraySorterTests.cs` +8。テストは 1565 → **1573**。
+  次は段階22(SortIndex/KouseiGetElement/GetFloorElementsForSortX/GetFloorElementsNotForSort―YOYAKU_TBL・fyrt701・FYRT804 を引数・delegate 注入)。
 
 
 

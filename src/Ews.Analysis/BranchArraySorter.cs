@@ -466,4 +466,157 @@ public static class BranchArraySorter
 
         return r;
     }
+
+    /// <summary>
+    /// ソート作業用構造体。【C原典】<c>struct KDATA</c>(Fyss3C.c)。
+    /// 分岐配列の並び順を決めるための複合ソートキーを保持する。各固定長キーは
+    /// C の固定長 char 配列に対応し、<see cref="CompareSortIndex"/> が memcmp 相当で比較する。
+    /// </summary>
+    public sealed class SortKey
+    {
+        /// <summary>元データ上のインデックス。【C原典】<c>index</c>。</summary>
+        public int Index { get; set; }
+
+        /// <summary>上流並列追番・暫定値。【C原典】<c>joheino</c>。</summary>
+        public int UpperParallelNumber { get; set; }
+
+        /// <summary>KEY 0 : SP区分。【C原典】<c>key0</c>。</summary>
+        public char Key0 { get; set; } = '\0';
+
+        /// <summary>KEY 1 : 機器種別。【C原典】<c>key1</c>。</summary>
+        public char Key1 { get; set; } = '\0';
+
+        /// <summary>KEY 2 : タイプ種別。【C原典】<c>key2</c>。</summary>
+        public char Key2 { get; set; } = '\0';
+
+        /// <summary>KEY 3 : 極数(3桁固定)。【C原典】<c>key3[3]</c>。</summary>
+        public string Key3 { get; set; } = "\0\0\0";
+
+        /// <summary>KEY 4 : 電圧(8桁固定)。【C原典】<c>key4[8]</c>。</summary>
+        public string Key4 { get; set; } = new string('\0', 8);
+
+        /// <summary>KEY 5 : 予約語種別(2桁固定)。【C原典】<c>key5[2]</c>。</summary>
+        public string Key5 { get; set; } = "\0\0";
+
+        /// <summary>KEY 6 : フレーム電流(9桁固定)。【C原典】<c>key6[9]</c>。</summary>
+        public string Key6 { get; set; } = new string('\0', 9);
+
+        /// <summary>KEY 7 : トリップ電流(9桁固定)。【C原典】<c>key7[9]</c>。</summary>
+        public string Key7 { get; set; } = new string('\0', 9);
+
+        /// <summary>KEY 8 : エレメント数。【C原典】<c>key8</c>。</summary>
+        public char Key8 { get; set; } = '\0';
+
+        /// <summary>KEY 9 : 付属機能。【C原典】<c>key9</c>。</summary>
+        public char Key9 { get; set; } = '\0';
+
+        /// <summary>並列追番・過去値。【C原典】<c>heino</c>。</summary>
+        public int ParallelNumber { get; set; }
+    }
+
+    /// <summary>
+    /// ソートキー比較関数。【C原典】<c>CompareSortIndex</c>(Fyss3C.c)。
+    /// 規約に従ってキーを順に比較し、k1&lt;k2 で負・k1==k2 で 0・k1&gt;k2 で正を返す。
+    /// 95.03.13 変更で予約語種別(KEY5)を電圧(KEY4)より優先する。KEY3/4/6/7/8 は
+    /// 逆順(k2 と k1 を入替)で比較する(降順キー)。固定長キーは C の memcmp 相当に
+    /// <see cref="string.CompareOrdinal(string, string)"/> を用いる(比較には符号のみ使用)。
+    /// </summary>
+    public static int CompareSortIndex(SortKey k1, SortKey k2)
+    {
+        ArgumentNullException.ThrowIfNull(k1);
+        ArgumentNullException.ThrowIfNull(k2);
+
+        int r;
+
+        // 上流並列追番・暫定値
+        if ((r = k1.UpperParallelNumber - k2.UpperParallelNumber) != 0)
+        {
+            return r;
+        }
+
+        // KEY 0 : SP区分
+        if ((r = k1.Key0 - k2.Key0) != 0)
+        {
+            return r;
+        }
+
+        // KEY 1 : 機器種別
+        if ((r = k1.Key1 - k2.Key1) != 0)
+        {
+            return r;
+        }
+
+        // KEY 2 : タイプ種別
+        if ((r = k1.Key2 - k2.Key2) != 0)
+        {
+            return r;
+        }
+
+        // KEY 3 : 極数(逆順)
+        if ((r = string.CompareOrdinal(k2.Key3, k1.Key3)) != 0)
+        {
+            return r;
+        }
+
+        // KEY 5 : 予約語種別(95.03.13 で KEY4 より優先)
+        if ((r = string.CompareOrdinal(k1.Key5, k2.Key5)) != 0)
+        {
+            return r;
+        }
+
+        // KEY 4 : 電圧(逆順)
+        if ((r = string.CompareOrdinal(k2.Key4, k1.Key4)) != 0)
+        {
+            return r;
+        }
+
+        // KEY 6 : フレーム電流(逆順)
+        if ((r = string.CompareOrdinal(k2.Key6, k1.Key6)) != 0)
+        {
+            return r;
+        }
+
+        // KEY 7 : トリップ電流(逆順)
+        if ((r = string.CompareOrdinal(k2.Key7, k1.Key7)) != 0)
+        {
+            return r;
+        }
+
+        // KEY 8 : エレメント数(逆順)
+        if ((r = k2.Key8 - k1.Key8) != 0)
+        {
+            return r;
+        }
+
+        // KEY 9 : 付属機能
+        if ((r = k1.Key9 - k2.Key9) != 0)
+        {
+            return r;
+        }
+
+        // すべての比較キーが等しい場合は並列追番・過去値で比較
+        return k1.ParallelNumber - k2.ParallelNumber;
+    }
+
+    /// <summary>
+    /// 指定階層のソート対象データから最小の並列追番(過去値)を得る(該当なしは 0x7FFF)。
+    /// 【C原典】<c>GetMinimumHeino</c>(Fyss3C.c)。ソートキーリストの各 <c>index</c> が指す
+    /// 作業データについて、現データの階層番号が一致するものの最小 heino を返す。
+    /// </summary>
+    public static int GetMinimumParallelNumber(WorkData[] sd, IReadOnlyList<SortKey> klist, int hierarchyNumber)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        ArgumentNullException.ThrowIfNull(klist);
+        int r = 0x7FFF;
+        foreach (SortKey k in klist)
+        {
+            WorkData w = sd[k.Index];
+            if (w.Now.HierarchyNumber == hierarchyNumber && r > w.Now.ParallelNumber)
+            {
+                r = w.Now.ParallelNumber;
+            }
+        }
+
+        return r;
+    }
 }

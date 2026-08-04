@@ -630,3 +630,6 @@ IsMatch_gyocd,BranchArraySorter.IsMatchLineTypeCode,BranchArraySorter.IsMatchLin
 IsMatch_epabn,BranchArraySorter.IsMatchPanelKind,BranchArraySorter.IsMatchPanelKind,toku/sekkei/src/Fyss3C.c,電気パラメータ[0]の盤種類(epabn=Bn)が'1'/'4'
 GetFloorElements群,BranchArraySorter.GetFloorElements等6関数,BranchArraySorter.GetFloor*/GetBrothers,toku/sekkei/src/Fyss3C.c,収集関数群。GetFloorElements(doing×階層)/GetFloorTopElements(+直列1)/GetFloorElementsOfSeries(直後連続直列)/GetFloorElementsOfVt(回路要素4)/GetFloorElementsOfCt(同階層行種GL・直列1)/GetBrothers(同一親追番)をインデックス一覧で返す
 GetMin/MaxKaisono,BranchArraySorter.GetMin/MaxHierarchyNumber,BranchArraySorter.GetMinimumHierarchyNumber/GetMaximumHierarchyNumber,toku/sekkei/src/Fyss3C.c,doingデータの最小(0x7FFF初期)/最大(-1初期)階層番号
+構造体,KDATA,BranchArraySorter.SortKey,toku/sekkei/src/Fyss3C.c,ソート作業用構造体。index/joheinoとKEY0?9(SP区分/機器種別/タイプ/極数/電圧/予約語種別/フレーム電流/トリップ電流/エレメント数/付属機能)/heino
+CompareSortIndex,BranchArraySorter.CompareSortIndex,BranchArraySorter.CompareSortIndex,toku/sekkei/src/Fyss3C.c,ソートキー比較。joheino→KEY0→1→2→3(逆)→KEY5(予約語種別)→KEY4(電圧逆)→KEY6/7(電流逆)→KEY8(逆)→KEY9→heinoの順。固定長キーはCompareOrdinal(符号のみ使用)。95.03.13でKEY5をKEY4より優先
+GetMinimumHeino,BranchArraySorter.GetMinimumParallelNumber,BranchArraySorter.GetMinimumParallelNumber,toku/sekkei/src/Fyss3C.c,ソートキーリストのindexが指す作業データのうち階層番号一致の最小heino(該当なしは0x7FFF)
