@@ -619,3 +619,6 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,Fyss3E_12_MCDT_CSDT,LowerParameterGenerator.Process12McdtCsdt,toku/sekkei/src/Fyss3E.c,1-2型MCDT/CSDT(回路要素1&予約語MCDT-CSDT&切換タイプ1)を走査しFyss37_I_Set_Subで通電電流積算。同一機器認識番号ペアで通電電流小さい方に上流積み上げ区分1をセット。対象要素と下流(負荷発生元1で打切り)の通電電流値-積算エリアをクリア
 関数,Fyss3I_21_MCDT_CSDT,LowerParameterGenerator.Process21McdtCsdt,toku/sekkei/src/Fyss3I.c,2-1型MCDT/CSDT(回路要素1&予約語MCDT-CSDT&末端区分非1&切換タイプ2)を走査しFyss37_I_Set_Subで通電電流積算。全件走査し同一機器認識番号の相手へ通電電流値-機器選定区分-積算エリアをコピー(区分相違は親追番辿り伝播)し負荷発生元1をセット。対象要素の通電電流値-積算エリアをクリア
 関数,Fyss3H_Keiki_Iset,LowerParameterGenerator.SetMeterCircuitCurrent,toku/sekkei/src/Fyss3H.c,計器回路の通電電流値セット。回路要素2予約語CTは同一機器認識番号の回路要素1予約語CTの通電電流値を(Set_Den1)-回路要素非1予約語ZCTは親データ追番の通電電流値を(Set_Den2)自身と下流(Set_Karu=Fyss35抽出)の全要素にセット
+関数,GetYNUM,BranchArraySorter.GetReservedWordKind,toku/sekkei/src/Fyss3C.c,予約語(8バイト右詰め)→予約語識別子(YNUM約110種)へ変換。y_dataテーブルを完全一致検索し不一致はNone。KouseiGetElementのswitchが使用
+関数,SetPoint,BranchArraySorter.SetDecimalPoint,toku/sekkei/src/Fyss3C.c,数値文字列の指定位置に小数点を挿入。n<=0は無変更(C原典は未初期化ローカルstrcatのno-opバグを忠実再現)-n>=長さは先頭に0.付与-他は末尾n桁前に.挿入。呼元KouseiGetElementのみ
+関数,itoanz,BranchArraySorter.FormatFixedWidth,toku/sekkei/src/Fyss3C.c,整数値をwidth桁の0詰め文字列に(%.ndで0詰め後memcpyで先頭width文字切出)。antoiは既存Stoiを再利用

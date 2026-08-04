@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1538 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1550 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -347,6 +347,16 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 
 - **`LowerParameterGenerator.SetMeterCircuitCurrent(mains)`**(=Fyss3H_Keiki_Iset, 940719): (1)回路要素'2'・予約語'CT'を走査し同一機器認識番号(dno≠01)の回路要素'1'CT の通電電流値を SetCtCurrent(=Set_Den1)で取得し自身と下流へセット。(2)回路要素≠'1'・予約語'ZCT'を走査し親データ追番(oyano≠0)の通電電流値を SetZctCurrent(=Set_Den2)で取得し自身と下流へセット。下流抽出=SetDownstreamCurrent(=Set_Karu, DownstreamSelector.SelectDownstreamを再利用、nullはreturn)。private SetCurrentByDataNumber/Fix8 ヘルパ。C原典の tsuden 未初期化(UB)は "00000000" で初期化し設計上対象存在前提をコメント明記。
 - **テスト**: `LowerParameterGeneratorTests.cs` +5件(CT回路要素2は同一機器認識番号CT1の電流を自身に・CT下流にもセット・ZCTは親の電流を自身に・同一機器認識番号0は対象外・ZCT親追番0は対象外)。テストは 1533 → **1538**（+5）。次はFyss15呼出順の残り(Pre_CT_Make/Mainfile_CT_Make/Fyss3C_Bunki_Sort等)。
+
+### 段階19: Fyss3C_Bunki_Sort 移植着手(分岐配列並べ替え)―基盤ヘルパ
+
+`Fyss3C_Bunki_Sort`(Fyss3C.c 約2560行/多数ヘルパ・外部テーブルYOYAKU_TBL・機器構成FYRT804依存)は大規模のため段階移植する。今回は自己完結するリーフヘルパを新クラス `BranchArraySorter` に移植。
+
+- **`BranchArraySorter.GetReservedWordKind(yoyaku)`**(=GetYNUM): 予約語(8バイト右詰め)→予約語識別子 `ReservedWordKind`(YNUM 約110種+None)。宣言順厳守(KouseiGetElementのswitch用)。
+- **`BranchArraySorter.SetDecimalPoint(value, n)`**(=SetPoint): n<=0無変更(C原典未初期化bufのno-opバグ忠実再現)/n>=長さは"0."付与/他は末尾n桁前に'.'挿入。
+- **`BranchArraySorter.FormatFixedWidth(value, width)`**(=itoanz): width桁の0詰め(超過時は先頭width切出)。antoiは既存 `EquipmentParameterFormatter.Stoi` を再利用。
+- 3ヘルパとも `Stoi`/`Stof` と同様 public。テスト `BranchArraySorterTests.cs` +12(予約語識別/8バイト右詰め/None/小数点挿入・n>=長・n<=0無変更/固定長・超過切出)。テストは 1538 → **1550**（+12）。
+  次は段階20(SDATA/TREE/KDATAモデル+InitializeWorkArea/SetResults/IsMatch系/GetFloor系収集―ドメインfield追加要)。
 
 
 
