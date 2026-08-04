@@ -975,5 +975,170 @@ public static class BranchArraySorter
         string padded = packed.Length < start + 12 ? packed.PadRight(start + 12) : packed;
         return padded.Substring(start, 12);
     }
+
+    /// <summary>
+    /// 構成機器エリアに存在する主回路の KEY2(タイプ種別)を得る。【C原典】<c>SortIndex</c>の
+    /// KEY 2 分岐(Fyss3C.c、構成機器エリア存在時)。タイプ枠(7)を先頭から走査し、構成機器の
+    /// パラメータタイプ(km_key.ptype)が SB→'4' / KM・KY→'2' / CT→'3'、あるいは主回路のタイプ
+    /// (datatype)が S パワー系(SE/SS/SEH/SES/ZS/ZSG/ZB)→'4' に最初に一致した種別とする。
+    /// いずれも無ければ '1'。
+    /// </summary>
+    public static char GetTypeKindFromComponent(
+        IReadOnlyList<string> componentParameterTypes, IReadOnlyList<string> dataTypes)
+    {
+        ArgumentNullException.ThrowIfNull(componentParameterTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        for (int j = 0; j < 7; j++)
+        {
+            string pt = (j < componentParameterTypes.Count ? componentParameterTypes[j] : string.Empty).TrimEnd();
+            switch (pt)
+            {
+                case "SB":
+                    return '4';
+                case "KM":
+                case "KY":
+                    return '2';
+                case "CT":
+                    return '3';
+            }
+
+            string dt = (j < dataTypes.Count ? dataTypes[j] : string.Empty).TrimEnd();
+            switch (dt)
+            {
+                case "SE":
+                case "SS":
+                case "SEH":
+                case "SES":
+                case "ZS":
+                case "ZSG":
+                case "ZB":
+                    return '4';
+            }
+        }
+
+        return '1';
+    }
+
+    /// <summary>
+    /// ソートキーリストの各要素にソートキー(KEY0-KEY9・上流/並列追番)を張り付け、比較関数で並べ替える。
+    /// 【C原典】<c>SortIndex</c>(Fyss3C.c)。予約語テーブル(YOYAKU_TBL)と構成機器エリア(Pkousei)は
+    /// 引数注入する。予約語がテーブルに見つからない場合は ER_SEKKEI 相当で -1 を返す(それ以外は 0)。
+    /// </summary>
+    /// <param name="klist">ソート対象のソートキーリスト(Index は主回路配列上の位置)。処理後に並べ替えられる。</param>
+    /// <param name="sd">並べ替え処理データ(作業エリア)。</param>
+    /// <param name="mains">主回路エリア(maina)。</param>
+    /// <param name="reservedWords">予約語マスタ一覧(YOYAKU_TBL)。</param>
+    /// <param name="components">構成機器一覧(Pkouseia)。</param>
+    public static int SortIndex(
+        List<SortKey> klist,
+        WorkData[] sd,
+        IReadOnlyList<MainCircuitResult> mains,
+        IReadOnlyList<ReservedWordMaster> reservedWords,
+        IReadOnlyList<ComponentEquipment> components)
+    {
+        ArgumentNullException.ThrowIfNull(klist);
+        ArgumentNullException.ThrowIfNull(sd);
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(reservedWords);
+        ArgumentNullException.ThrowIfNull(components);
+
+        foreach (SortKey key in klist)
+        {
+            MainCircuitData data = mains[key.Index].Data;
+            string yoyaku = (data.ReservedWord ?? string.Empty).TrimEnd();
+
+            // 予約語テーブルのスキャン(8 バイト一致の先頭要素)。
+            int yoyakuIndex = -1;
+            for (int n = 0; n < reservedWords.Count; n++)
+            {
+                if ((reservedWords[n].ReservedWord ?? string.Empty).TrimEnd() == yoyaku)
+                {
+                    yoyakuIndex = n;
+                    break;
+                }
+            }
+
+            if (yoyakuIndex < 0)
+            {
+                // 予約語が見つからなかった場合(ER_SEKKEI)。
+                return -1;
+            }
+
+            ReservedWordMaster master = reservedWords[yoyakuIndex];
+
+            // 上流並列追番・暫定値: new.oyatno>0 なら sd[oyatno-1].new.joheino、そうでなければ 0。
+            int oyatno = sd[key.Index].New.ParentSequenceNumber;
+            key.UpperParallelNumber = oyatno > 0 ? sd[oyatno - 1].New.UpperParallelNumber : 0;
+
+            // 構成機器エリアより GET(データ追番一致、該当なし -1)。
+            int koucnt = FindComponentByDataNumber(components, mains[key.Index].SequenceNumber);
+
+            // KEY 0 : SP区分
+            key.Key0 = data.AttachedParameter.SpFutureMountKind;
+
+            // KEY 1 : 機器種別
+            key.Key1 = ResolveEquipmentKind(master);
+
+            // KEY 2 : タイプ種別
+            if (yoyaku == "SB")
+            {
+                key.Key2 = '4';
+            }
+            else if (yoyaku is "RMCB" or "RELB" or "RMMCB" or "RELMB")
+            {
+                key.Key2 = '2';
+            }
+            else if (koucnt == -1)
+            {
+                key.Key2 = GetTypeKind(yoyaku, data.DataType);
+            }
+            else
+            {
+                key.Key2 = GetTypeKindFromComponent(components[koucnt].MachineKey.ParameterTypes, data.DataType);
+            }
+
+            ElectricalParameters slot1 = data.ElectricalParameterSlots[1];
+            ElectricalParameters slot2 = data.ElectricalParameterSlots[2];
+
+            // KEY 3 : 極数(3桁)
+            key.Key3 = (slot2.P ?? string.Empty).PadRight(3)[..3];
+
+            // KEY 4 : 電圧(8桁)
+            key.Key4 = (slot2.V2[0] ?? string.Empty).PadRight(8)[..8];
+
+            // KEY 5 : 予約語種別
+            key.Key5 = GetReservedWordSortCategory(yoyaku);
+
+            // KEY 6/7 : フレーム/トリップ電流。構成機器エリア非存在または特定予約語は maina 経路。
+            if (koucnt == -1 || IsCurrentFromMain(yoyaku))
+            {
+                key.Key6 = SelectSortCurrent(slot1.Af, slot2.Af);
+                key.Key7 = SelectSortCurrent(slot1.At, slot2.At);
+            }
+            else
+            {
+                SetComponentSortCurrent(components[koucnt], key);
+            }
+
+            // KEY 8 : エレメント数
+            key.Key8 = string.IsNullOrEmpty(slot2.E) ? '0' : slot2.E[0];
+
+            // KEY 9 : 付属機能
+            key.Key9 = ResolveAttachedFunction(master);
+
+            // 並列追番・過去値
+            key.ParallelNumber = sd[key.Index].Now.ParallelNumber;
+        }
+
+        klist.Sort(CompareSortIndex);
+        return 0;
+    }
+
+    /// <summary>
+    /// KEY6/7 を maina 経路(<see cref="SelectSortCurrent"/>)で採る予約語か判定する。
+    /// 【C原典】<c>SortIndex</c>の KEY6/7 分岐条件(THR/2ERY/3ERY/4ERY/MGFR/MGSD/MGFRSD)。
+    /// </summary>
+    private static bool IsCurrentFromMain(string reservedWord)
+        => reservedWord is "THR" or "2ERY" or "3ERY" or "4ERY" or "MGFR" or "MGSD" or "MGFRSD";
 }
 

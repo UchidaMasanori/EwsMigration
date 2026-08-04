@@ -647,3 +647,5 @@ KouseiGetElement,BranchArraySorter.SetComponentSortCurrent,BranchArraySorter.Set
 フィールド,typetjg[].ptype,ReservedWordMaster.TypeSlots[].ParameterTypes,toku/include/common/fydf810.h,パラメータタイプ記号(ptype[40][7]パック配列、生7文字)。KEY9で走査
 SortIndex(KEY1),BranchArraySorter.ResolveEquipmentKind,BranchArraySorter.ResolveEquipmentKind,toku/sekkei/src/Fyss3C.c,KEY1機器種別。YOYAKU_TBL.kikirui=='1'→'1'、それ以外→'2'
 SortIndex(KEY9),BranchArraySorter.ResolveAttachedFunction,BranchArraySorter.ResolveAttachedFunction,toku/sekkei/src/Fyss3C.c,KEY9付属機能。typetjgを走査しptype(12バイトmemcmp)がALX→'1'/AL→'2'、無し'3'。yukoidx==0で打切。★12バイト比較はptype[k]と隣接要素にまたがる忠実仕様
+SortIndex(KEY2構成機器),BranchArraySorter.GetTypeKindFromComponent,BranchArraySorter.GetTypeKindFromComponent,toku/sekkei/src/Fyss3C.c,構成機器存在時のKEY2。km_key.ptype走査(SB→'4'/KM,KY→'2'/CT→'3')またはdatatypeがSパワー系(SE/SS/SEH/SES/ZS/ZSG/ZB)→'4'、無し'1'
+SortIndex,BranchArraySorter.SortIndex,BranchArraySorter.SortIndex,toku/sekkei/src/Fyss3C.c,ソートキー生成本体。予約語スキャン(未発見→ER_SEKKEI/-1)+joheino+構成機器検索+KEY0..KEY9代入+CompareSortIndexでqsort。YOYAKU_TBL/構成機器を引数注入

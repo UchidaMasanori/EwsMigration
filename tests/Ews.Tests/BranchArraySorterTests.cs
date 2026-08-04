@@ -562,4 +562,90 @@ public class BranchArraySorterTests
         // yCŒ´“Tzmemcmp 12 ‚ÍŠuÚ—v‘f‚Ü‚Å“Ç‚Ş‚½‚ßAALX ‚ÌŒã‚É”ñ‹ó”’‚ª‘±‚­‚Æ•sˆê’vB
         Assert.Equal('3', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(2, "ALX", "MCB"))));
     }
-}
+    // --- ’iŠK26b: SortIndex –{‘Ì ---
+
+    private static MainCircuitResult MainNode(string yoyaku, string datano = "000")
+    {
+        var r = new MainCircuitResult { SequenceNumber = datano };
+        r.Data.ReservedWord = yoyaku;
+        return r;
+    }
+
+    private static ReservedWordMaster Rw(string word, char kikirui)
+        => new() { ReservedWord = word, Kikirui = kikirui };
+
+    [Theory]
+    [InlineData("SB", '4')]
+    [InlineData("KM", '2')]
+    [InlineData("KY", '2')]
+    [InlineData("CT", '3')]
+    public void GetTypeKindFromComponent‚Íptype‚Åí•Ê‚ğ•Ô‚·(string ptype, char expected)
+    {
+        Assert.Equal(expected, BranchArraySorter.GetTypeKindFromComponent(
+            new[] { ptype }, System.Array.Empty<string>()));
+    }
+
+    [Fact]
+    public void GetTypeKindFromComponent‚ÍSƒpƒ[Œndatatype‚Å4‚ğ•Ô‚·()
+    {
+        Assert.Equal('4', BranchArraySorter.GetTypeKindFromComponent(
+            System.Array.Empty<string>(), new[] { "ZS" }));
+    }
+
+    [Fact]
+    public void GetTypeKindFromComponent‚ÍŠY“–‚È‚µ‚Å1‚ğ•Ô‚·()
+    {
+        Assert.Equal('1', BranchArraySorter.GetTypeKindFromComponent(
+            new[] { "AL" }, new[] { "XX" }));
+    }
+
+    [Fact]
+    public void SortIndex‚Í—\–ñŒê‚ªƒe[ƒuƒ‹‚É‚È‚¢‚Æƒ}ƒCƒiƒX1‚ğ•Ô‚·()
+    {
+        var mains = new[] { MainNode("XXX") };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        var klist = new List<BranchArraySorter.SortKey> { Key(index: 0) };
+
+        int r = BranchArraySorter.SortIndex(
+            klist, sd, mains,
+            new[] { Rw("MCB", '1') },
+            System.Array.Empty<ComponentEquipment>());
+
+        Assert.Equal(-1, r);
+    }
+
+    [Fact]
+    public void SortIndex‚ÍKEY1‚ğkikiruiKEY5‚ğ—\–ñŒêí•Ê‚©‚çİ’è‚·‚é()
+    {
+        var mains = new[] { MainNode("MCB") };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        var klist = new List<BranchArraySorter.SortKey> { Key(index: 0) };
+
+        int r = BranchArraySorter.SortIndex(
+            klist, sd, mains,
+            new[] { Rw("MCB", '1') },
+            System.Array.Empty<ComponentEquipment>());
+
+        Assert.Equal(0, r);
+        Assert.Equal('1', klist[0].Key1);
+        Assert.Equal("03", klist[0].Key5);
+        Assert.Equal('3', klist[0].Key9); // ƒ^ƒCƒv˜g–¢“o˜^¨'3'
+    }
+
+    [Fact]
+    public void SortIndex‚ÍCompareSortIndex‡‚É•À‚×‘Ö‚¦‚é()
+    {
+        // MCB(kikirui'2'¨KEY1'2') ‚Æ MMCB(kikirui'1'¨KEY1'1')BKEY1 ¸‡‚Å MMCB ‚ªæB
+        var mains = new[] { MainNode("MCB"), MainNode("MMCB") };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        var klist = new List<BranchArraySorter.SortKey> { Key(index: 0), Key(index: 1) };
+
+        int r = BranchArraySorter.SortIndex(
+            klist, sd, mains,
+            new[] { Rw("MCB", '2'), Rw("MMCB", '1') },
+            System.Array.Empty<ComponentEquipment>());
+
+        Assert.Equal(0, r);
+        Assert.Equal(1, klist[0].Index); // MMCB(KEY1='1')‚ªæ“ª
+        Assert.Equal(0, klist[1].Index); // MCB(KEY1='2')‚ªŒã
+    }}
