@@ -949,6 +949,88 @@ public sealed class PhaseAssignerTests
         PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set, n => reported = n);
         Assert.Equal(2, reported);
     }
+
+    // ── AssignParent1P2WPole1 ────────────────────────────────────────────────
+
+    [Fact]
+    public void 親1P2W1_非MC子1P2W1は親の使用相をコピーする()
+    {
+        var parent = Row(datano: "001", yoyaku: "MCB     ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '1');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XN  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W1_親MCで100V機器は交互設定する()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XN  ", fpalv0: "000");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ", fpalv0: "100");
+        SetKpa(child, '1', '2', '1');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XN  ", child.Data.UsedPhase);
+        Assert.Contains("001", set);
+    }
+
+    [Fact]
+    public void 親1P2W1_親MCで100V機器なしなら親の使用相をコピーする()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XN  ", fpalv0: "000");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ", fpalv0: "000");
+        SetKpa(child, '1', '2', '1');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XN  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W1_TB3P対応で親XspaceY子XNYにする()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XN  ", fpalv0: "000", ep0P: "002");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "TB      ", siyouso: "    ", fpalv0: "200", ep0P: "003");
+        SetKpa(child, '1', '2', '1');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("X Y ", parent.Data.UsedPhase);
+        Assert.Equal("XNY ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W1_子1P3W3で親MC中抜きはXNYにする()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '3', '3');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XNY ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W1_想定外の子種別は設計エラーを通知する()
+    {
+        var parent = Row(datano: "001", yoyaku: "MCB     ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '1');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '3', '4', '4'); // 想定外
+        var set = new HashSet<string>();
+        int? reported = null;
+        PhaseAssigner.AssignParent1P2WPole1([parent, child], 1, 0, set, n => reported = n);
+        Assert.Equal(3, reported);
+    }
 }
 
 

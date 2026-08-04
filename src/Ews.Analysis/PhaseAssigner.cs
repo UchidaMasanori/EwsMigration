@@ -1401,6 +1401,101 @@ public static class PhaseAssigner
         return null;
     }
 
+    // 1P3W 電源で親が 1P2W 極1 の子機器(childIndex)の使用相をセットする。【C原典】Fyss3D_PH_Kettei 1P3W-親1P2W1 ケース。
+    public static CircuitParseError? AssignParent1P2WPole1(
+        IReadOnlyList<MainCircuitResult> mains, int childIndex, int parentIndex,
+        HashSet<string> processedParents, Action<int>? reportDesignError = null)
+    {
+        MainCircuitData dj = mains[childIndex].Data;
+        MainCircuitData dk = mains[parentIndex].Data;
+
+        if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '1')
+        {
+            // 改訂<3>: 親が MC/003 で分岐の負荷電圧が 200V のケース。
+            if (Matches(dk.ReservedWord, "MC ", 3) ||
+                Matches(dk.ElectricalParameterSlots[0].P, "003", 3))
+            {
+                CircuitParseError? err = CheckUseVolt(dk, dj);
+                if (err is not null)
+                {
+                    return err; // 親が 100V のためエラー
+                }
+
+                if (Matches(dj.AttachedParameter.LoadVoltage[0], "200", 3))
+                {
+                    SetParamFor2P200V(dj);
+                }
+            }
+
+            // 改訂<3>: MC の子機器の使用相設定。
+            if (Matches(dk.ReservedWord, "MC ", 3))
+            {
+                // 改訂<4>: MC 配下の最大負荷電圧が 200V なら親を 200V 設定。
+                if (GetMcChildMaxVolt(mains, mains[parentIndex]) == 200)
+                {
+                    SetParamFor2P200V(dk);
+                }
+
+                if (!processedParents.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                {
+                    return null; // 特殊処理済みならば次のデータへ
+                }
+
+                int count = 0;
+                int[] t = new int[mains.Count];
+                CountVolt100VDevices(mains, dj.ParentSequenceNumber, dk.ReservedWord, t, ref count); // 改訂<7>
+                if (count > 0)
+                {
+                    SortByParallelNumber(mains, t, count);
+                    SetPhase100VDevices(mains, t, count);
+                }
+                // 改訂<13>: TB3P 対応。
+                else if (Matches(dk.ElectricalParameterSlots[0].P, "002", 3) &&
+                         Matches(dj.ReservedWord, "TB ", 3) &&
+                         Matches(dj.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    dk.UsedPhase = Overlay(dk.UsedPhase, "X Y");
+                    dj.UsedPhase = Overlay(dj.UsedPhase, "XNY");
+                }
+                else
+                {
+                    // MC が負荷電圧指示無しの時、回路電圧100V・使用相XN と出るケース対策。改訂<4>
+                    if (Matches(dj.AttachedParameter.LoadVoltage[0], "000", 3))
+                    {
+                        dj.UsedPhase = Fixed(dk.UsedPhase, 4);
+                    }
+                }
+
+                // 改訂<8>: 未設定ならば親の使用相をセット。
+                if (Matches(dj.UsedPhase, "    ", 4))
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4);
+                }
+            }
+            else
+            {
+                dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+            }
+        }
+        else
+        {
+            // 改訂<9>: 子が 1P3W3 で親が MC(中抜き)なら XNY。
+            if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+            {
+                if (Matches(dk.ReservedWord, "MC ", 3))
+                {
+                    dj.UsedPhase = Fixed("XNY ", 4);
+                }
+            }
+            else
+            {
+                reportDesignError?.Invoke(3); // FyHcErrFunc(ER_SEKKEI, err_func, 3)
+            }
+        }
+
+        return null;
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {
