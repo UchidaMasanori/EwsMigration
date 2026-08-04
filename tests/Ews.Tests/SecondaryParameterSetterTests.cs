@@ -1258,4 +1258,96 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000210.0", tb.ElectricalParameterSlots[2].V2[0]);
         Assert.Equal('A', tb.ElectricalParameterSlots[2].V2Kbn);
     }
+
+    // ---- SetParam_ep2 WL/GL/RL/OL/BL (list+index) ---------------------------
+
+    private static MainCircuitData Lamp(string yoyaku)
+    {
+        MainCircuitData lamp = NewData();
+        lamp.ReservedWord = yoyaku;
+        lamp.CircuitVoltage = ["100", "000", "000"];
+        lamp.CircuitVoltageKind = 'A';
+        return lamp;
+    }
+
+    [Theory]
+    [InlineData("01", "025.0")]
+    [InlineData("02", "025.0")]
+    [InlineData("03", "030.0")]
+    [InlineData("", "030.0")]
+    public void SetParam_ep2_WLは製作仕様区分で径サイズを決める(string spec, string expectedKsize)
+    {
+        MainCircuitData wl = Lamp("WL");
+
+        MainCircuitResult[] maina = [Res("001", wl)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0, spec);
+
+        Assert.Null(error);
+        Assert.Equal(expectedKsize, wl.ElectricalParameterSlots[2].Ksize);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WLは製作仕様区分未指定なら径サイズ030にする()
+    {
+        MainCircuitData gl = Lamp("GL");
+
+        MainCircuitResult[] maina = [Res("001", gl)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("030.0", gl.ElectricalParameterSlots[2].Ksize);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WLは電圧2に回路電圧最大値を格納する()
+    {
+        MainCircuitData rl = Lamp("RL");
+
+        MainCircuitResult[] maina = [Res("001", rl)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0, "01");
+
+        Assert.Null(error);
+        Assert.Equal("000100.0", rl.ElectricalParameterSlots[2].V2[0]);
+        Assert.Equal('A', rl.ElectricalParameterSlots[2].V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WLは直前がFかつTRなら電圧を5点5Vにする()
+    {
+        MainCircuitData f = NewData();
+        f.ReservedWord = "F";
+        f.DataType[0] = "TR     ";
+        MainCircuitData bl = Lamp("BL");
+
+        MainCircuitResult[] maina = [Res("001", f), Res("002", bl)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1, "01");
+
+        Assert.Null(error);
+        Assert.Equal("005", bl.CircuitVoltage[0]);
+        Assert.Equal("000", bl.CircuitVoltage[1]);
+        Assert.Equal("000", bl.CircuitVoltage[2]);
+        Assert.Equal("000005.5", bl.ElectricalParameterSlots[2].V2[0]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_WLは直前がFでもTR以外なら電圧を上書きしない()
+    {
+        MainCircuitData f = NewData();
+        f.ReservedWord = "F";
+        f.DataType[0] = "       "; // TR 以外
+        MainCircuitData ol = Lamp("OL");
+
+        MainCircuitResult[] maina = [Res("001", f), Res("002", ol)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1, "01");
+
+        Assert.Null(error);
+        Assert.Equal("100", ol.CircuitVoltage[0]); // 上書きされない
+        Assert.Equal("000100.0", ol.ElectricalParameterSlots[2].V2[0]);
+    }
 }
+

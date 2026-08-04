@@ -272,13 +272,14 @@ public static class SecondaryParameterSetter
     ///       DCSIR/DCNI/TSU/SSWU/PBSU/COSU/2COSU/OLU/CON/NHMB/CR。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
-    ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
+    ///   ・回路電気値 kpa* も再設定する RTR/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・記録列参照 WH/VT/TR。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
     /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)・
     /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap/子機エレメント修正)・
-    /// TB(記述行/系統走査で端子台極数epap+電圧２)を収録済。
+    /// TB(記述行/系統走査で端子台極数epap+電圧２)・
+    /// WL/GL/RL/OL/BL(製作仕様区分で径サイズ+直前F・TRで電圧上書き)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -610,7 +611,14 @@ public static class SecondaryParameterSetter
     /// 戻り値: 設計エラー(LGR の K 数が 0 または 6 以上)なら <see cref="CircuitParseError"/>、正常時 null。
     /// 【C原典】ret==2 → 呼び元が FY-632E を Error_Proc に渡す。
     /// </summary>
-    public static CircuitParseError? SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index)
+    /// <param name="maina">主回路エリア。【C原典】maina[]。</param>
+    /// <param name="index">対象レコードの添字。【C原典】index。</param>
+    /// <param name="manufacturingSpecKind">
+    /// 製作仕様区分。【C原典】bukken1-&gt;com.kyo.sshiykbn。WL/GL/RL/OL/BL の径サイズ判定で
+    /// 先頭 2 文字 "01"/"02" なら "025.0"、それ以外は "030.0" とする。物件情報を引数注入する。
+    /// null または該当ケース以外では未使用。
+    /// </param>
+    public static CircuitParseError? SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index, string? manufacturingSpecKind = null)
     {
         ArgumentNullException.ThrowIfNull(maina);
         MainCircuitData data = maina[index].Data;
@@ -638,6 +646,14 @@ public static class SecondaryParameterSetter
 
             case "TB":
                 SetTb(maina, index);
+                return null;
+
+            case "WL":
+            case "GL":
+            case "RL":
+            case "OL":
+            case "BL":
+                SetLampSize(maina, index, manufacturingSpecKind);
                 return null;
 
             default:
@@ -1387,6 +1403,42 @@ public static class SecondaryParameterSetter
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// WL/GL/RL/OL/BL(表示灯)の ep[2] 設定。【C原典】case y_WL/y_GL/y_RL/y_OL/y_BL。
+    /// MCB_V2 の後、製作仕様区分(sshiykbn)が "01"/"02" なら径サイズ 025.0、それ以外は 030.0。
+    /// 直前レコードが F かつ datatype[0]=="TR" なら回路電圧を 5(005/005.5V)に上書きする。
+    /// </summary>
+    private static void SetLampSize(IReadOnlyList<MainCircuitResult> maina, int index, string? manufacturingSpecKind)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        SetMcbVoltage2(data);
+
+        // 【C原典】改訂<13>: 支給品仕様区分 "01"/"02" は径サイズ 025.0、他は 030.0。
+        string spec = manufacturingSpecKind ?? string.Empty;
+        ep2.Ksize = spec.StartsWith("01", StringComparison.Ordinal) || spec.StartsWith("02", StringComparison.Ordinal)
+            ? "025.0"
+            : "030.0";
+
+        // 【C原典】直前が F(ヒューズ)かつ datatype[0]=="TR" なら 5.5V 系に上書き。
+        if (index > 0)
+        {
+            MainCircuitData prev = maina[index - 1].Data;
+            if (prev.ReservedWord == "F" && prev.DataType[0].TrimEnd() == "TR")
+            {
+                data.CircuitVoltage[0] = "005";
+                data.CircuitVoltage[1] = "000";
+                data.CircuitVoltage[2] = "000";
+                ep2.V2[0] = "000005.5";
+            }
+        }
     }
 
     /// <summary>

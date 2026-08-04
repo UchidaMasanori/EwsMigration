@@ -674,3 +674,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),Parm_Set_TB_Chk2,SecondaryParameterSetter.TbFindShutterMg,toku/sekkei/src/Fyss14.c,TB同一記述行のMGSH(MG+tokkbn1/2)判定+同一系統knoの電源P探索(改訂33)
 関数(移植),Parm_Set_TB_Chk3,SecondaryParameterSetter.TbFind27,toku/sekkei/src/Fyss14.c,TB同一記述行の27A/27B/27C(CR+tokkbn3/4/5)判定(改訂35)
 関数(移植),Parm_Set_TB_Chk4,SecondaryParameterSetter.TbCheckMcNShare,toku/sekkei/src/Fyss14.c,MC回路N相共用TB判定(改訂36)。自身コメントfpacm1がTBKY(先頭3文字)=2・同一記述行の他機コメントTBKY(4文字)=1・無=0
+関数(移植),SetParam_ep2 case y_WL/GL/RL/OL/BL,SecondaryParameterSetter.SetParam_ep2(list)/SetLampSize,toku/sekkei/src/Fyss14.c,表示灯WL/GL/RL/OL/BLのep[2]設定(list+index版)。MCB_V2後に製作仕様区分sshiykbn(引数注入bukken1->com.kyo.sshiykbn)先頭2文字01/02で径サイズepaksize=025.0他=030.0(改訂13)。直前レコードがF且つdatatype[0]=TRなら回路電圧kpavを005/000/000・ep[2].epav2[0]=000005.5に上書き
