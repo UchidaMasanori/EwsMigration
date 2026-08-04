@@ -302,4 +302,72 @@ public class BranchArraySorterTests
 
         Assert.Equal(0x7FFF, BranchArraySorter.GetMinimumParallelNumber(sd, klist, 9));
     }
+
+    [Theory]
+    [InlineData("ELB", "01")]
+    [InlineData("ELMB", "02")]
+    [InlineData("MCB", "03")]
+    [InlineData("MMCB", "04")]
+    [InlineData("RELB", "05")]
+    [InlineData("RELMB", "06")]
+    [InlineData("RMCB", "07")]
+    [InlineData("RMMCB", "08")]
+    [InlineData("SB", "09")]
+    [InlineData("MC", "10")]
+    [InlineData("RTR", "11")]
+    [InlineData("RRY", "12")]
+    [InlineData("THR", "13")]
+    [InlineData("MG", "13")]
+    public void GetReservedWordSortCategoryは予約語種別コードを返す(string yoyaku, string expected)
+    {
+        Assert.Equal(expected, BranchArraySorter.GetReservedWordSortCategory(yoyaku));
+    }
+
+    [Fact]
+    public void GetReservedWordSortCategoryは末尾空白を無視する()
+    {
+        Assert.Equal("03", BranchArraySorter.GetReservedWordSortCategory("MCB     "));
+    }
+
+    [Theory]
+    [InlineData("SB", '4')]     // 予約語 SB は即 '4'
+    [InlineData("RMCB", '2')]   // 協約系は即 '2'
+    [InlineData("RELMB", '2')]
+    public void GetTypeKindは予約語で優先判定する(string yoyaku, char expected)
+    {
+        Assert.Equal(expected, BranchArraySorter.GetTypeKind(yoyaku, new[] { "", "", "", "", "", "", "" }));
+    }
+
+    [Theory]
+    [InlineData("SB", '4')]
+    [InlineData("KM", '2')]
+    [InlineData("KY", '2')]
+    [InlineData("CT", '3')]
+    [InlineData("SEH", '4')]
+    [InlineData("ZB", '4')]
+    [InlineData("XX", '1')] // 未一致は '1'
+    public void GetTypeKindはタイプ配列を走査して種別を返す(string type, char expected)
+    {
+        // 予約語は特別扱いされない語("MCB")にし、タイプ配列の先頭で判定させる。
+        Assert.Equal(expected, BranchArraySorter.GetTypeKind("MCB", new[] { type, "", "", "", "", "", "" }));
+    }
+
+    [Fact]
+    public void GetTypeKindは先頭一致を優先する()
+    {
+        // 先頭 KM('2') が CT('3') より前にあるので '2'。
+        Assert.Equal('2', BranchArraySorter.GetTypeKind("MCB", new[] { "KM", "CT", "", "", "", "", "" }));
+    }
+
+    [Fact]
+    public void SelectSortCurrentはスロット1が0ならスロット2を採る()
+    {
+        Assert.Equal("00000.999", BranchArraySorter.SelectSortCurrent("00000.000", "00000.999"));
+    }
+
+    [Fact]
+    public void SelectSortCurrentはスロット1が非0ならスロット1を採る()
+    {
+        Assert.Equal("00100.000", BranchArraySorter.SelectSortCurrent("00100.000", "00000.999"));
+    }
 }

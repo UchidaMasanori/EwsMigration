@@ -633,3 +633,6 @@ GetMin/MaxKaisono,BranchArraySorter.GetMin/MaxHierarchyNumber,BranchArraySorter.
 構造体,KDATA,BranchArraySorter.SortKey,toku/sekkei/src/Fyss3C.c,ソート作業用構造体。index/joheinoとKEY0?9(SP区分/機器種別/タイプ/極数/電圧/予約語種別/フレーム電流/トリップ電流/エレメント数/付属機能)/heino
 CompareSortIndex,BranchArraySorter.CompareSortIndex,BranchArraySorter.CompareSortIndex,toku/sekkei/src/Fyss3C.c,ソートキー比較。joheino→KEY0→1→2→3(逆)→KEY5(予約語種別)→KEY4(電圧逆)→KEY6/7(電流逆)→KEY8(逆)→KEY9→heinoの順。固定長キーはCompareOrdinal(符号のみ使用)。95.03.13でKEY5をKEY4より優先
 GetMinimumHeino,BranchArraySorter.GetMinimumParallelNumber,BranchArraySorter.GetMinimumParallelNumber,toku/sekkei/src/Fyss3C.c,ソートキーリストのindexが指す作業データのうち階層番号一致の最小heino(該当なしは0x7FFF)
+SortIndex(KEY5),BranchArraySorter.GetReservedWordSortCategory,BranchArraySorter.GetReservedWordSortCategory,toku/sekkei/src/Fyss3C.c,予約語→KEY5予約語種別の2桁コード(ELB=01?RRY=12、その他=13)
+SortIndex(KEY2),BranchArraySorter.GetTypeKind,BranchArraySorter.GetTypeKind,toku/sekkei/src/Fyss3C.c,KEY2タイプ種別(構成機器非依存maina経路)。SB→'4'/協約系→'2'、他はdatatype[7]走査(SB'4'/KM,KY'2'/CT'3'/Sパワー'4')、無し'1'
+SortIndex(KEY6/7),BranchArraySorter.SelectSortCurrent,BranchArraySorter.SelectSortCurrent,toku/sekkei/src/Fyss3C.c,KEY6/7電流採用値(maina経路)。ep[1]値が数値で0.0ならep[2]値、非0ならep[1]値

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Ews.Domain.Analysis;
 
 namespace Ews.Analysis;
@@ -618,5 +619,95 @@ public static class BranchArraySorter
         }
 
         return r;
+    }
+
+    /// <summary>
+    /// 予約語からソートキー KEY5(予約語種別)の 2 桁コードを得る。【C原典】<c>SortIndex</c>の
+    /// KEY 5 分岐(Fyss3C.c)。ELB="01" / ELMB="02" / MCB="03" / MMCB="04" / RELB="05" /
+    /// RELMB="06" / RMCB="07" / RMMCB="08" / SB="09" / MC="10" / RTR="11" / RRY="12" /
+    /// それ以外="13"。C は 8 桁固定の <c>strncmp</c> だが本移植は末尾空白を除いた予約語で判定する。
+    /// </summary>
+    public static string GetReservedWordSortCategory(string reservedWord)
+    {
+        string w = (reservedWord ?? string.Empty).TrimEnd();
+        return w switch
+        {
+            "ELB" => "01",
+            "ELMB" => "02",
+            "MCB" => "03",
+            "MMCB" => "04",
+            "RELB" => "05",
+            "RELMB" => "06",
+            "RMCB" => "07",
+            "RMMCB" => "08",
+            "SB" => "09",
+            "MC" => "10",
+            "RTR" => "11",
+            "RRY" => "12",
+            _ => "13",
+        };
+    }
+
+    /// <summary>
+    /// 予約語とタイプ配列からソートキー KEY2(タイプ種別)を得る。【C原典】<c>SortIndex</c>の
+    /// KEY 2 分岐(Fyss3C.c、構成機器エリア非依存の maina 経路)。予約語 SB は '4'、
+    /// RMCB/RELB/RMMCB/RELMB は '2'。それ以外はタイプ配列(7 種)を先頭から走査し、
+    /// SB→'4' / KM・KY→'2' / CT→'3'(コンパクト) / SE・SS・SEH・SES・ZS・ZSG・ZB→'4'(S パワー)を
+    /// 最初に一致した種別とする(協約・スリム・SB の並び順)。いずれも無ければ '1'。
+    /// </summary>
+    public static char GetTypeKind(string reservedWord, IReadOnlyList<string> dataTypes)
+    {
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        string w = (reservedWord ?? string.Empty).TrimEnd();
+        if (w == "SB")
+        {
+            return '4';
+        }
+
+        if (w is "RMCB" or "RELB" or "RMMCB" or "RELMB")
+        {
+            return '2';
+        }
+
+        for (int j = 0; j < 7 && j < dataTypes.Count; j++)
+        {
+            string t = (dataTypes[j] ?? string.Empty).TrimEnd();
+            switch (t)
+            {
+                case "SB":
+                    return '4';
+                case "KM":
+                case "KY":
+                    return '2';
+                case "CT":
+                    return '3';
+                case "SE":
+                case "SS":
+                case "SEH":
+                case "SES":
+                case "ZS":
+                case "ZSG":
+                case "ZB":
+                    return '4';
+            }
+        }
+
+        return '1';
+    }
+
+    /// <summary>
+    /// ソートキー KEY6/KEY7(フレーム/トリップ電流)の採用値を選ぶ。【C原典】<c>SortIndex</c>の
+    /// KEY 6/7 分岐(Fyss3C.c、構成機器エリア非依存の maina 経路)。ep[1] の値が数値として
+    /// 0.0 なら ep[2] の値を、そうでなければ ep[1] の値を採用する。
+    /// </summary>
+    public static string SelectSortCurrent(string slot1Value, string slot2Value)
+    {
+        string v1 = slot1Value ?? string.Empty;
+        if (!double.TryParse(v1, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
+        {
+            d = 0.0;
+        }
+
+        return d == 0.0 ? (slot2Value ?? string.Empty) : v1;
     }
 }

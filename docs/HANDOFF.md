@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1573 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1601 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -379,6 +379,17 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`GetMinimumParallelNumber`**(=GetMinimumHeino): ソートキーリストの index が指す作業データのうち、階層番号一致の最小 heino(該当なしは 0x7FFF)。
 - **テスト**: `BranchArraySorterTests.cs` +8。テストは 1565 → **1573**。
   次は段階22(SortIndex/KouseiGetElement/GetFloorElementsForSortX/GetFloorElementsNotForSort―YOYAKU_TBL・fyrt701・FYRT804 を引数・delegate 注入)。
+
+### 段階22: Fyss3C SortIndex キー生成ヘルパ(構成機器非依存)
+
+`SortIndex` のソートキー生成のうち、構成機器(FYDF811/FYRT804 ― **未移植**)と YOYAKU_TBL マスタ参照に依存しない純粋部分をテスト可能ヘルパとして先行移植。
+
+- **`GetReservedWordSortCategory`**(=KEY5): 予約語→予約語種別 2 桁コード(ELB=01〜RRY=12、他=13)。
+- **`GetTypeKind`**(=KEY2 maina 経路): SB→'4'/協約系→'2'、他は datatype[7] 走査(SB'4'/KM,KY'2'/CT'3'/S パワー'4')、無し'1'。
+- **`SelectSortCurrent`**(=KEY6/7 maina 経路): ep[1] 値が 0.0 なら ep[2] 値、非0 なら ep[1] 値。
+- **テスト**: `BranchArraySorterTests.cs` +28。テストは 1573 → **1601**。
+  ★未移植の構成機器 **FYDF811/FYRT804**(datano/km_key.teikkey(fyrt701 union)/km_key.yoyaku/km_key.ptype[7]) のドメインクラス化が次の大きな依存。
+  次は段階23(SortIndex 本体のオーケストレーション―YOYAKU_TBL マスタ参照と構成機器を引数・delegate 注入、KEY1/KEY9 と KouseiGetElement)。
 
 
 
