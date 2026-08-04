@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1488 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1493 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -291,6 +291,13 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 
 - **`AssignParent1P2WPole1`**→CircuitParseError?: 子が1P2W極1のとき—改訁3で親MC/003ならCheckUseVolt(エラー即return)+200VはSetParamFor2P200V、親MCならGetMcChildMaxVolt==200で親200V化(改訁4)+processedParents重複防止後CountVolt100VDevicesで100V機器収集しcount>0でSortByParallelNumber+SetPhase100VDevices・TB3P対応(改訁13:親ep0"002"&子TB&子ep0"003"で親"X Y"子"XNY")・改訁4子fpalv"000"で親コピー・改訁8未設定は親コピー、非MCは親コピー、else改訁9で子1P3W3&親MC中抜きは"XNY "。想定外はreportDesignError(3)。
 - **テスト**: `PhaseAssignerTests.cs` +6件。テストは 1482 → **1488**（+6）。★★Fyss3D残り=3P3W/3P4Wケース・初期化・統括ループ組立。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(11) 3P3W電源）
+
+`Fyss3D_PH_Kettei` の 3P3W 電源ケースを移植。
+
+- **`AssignPhase3P3W`**→CircuitParseError?: Pの使用相=RST、j-loopで同系統子機器を親種別にディスパッチ。親3P3W3: 子3P3W3は親コピー・子1P2W2はF800Index33収集しcount<=2で先頭部SetPhase3P3WDevices+改訁29/30(3P混在&counta>=1&countf>=1で先頭2件RS固定)、count>2でta/tbをRS/ST/TR・末尾tf・MC子3Pは親極数/電圧/使用相コピー(改訁5)/else想定外reportDesignError(4)。親1P2W2(別if): MC子3Pは3P3W化RST(改訁5)/子1P2W2は親コピー/else reportDesignError(5)。プラグイン特注(hycpskbn 3/7 & datatype[0] CH/KP)はスキップ。dedupはHashSet。
+- **テスト**: `PhaseAssignerTests.cs` +5件。テストは 1488 → **1493**（+5）。★★Fyss3D残り=3P4Wケース(v2なし/v2あり)・初期化・統括ループ組立。
 
 
 

@@ -1496,6 +1496,126 @@ public static class PhaseAssigner
         return null;
     }
 
+    // 3P3W 電源(powerIndex)配下の同系統機器の使用相をセットする。【C原典】Fyss3D_PH_Kettei 3P3W ケース。
+    public static CircuitParseError? AssignPhase3P3W(
+        IReadOnlyList<MainCircuitResult> mains, int powerIndex, char hycpskbn,
+        Action<int>? reportDesignError = null)
+    {
+        var processed = new HashSet<string>(); // sumi[1]/sumino[1]
+        MainCircuitData dp = mains[powerIndex].Data;
+        dp.UsedPhase = "RST "; // P の使用相セット
+
+        for (int j = powerIndex + 1; j < mains.Count; j++)
+        {
+            MainCircuitData dj = mains[j].Data;
+            if (!Matches(dp.SystemNumber, dj.SystemNumber, 3))
+            {
+                break; // 系統番号が変わったら終了
+            }
+
+            // 改訂<22><28>: プラグインタイプは設定不要。
+            if ((hycpskbn == '3' || hycpskbn == '7') &&
+                (Matches(dj.DataType[0], "CH", 2) || Matches(dj.DataType[0], "KP", 2)))
+            {
+                continue;
+            }
+
+            int k = EquipmentParameterFormatter.Stoi(dj.ParentSequenceNumber, 3) - 1;
+            if (k < 0 || k >= mains.Count)
+            {
+                continue; // 親要素番号の範囲ガード(原典 UB)
+            }
+
+            MainCircuitData dk = mains[k].Data;
+
+            // 親が 3相3線 極数3 のケース。
+            if (dk.CircuitPhaseCount == '3' && dk.CircuitWireType == '3' && dk.CircuitPoleCount == '3')
+            {
+                if (dj.CircuitPhaseCount == '3' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+                {
+                    if (!processed.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                    {
+                        continue; // 特殊処理済みならば次のデータへ
+                    }
+
+                    F800IndexResult r = CollectF800Index33(mains, dj.ParentSequenceNumber, hycpskbn, '1', '2', '2');
+                    int[] t = [.. r.T];
+                    int[] ta = [.. r.Ta];
+                    int[] tb = [.. r.Tb];
+                    int[] tf = [.. r.Tf];
+                    int count = t.Length, counta = ta.Length, countf = tf.Length;
+
+                    if (count <= 2)
+                    {
+                        SortByParallelNumber(mains, t, count);
+                        SetPhase3P3WDevices(mains, t, count); // RS/ST セット
+                        // 改訂<29><30>: 3P 機器混在かつ分岐/送りとヒューズ有りなら先頭2件を RS 固定。
+                        if (count >= 2 && r.Count3P > 0 && counta >= 1 && countf >= 1)
+                        {
+                            mains[t[0]].Data.UsedPhase = "RS  ";
+                            mains[t[1]].Data.UsedPhase = "RS  ";
+                        }
+                    }
+                    else
+                    {
+                        SortByParallelNumber(mains, ta, counta);
+                        SetPhase3P3WDevices(mains, ta, counta); // RS/ST/TR セット
+                        SortByParallelNumber(mains, tb, tb.Length);
+                        SetPhase3P3WDevices(mains, tb, tb.Length);
+                    }
+
+                    // ヒューズ機器の使用相設定。改訂<11>
+                    SortByParallelNumber(mains, tf, countf);
+                    SetPhase3P3WDevices(mains, tf, countf);
+                }
+                // 改訂<5>: 親が MC で子が 3P のケース。
+                else if (Matches(dk.ReservedWord, "MC ", 3) &&
+                         Matches(dj.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    if (Matches(dj.AttachedParameter.LoadVoltage[0], "000", 3))
+                    {
+                        dj.CircuitPoleCount = dk.CircuitPoleCount;             // 回路極数
+                        dj.CircuitVoltage[0] = Fixed(dk.CircuitVoltage[0], 3); // 回路電圧
+                        dj.UsedPhase = Fixed(dk.UsedPhase, 4);                 // 使用相
+                    }
+                }
+                else
+                {
+                    reportDesignError?.Invoke(4); // FyHcErrFunc(ER_SEKKEI, err_func, 4)
+                }
+            }
+
+            // 親が 1相2線 極数2 のケース(原典は別 if)。
+            if (dk.CircuitPhaseCount == '1' && dk.CircuitWireType == '2' && dk.CircuitPoleCount == '2')
+            {
+                // 改訂<5>: 親が MC で子が 3P のケース。
+                if (Matches(dk.ReservedWord, "MC ", 3) &&
+                    Matches(dj.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    dj.CircuitPhaseCount = '3';   // 回路相数
+                    dj.CircuitWireType = '3';     // 回路線式
+                    dj.CircuitPoleCount = '3';    // 回路極数
+                    dj.CircuitVoltage[0] = "210"; // 回路電圧
+                    dj.UsedPhase = "RST ";        // 使用相
+                }
+                else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+                else
+                {
+                    reportDesignError?.Invoke(5); // FyHcErrFunc(ER_SEKKEI, err_func, 5)
+                }
+            }
+        }
+
+        return null;
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {
