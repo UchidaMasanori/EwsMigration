@@ -12,6 +12,9 @@ public sealed class SecondaryParameterSetterTests
 {
     private static MainCircuitData NewData() => new();
 
+    private static MainCircuitResult Res(string seq, MainCircuitData d) =>
+        new() { SequenceNumber = seq, Data = d };
+
     // ---- SetParam_ep2_MCB_P -------------------------------------------------
 
     [Theory]
@@ -683,5 +686,141 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000", ep2.Vc); // 既定のまま
         Assert.Equal("00", ep2.Cc);
         Assert.Equal("", data.DataType[2]);
+    }
+
+    // ---- SetParam_ep2 DCPW (list+index) -------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_DCPWは親のV2をV1へ複写しW入力からA2を算出する()
+    {
+        MainCircuitData parent = NewData();
+        parent.ElectricalParameterSlots[2].V2[0] = "000200.0";
+
+        MainCircuitData dcpw = NewData();
+        dcpw.ReservedWord = "DCPW";
+        dcpw.ParentSequenceNumber = "001";
+        dcpw.CircuitVoltage = ["100", "000", "000"];
+        dcpw.ElectricalParameterSlots[0].W1 = "0002000.00"; // 2000W
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", dcpw)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        ElectricalParameters ep2 = dcpw.ElectricalParameterSlots[2];
+        Assert.Equal("000200.0", ep2.V1[0]); // 親の V2 を複写
+        Assert.Equal("00020.000", ep2.A2);   // 2000/100=20
+        Assert.Equal('D', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_DCPWはW無ならA2を変更せずV2区分をDにする()
+    {
+        MainCircuitData parent = NewData();
+        parent.ElectricalParameterSlots[2].V2[0] = "000100.0";
+
+        MainCircuitData dcpw = NewData();
+        dcpw.ReservedWord = "DCPW";
+        dcpw.ParentSequenceNumber = "001";
+        dcpw.CircuitVoltage = ["100", "000", "000"];
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", dcpw)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        ElectricalParameters ep2 = dcpw.ElectricalParameterSlots[2];
+        Assert.Equal(new ElectricalParameters().A2, ep2.A2); // 未変更(既定)
+        Assert.Equal("000100.0", ep2.V1[0]);
+        Assert.Equal('D', ep2.V2Kbn);
+    }
+
+    // ---- SetParam_ep2 ELR (list+index) --------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_ELRは直前が非ZCTならVCを設定し同一ysnoのELRへ伝播する()
+    {
+        MainCircuitData mcb = NewData();
+        mcb.ReservedWord = "MCB";
+        mcb.CircuitVoltage = ["210", "000", "000"];
+        mcb.CircuitVoltageKind = 'A';
+
+        MainCircuitData elr1 = NewData();
+        elr1.ReservedWord = "ELR";
+        elr1.DesignationNumber = "01";
+
+        MainCircuitData zct = NewData();
+        zct.ReservedWord = "ZCT";
+
+        MainCircuitData elr2 = NewData();
+        elr2.ReservedWord = "ELR";
+        elr2.DesignationNumber = "01";
+
+        MainCircuitResult[] maina =
+            [Res("001", mcb), Res("002", elr1), Res("003", zct), Res("004", elr2)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Equal("210", elr1.ElectricalParameterSlots[2].Vc);
+        Assert.Equal('A', elr1.ElectricalParameterSlots[2].VcKbn);
+        Assert.Equal("210", elr2.ElectricalParameterSlots[2].Vc); // 同一ysnoへ伝播
+        Assert.Equal('A', elr2.ElectricalParameterSlots[2].VcKbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_ELRは直前がZCTなら何も設定しない()
+    {
+        MainCircuitData zct = NewData();
+        zct.ReservedWord = "ZCT";
+
+        MainCircuitData elr = NewData();
+        elr.ReservedWord = "ELR";
+        elr.DesignationNumber = "01";
+
+        MainCircuitResult[] maina = [Res("001", zct), Res("002", elr)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Equal("000", elr.ElectricalParameterSlots[2].Vc); // 既定のまま
+    }
+
+    [Fact]
+    public void SetParam_ep2_ELRはysnoが異なるELRには伝播しない()
+    {
+        MainCircuitData mcb = NewData();
+        mcb.ReservedWord = "MCB";
+        mcb.CircuitVoltage = ["210", "000", "000"];
+        mcb.CircuitVoltageKind = 'A';
+
+        MainCircuitData elr1 = NewData();
+        elr1.ReservedWord = "ELR";
+        elr1.DesignationNumber = "01";
+
+        MainCircuitData zct = NewData();
+        zct.ReservedWord = "ZCT";
+
+        MainCircuitData elr2 = NewData();
+        elr2.ReservedWord = "ELR";
+        elr2.DesignationNumber = "02"; // 異なる ysno
+
+        MainCircuitResult[] maina =
+            [Res("001", mcb), Res("002", elr1), Res("003", zct), Res("004", elr2)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Equal("000", elr2.ElectricalParameterSlots[2].Vc); // 未伝播
+    }
+
+    [Fact]
+    public void SetParam_ep2_listオーバーロードは対象外予約語を単一レコード版へ委譲する()
+    {
+        MainCircuitData mcb = NewData();
+        mcb.ReservedWord = "MCB";
+        mcb.CircuitPoleCount = '2';
+        mcb.CircuitVoltage = ["100", "000", "000"];
+
+        MainCircuitResult[] maina = [Res("001", mcb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal("002", mcb.ElectricalParameterSlots[2].P); // MCB_P が実行された
     }
 }

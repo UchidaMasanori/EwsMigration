@@ -273,8 +273,10 @@ public static class SecondaryParameterSetter
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
-    ///   ・記録列参照 WH/VT/TR/TB/LGR/ELR。親レコード相対参照 DCPW(DCPW_V1)。
+    ///   ・記録列参照 WH/VT/TR/TB/LGR(K数エラー返却)。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
+    /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
+    /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -591,6 +593,124 @@ public static class SecondaryParameterSetter
                 break;
 
                 // その他予約語は上記 TODO(記録列/物件/未移植リーフ依存)のため未処理。
+        }
+    }
+
+    /// <summary>
+    /// 記録列(親レコード・同一予約語指定番号の兄弟)参照が必要な予約語を含む ep[2] 設定。
+    /// 【C原典】Fyss14.c の SetParam_ep2 ディスパッチャ(maina/index を受ける版)。
+    /// 現状で収録するのは DCPW(親の V2 を V1 へ複写+負荷容量から A2 算出)・
+    /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)。他の予約語は単一レコード版へ委譲する。
+    /// </summary>
+    public static void SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        ArgumentNullException.ThrowIfNull(maina);
+        MainCircuitData data = maina[index].Data;
+
+        switch (data.ReservedWord)
+        {
+            case "DCPW":
+                SetDcpw(maina, index);
+                break;
+
+            case "ELR":
+                SetElr(maina, index);
+                break;
+
+            default:
+                SetParam_ep2(data);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// DCPW(直流電源)の ep[2] 設定。【C原典】case y_DCPW。MCB_V2 の後、親レコードの
+    /// ep[2].V2[0] を自分の ep[2].V1[0] へ複写(DCPW_V1)し、負荷容量(Ｗ)入力があれば
+    /// A2=W/V2 を算出して ep[2].A2 へ設定、最後に V2 区分を直流 'D' とする。
+    /// </summary>
+    private static void SetDcpw(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        SetMcbVoltage2(data);
+
+        // 【C原典】SetParam_ep2_DCPW_V1: 親=maina[index-(jibunno-oyano)] の ep[2].V2[0] を ep[2].V1[0] へ。
+        int jibunno = AtoiC(maina[index].SequenceNumber);
+        int oyano = AtoiC(data.ParentSequenceNumber);
+        int parentIndex = index - (jibunno - oyano);
+        if (parentIndex >= 0 && parentIndex < maina.Count)
+        {
+            ep2.V1[0] = maina[parentIndex].Data.ElectricalParameterSlots[2].V2[0];
+        }
+
+        // 【C原典】負荷容量(Ｗ)入力(ep[0].W1 または fp.LoadCapacity)があれば A2=W/V2 を算出。
+        double load = EquipmentParameterFormatter.Stof(data.AttachedParameter.LoadCapacity, 7);
+        double w1 = EquipmentParameterFormatter.Stof(ep0.W1, 10);
+        if (w1 != 0.0 || load != 0.0)
+        {
+            double work1 = 0.0;
+            if (load != 0.0)
+            {
+                work1 = load;
+            }
+
+            if (w1 != 0.0)
+            {
+                work1 = w1;
+            }
+
+            double v20 = EquipmentParameterFormatter.Stof(ep0.V2[0], 8);
+            double work2 = v20 != 0.0
+                ? v20
+                : EquipmentParameterFormatter.Stof(ep2.V2[0], 8);
+
+            // 【C原典】改訂 1996.08.06: ep[0] でなく ep[2].epaa2 へ設定するのが正しい。
+            ep2.A2 = Format9(work1 / work2);
+        }
+
+        ep2.V2Kbn = 'D';
+    }
+
+    /// <summary>
+    /// ELR(漏電継電器)の ep[2] VC 設定。【C原典】case y_ELR。直前(index-1)が ZCT でなければ
+    /// 直前要素の回路電圧・区分を VC に設定し、直前が ZCT で同一予約語指定番号(ysno)を持つ
+    /// 他の ELR にも同じ VC を伝播する。
+    /// </summary>
+    private static void SetElr(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        if (index > 0 && maina[index - 1].Data.ReservedWord != "ZCT")
+        {
+            MainCircuitData prev = maina[index - 1].Data;
+            ep2.Vc = prev.CircuitVoltage[0];
+            ep2.VcKbn = prev.CircuitVoltageKind;
+
+            // 【C原典】for(i=1;i<Pmainc;i++): i=0 は直前参照不可のため対象外(忠実再現)。
+            for (int i = 1; i < maina.Count; i++)
+            {
+                MainCircuitData m = maina[i].Data;
+                if (i != index
+                    && maina[i - 1].Data.ReservedWord == "ZCT"
+                    && m.ReservedWord == "ELR"
+                    && m.DesignationNumber == data.DesignationNumber)
+                {
+                    ElectricalParameters mep2 = m.ElectricalParameterSlots[2];
+                    mep2.Vc = ep2.Vc;
+                    mep2.VcKbn = ep2.VcKbn;
+                }
+            }
         }
     }
 
