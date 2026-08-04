@@ -600,7 +600,8 @@ public static class SecondaryParameterSetter
     /// 記録列(親レコード・同一予約語指定番号の兄弟)参照が必要な予約語を含む ep[2] 設定。
     /// 【C原典】Fyss14.c の SetParam_ep2 ディスパッチャ(maina/index を受ける版)。
     /// 現状で収録するのは DCPW(親の V2 を V1 へ複写+負荷容量から A2 算出)・
-    /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)・LGR(ELR に加え K 数決定)。
+    /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)・LGR(ELR に加え K 数決定)・
+    /// PLTR(親/RTR 親の回路電圧から 1 次側電圧 V1 を決定)。
     /// 他の予約語は単一レコード版へ委譲する。
     /// 戻り値: 設計エラー(LGR の K 数が 0 または 6 以上)なら <see cref="CircuitParseError"/>、正常時 null。
     /// 【C原典】ret==2 → 呼び元が FY-632E を Error_Proc に渡す。
@@ -622,6 +623,10 @@ public static class SecondaryParameterSetter
 
             case "LGR":
                 return SetLgr(maina, index);
+
+            case "PLTR":
+                SetPltr(maina, index);
+                return null;
 
             default:
                 SetParam_ep2(data);
@@ -782,6 +787,56 @@ public static class SecondaryParameterSetter
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// PLTR(パイロットランプ用変圧器)の ep[2] V1(1 次側電圧)設定。
+    /// 【C原典】case y_PLTR → SetParam_ep2_RTR_V1。親レコード(親が RTR なら更にその親)の
+    /// 回路電圧 kv0 に応じて 1 次側電圧 V1[0] を決め(kv0&gt;105→"200"/以下→"100"、
+    /// PLTR かつ kv0&gt;=380→"400")、VC 区分に計器 1 次側電圧区分(kpakv1kb)を設定する。
+    /// </summary>
+    private static void SetPltr(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】i=自分の追番, j=親追番。親=maina[index-(i-j)]。
+        int i = AtoiC(maina[index].SequenceNumber);
+        int j = AtoiC(data.ParentSequenceNumber);
+
+        // 【C原典】改訂<39>: 親機器が RTR なら、その RTR の親機器を対象にする。
+        int tmp = 0;
+        int parentIndex = index - (i - j);
+        if (parentIndex >= 0 && parentIndex < maina.Count
+            && maina[parentIndex].Data.ReservedWord == "RTR")
+        {
+            tmp = i - j;
+            i = AtoiC(maina[parentIndex].SequenceNumber);
+            j = AtoiC(maina[parentIndex].Data.ParentSequenceNumber);
+        }
+
+        // 【C原典】kv0=対象要素(Smaina-tmp-(i-j))の回路電圧 kpav[0]。
+        int kvIndex = index - tmp - (i - j);
+        if (kvIndex >= 0 && kvIndex < maina.Count)
+        {
+            int kv0 = AtoiC(maina[kvIndex].Data.CircuitVoltage[0]);
+
+            // 【C原典】epav1[0][3] に kv0>105 なら"200"、以下なら"100"。
+            ep2.V1[0] = ReplaceSegment(ep2.V1[0], 3, kv0 > 105 ? "200" : "100");
+
+            // 【C原典】95.03.20 add: kv0>=380 かつ PLTR は"400"。
+            if (kv0 >= 380 && data.ReservedWord == "PLTR")
+            {
+                ep2.V1[0] = ReplaceSegment(ep2.V1[0], 3, "400");
+            }
+        }
+
+        // 【C原典】epavckbn=kpakv1kb。
+        ep2.VcKbn = data.MeterPrimaryVoltageKind;
     }
 
     /// <summary>

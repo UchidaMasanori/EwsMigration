@@ -908,4 +908,53 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000", lgr.ElectricalParameterSlots[2].K); // ä˘íËÇÃÇ‹Ç‹
         Assert.Equal("000", lgr.ElectricalParameterSlots[2].Vc);
     }
+
+    // ---- SetParam_ep2 PLTR (list+index) -------------------------------------
+
+    [Theory]
+    [InlineData("210", "00020000")] // kv0>105 Å® "200"
+    [InlineData("105", "00010000")] // kv0<=105 Å® "100"
+    [InlineData("400", "00040000")] // kv0>=380 Ç©Ç¬ PLTR Å® "400"
+    public void SetParam_ep2_PLTRÇÕêeÇÃâÒòHìdà≥Ç≈1éüë§ìdà≥V1ÇåàÇﬂÇÈ(string kv, string expectedV1)
+    {
+        MainCircuitData parent = NewData();
+        parent.ReservedWord = "MCB";
+        parent.CircuitVoltage = [kv, "000", "000"];
+
+        MainCircuitData pltr = NewData();
+        pltr.ReservedWord = "PLTR";
+        pltr.ParentSequenceNumber = "001";
+        pltr.MeterPrimaryVoltageKind = 'B';
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", pltr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Null(error);
+        Assert.Equal(expectedV1, pltr.ElectricalParameterSlots[2].V1[0]);
+        Assert.Equal('B', pltr.ElectricalParameterSlots[2].VcKbn); // kpakv1kb ì`îd
+    }
+
+    [Fact]
+    public void SetParam_ep2_PLTRÇÕêeÇ™RTRÇ»ÇÁÇªÇÃêeÇÃâÒòHìdà≥ÇéQè∆Ç∑ÇÈ()
+    {
+        MainCircuitData grand = NewData();
+        grand.ReservedWord = "MCB";
+        grand.CircuitVoltage = ["210", "000", "000"];
+
+        MainCircuitData rtr = NewData();
+        rtr.ReservedWord = "RTR";
+        rtr.ParentSequenceNumber = "001";
+
+        MainCircuitData pltr = NewData();
+        pltr.ReservedWord = "PLTR";
+        pltr.ParentSequenceNumber = "002";
+
+        MainCircuitResult[] maina = [Res("001", grand), Res("002", rtr), Res("003", pltr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
+
+        Assert.Null(error);
+        Assert.Equal("00020000", pltr.ElectricalParameterSlots[2].V1[0]); // ëcïÉ kv0=210>105
+    }
 }
