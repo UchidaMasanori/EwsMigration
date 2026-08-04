@@ -823,4 +823,89 @@ public sealed class SecondaryParameterSetterTests
 
         Assert.Equal("002", mcb.ElectricalParameterSlots[2].P); // MCB_P が実行された
     }
+
+    // ---- SetParam_ep2 LGR (list+index) --------------------------------------
+
+    private static (MainCircuitResult[] maina, MainCircuitData primary) BuildLgr(int siblingCount)
+    {
+        MainCircuitData mcb = NewData();
+        mcb.ReservedWord = "MCB";
+        mcb.CircuitVoltage = ["210", "000", "000"];
+        mcb.CircuitVoltageKind = 'A';
+
+        MainCircuitData lgr1 = NewData(); // 直前が非ZCTの主LGR
+        lgr1.ReservedWord = "LGR";
+        lgr1.DesignationNumber = "01";
+        lgr1.DescriptionRow = "012";
+        lgr1.DescriptionColumn = "034";
+
+        var list = new List<MainCircuitResult> { Res("001", mcb), Res("002", lgr1) };
+
+        // 直前が ZCT の同一 ysno LGR を siblingCount 個追加する。
+        for (int k = 0; k < siblingCount; k++)
+        {
+            MainCircuitData zct = NewData();
+            zct.ReservedWord = "ZCT";
+            MainCircuitData lgr = NewData();
+            lgr.ReservedWord = "LGR";
+            lgr.DesignationNumber = "01";
+            list.Add(Res("100", zct));
+            list.Add(Res("101", lgr));
+        }
+
+        return ([.. list], lgr1);
+    }
+
+    [Theory]
+    [InlineData(1, "001")]
+    [InlineData(2, "002")]
+    [InlineData(3, "005")]
+    [InlineData(5, "005")]
+    public void SetParam_ep2_LGRは同一ysno兄弟数でKを決めVCを伝播する(int siblings, string expectedK)
+    {
+        (MainCircuitResult[] maina, MainCircuitData primary) = BuildLgr(siblings);
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Null(error);
+        Assert.Equal(expectedK, primary.ElectricalParameterSlots[2].K);
+        Assert.Equal("210", primary.ElectricalParameterSlots[2].Vc);
+        Assert.Equal('A', primary.ElectricalParameterSlots[2].VcKbn);
+        // 兄弟 LGR にも VC が伝播する。
+        Assert.Equal("210", maina[3].Data.ElectricalParameterSlots[2].Vc);
+    }
+
+    [Theory]
+    [InlineData(0)] // 兄弟なし → エラー
+    [InlineData(6)] // 6 以上 → エラー
+    public void SetParam_ep2_LGRは兄弟数が0または6以上でFY632Eを返す(int siblings)
+    {
+        (MainCircuitResult[] maina, MainCircuitData primary) = BuildLgr(siblings);
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.NotNull(error);
+        Assert.Equal("FY-632E", error.ErrorCode);
+        Assert.Equal(12, error.LineNumber);  // DescriptionRow "012"
+        Assert.Equal(34, error.Column);      // DescriptionColumn "034"
+    }
+
+    [Fact]
+    public void SetParam_ep2_LGRは直前がZCTなら何も設定せず正常を返す()
+    {
+        MainCircuitData zct = NewData();
+        zct.ReservedWord = "ZCT";
+
+        MainCircuitData lgr = NewData();
+        lgr.ReservedWord = "LGR";
+        lgr.DesignationNumber = "01";
+
+        MainCircuitResult[] maina = [Res("001", zct), Res("002", lgr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Null(error);
+        Assert.Equal("000", lgr.ElectricalParameterSlots[2].K); // 既定のまま
+        Assert.Equal("000", lgr.ElectricalParameterSlots[2].Vc);
+    }
 }

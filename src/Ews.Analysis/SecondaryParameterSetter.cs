@@ -273,10 +273,10 @@ public static class SecondaryParameterSetter
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
-    ///   ・記録列参照 WH/VT/TR/TB/LGR(K数エラー返却)。
+    ///   ・記録列参照 WH/VT/TR/TB。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
-    /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)を収録済。
+    /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -600,9 +600,12 @@ public static class SecondaryParameterSetter
     /// 記録列(親レコード・同一予約語指定番号の兄弟)参照が必要な予約語を含む ep[2] 設定。
     /// 【C原典】Fyss14.c の SetParam_ep2 ディスパッチャ(maina/index を受ける版)。
     /// 現状で収録するのは DCPW(親の V2 を V1 へ複写+負荷容量から A2 算出)・
-    /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)。他の予約語は単一レコード版へ委譲する。
+    /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)・LGR(ELR に加え K 数決定)。
+    /// 他の予約語は単一レコード版へ委譲する。
+    /// 戻り値: 設計エラー(LGR の K 数が 0 または 6 以上)なら <see cref="CircuitParseError"/>、正常時 null。
+    /// 【C原典】ret==2 → 呼び元が FY-632E を Error_Proc に渡す。
     /// </summary>
-    public static void SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index)
+    public static CircuitParseError? SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index)
     {
         ArgumentNullException.ThrowIfNull(maina);
         MainCircuitData data = maina[index].Data;
@@ -611,15 +614,18 @@ public static class SecondaryParameterSetter
         {
             case "DCPW":
                 SetDcpw(maina, index);
-                break;
+                return null;
 
             case "ELR":
                 SetElr(maina, index);
-                break;
+                return null;
+
+            case "LGR":
+                return SetLgr(maina, index);
 
             default:
                 SetParam_ep2(data);
-                break;
+                return null;
         }
     }
 
@@ -712,6 +718,70 @@ public static class SecondaryParameterSetter
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// LGR(地絡継電器)の ep[2] VC・K 設定。【C原典】case y_LGR。ELR と同じ VC 設定・伝播に加え、
+    /// 同一予約語指定番号(ysno)を持つ自分以外の LGR 数 j で K を決める(1→"001"/2→"002"/3～5→"005")。
+    /// j が 0 または 6 以上は設計エラーとして FY-632E(記述行/桁)を返す(【C原典】return(2))。
+    /// </summary>
+    private static CircuitParseError? SetLgr(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        if (index > 0 && maina[index - 1].Data.ReservedWord != "ZCT")
+        {
+            MainCircuitData prev = maina[index - 1].Data;
+            ep2.VcKbn = prev.CircuitVoltageKind;
+            ep2.Vc = prev.CircuitVoltage[0];
+
+            int j = 0;
+
+            // 【C原典】for(i=1;i<Pmainc;i++): i=0 は直前参照不可のため対象外(忠実再現)。
+            for (int i = 1; i < maina.Count; i++)
+            {
+                MainCircuitData m = maina[i].Data;
+                if (i != index
+                    && maina[i - 1].Data.ReservedWord == "ZCT"
+                    && m.ReservedWord == "LGR"
+                    && m.DesignationNumber == data.DesignationNumber)
+                {
+                    j++;
+                    ElectricalParameters mep2 = m.ElectricalParameterSlots[2];
+                    mep2.Vc = ep2.Vc;
+                    mep2.VcKbn = ep2.VcKbn;
+                }
+            }
+
+            if (j == 1)
+            {
+                ep2.K = "001";
+            }
+            else if (j == 2)
+            {
+                ep2.K = "002";
+            }
+            else if (j is >= 3 and <= 5)
+            {
+                ep2.K = "005";
+            }
+            else
+            {
+                // 【C原典】return(2): 呼び元が記述行/桁で FY-632E を出力する。
+                return new CircuitParseError(
+                    "FY-632E",
+                    EquipmentParameterFormatter.Stoi(data.DescriptionRow, 3),
+                    EquipmentParameterFormatter.Stoi(data.DescriptionColumn, 3),
+                    "FYMEE80");
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
