@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1516 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1522 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -319,6 +319,13 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 
 - **`AssignPhases(mains, hycpskbn, reportDesignError)`**→CircuitParseError?: (1)初期化=全機器の使用相を"    "にクリア、hycpskbn∈{3,7}かつDataType[0]∈{CH,KP}の特注プラグインはスキップ。(2)予約語Pの電源を検索し電源種別でサブケースへ委譲: DC/1P2W2→AssignPhaseDcOr1P2WPole2・1P2W1→AssignPhase1P2WPole1・1P3W→j-loop(同系統内・プラグイン除外・親要素番号範囲ガード・親型でAssignParent1P3WPole3/AssignParent1P2WPole2/AssignParent1P2WPole1へ else-if ディスパッチ、mcCount共有・処理済み親HashSet共有)・3P3W→AssignPhase3P3W・3P4Wv0→AssignPhase3P4WNoV2・3P4Wvあり→AssignPhase3P4WWithV2。(3)末尾=CopyMeterPhaseByIdentity/ReducePhaseForRelayAndAmmeter/AdjustKatagiriPhase/SetMeterCircuitPhase/ChangeSiyousouFor3P4W。エラーはCircuitParseError?で境界化。
 - **テスト**: `PhaseAssignerTests.cs` +9件(統括_DC/1P2W1/1P3W/3P3W/3P4Wv0/3P4Wvあり委譲・特注プラグイン非クリア・電源以外対象外・設計エラー通知)。テストは 1507 → **1516**（+9）。★Fyss3D_PH_Kettei 全移植完了。次はFyss15呼出順の残り(Fyss3C/3E/3I/3H等)。
+
+### 段階15: Fyss15_MCB1P_NT 移植(下流パラメータ生成の起点)
+
+`Fyss15_Make_LowerParm`(下流からのパラメータ生成MAIN)の受け皿クラス `LowerParameterGenerator` を新設し、その一部 `Fyss15_MCB1P_NT` を移植。
+
+- **`LowerParameterGenerator.AdjustMcb1PhaseForNt(mains, phase)`**(=Fyss15_MCB1P_NT, 950531): ＮＴに直接つながる MCB1P/RMCB1P の使用相へ N 相を追加。予約語 MCB/RMCB(8ch)かつ ep[0].P=="001" の機器を走査し、DownstreamSelector.SelectDownstream(=Fyss35_Select_Karyu_Sub)で下流抽出、null(ret≠0)は continue、下流0件なら使用相2文字目を phase('N')に差替。MCB/RMCB は別 if で忠実再現。
+- **テスト**: `LowerParameterGeneratorTests.cs` 新規6件(MCB下流なしN追加・下流ありは不変・RMCB下流なしN追加・極数001以外対象外・予約語MCB以外対象外・下流抽出エラー不変)。テストは 1516 → **1522**（+6）。
 
 
 
