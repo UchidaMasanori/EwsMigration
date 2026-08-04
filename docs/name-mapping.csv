@@ -622,3 +622,11 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,GetYNUM,BranchArraySorter.GetReservedWordKind,toku/sekkei/src/Fyss3C.c,予約語(8バイト右詰め)→予約語識別子(YNUM約110種)へ変換。y_dataテーブルを完全一致検索し不一致はNone。KouseiGetElementのswitchが使用
 関数,SetPoint,BranchArraySorter.SetDecimalPoint,toku/sekkei/src/Fyss3C.c,数値文字列の指定位置に小数点を挿入。n<=0は無変更(C原典は未初期化ローカルstrcatのno-opバグを忠実再現)-n>=長さは先頭に0.付与-他は末尾n桁前に.挿入。呼元KouseiGetElementのみ
 関数,itoanz,BranchArraySorter.FormatFixedWidth,toku/sekkei/src/Fyss3C.c,整数値をwidth桁の0詰め文字列に(%.ndで0詰め後memcpyで先頭width文字切出)。antoiは既存Stoiを再利用
+構造体,TREE/SDATA/Stat,BranchArraySorter.TreeData/WorkData/WorkStatus,toku/sekkei/src/Fyss3C.c,並べ替え作業モデル。TreeData=要素数値(入線/上流並列/階層/並列/直列/行種グループ/親/グループ親/回路要素/グループ並列追番)、WorkData=now/new/stat、WorkStatus=nodone?doneの8状態
+glheino,MainCircuitData.GroupParallelNumber,MainCircuitData.GroupParallelNumber,toku/include/common/fydf806.h,グループ並列追番(glheino[3])。分岐配列並べ替え(Fyss3C)が再設定
+InitializeWorkArea,BranchArraySorter.InitializeWorkArea,BranchArraySorter.InitializeWorkArea,toku/sekkei/src/Fyss3C.c,作業領域初期設定。主回路データをStoiで数値化しNowへ移送、kiryoso=CircuitElement-'0'、New=Nowの複製、stat=NoDone
+SetResults,BranchArraySorter.SetResults,BranchArraySorter.SetResults,toku/sekkei/src/Fyss3C.c,処理結果移送。nodone以外のNewの上流並列/並列/グループ並列追番をFormatFixedWidthで3桁で主回路へ書戻し
+IsMatch_gyocd,BranchArraySorter.IsMatchLineTypeCode,BranchArraySorter.IsMatchLineTypeCode,toku/sekkei/src/Fyss3C.c,行種コード(gyocd 3バイト)が'B  '/'BO '/'O  'のいずれか
+IsMatch_epabn,BranchArraySorter.IsMatchPanelKind,BranchArraySorter.IsMatchPanelKind,toku/sekkei/src/Fyss3C.c,電気パラメータ[0]の盤種類(epabn=Bn)が'1'/'4'
+GetFloorElements群,BranchArraySorter.GetFloorElements等6関数,BranchArraySorter.GetFloor*/GetBrothers,toku/sekkei/src/Fyss3C.c,収集関数群。GetFloorElements(doing×階層)/GetFloorTopElements(+直列1)/GetFloorElementsOfSeries(直後連続直列)/GetFloorElementsOfVt(回路要素4)/GetFloorElementsOfCt(同階層行種GL・直列1)/GetBrothers(同一親追番)をインデックス一覧で返す
+GetMin/MaxKaisono,BranchArraySorter.GetMin/MaxHierarchyNumber,BranchArraySorter.GetMinimumHierarchyNumber/GetMaximumHierarchyNumber,toku/sekkei/src/Fyss3C.c,doingデータの最小(0x7FFF初期)/最大(-1初期)階層番号

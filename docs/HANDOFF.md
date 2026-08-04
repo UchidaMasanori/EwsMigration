@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1550 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1565 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -357,6 +357,18 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`BranchArraySorter.FormatFixedWidth(value, width)`**(=itoanz): width桁の0詰め(超過時は先頭width切出)。antoiは既存 `EquipmentParameterFormatter.Stoi` を再利用。
 - 3ヘルパとも `Stoi`/`Stof` と同様 public。テスト `BranchArraySorterTests.cs` +12(予約語識別/8バイト右詰め/None/小数点挿入・n>=長・n<=0無変更/固定長・超過切出)。テストは 1538 → **1550**（+12）。
   次は段階20(SDATA/TREE/KDATAモデル+InitializeWorkArea/SetResults/IsMatch系/GetFloor系収集―ドメインfield追加要)。
+
+### 段階20: Fyss3C_Bunki_Sort 作業モデル+収集関数
+
+`BranchArraySorter` に並べ替えの作業モデルと収集関数群を移植。ドメインに `MainCircuitData.GroupParallelNumber`(glheino) を追加(sentflg=`CircuitWork.LeadingEquipmentFlag`・epabn=`ElectricalParameterSlots[0].Bn` は既存)。
+
+- **モデル**(public nested): `WorkStatus`(=Stat,nodone〜done 8状態)・`TreeData`(=TREE,入線/上流並列/階層/並列/直列/行種GL/親/グループ親/回路要素/グループ並列追番)・`WorkData`(=SDATA,Now/New/Stat)。
+- **`InitializeWorkArea(mains)`**(=InitializeWorkArea): Stoiで数値化しNow→Newは Clone、kiryoso=CircuitElement-'0'、stat=NoDone。
+- **`SetResults(mains, sd)`**(=SetResults): nodone以外のNewの上流並列/並列/グループ並列追番を FormatFixedWidth(3桁) で書戻し。
+- **`IsMatchLineTypeCode`/`IsMatchPanelKind`**(=IsMatch_gyocd/epabn): gyocd∈{B,BO,O} / epabn∈{1,4}。
+- **収集**: `GetFloorElements`/`GetFloorTopElements`/`GetFloorElementsOfSeries`/`GetFloorElementsOfVt`/`GetFloorElementsOfCt`/`GetBrothers`・`GetMinimumHierarchyNumber`/`GetMaximumHierarchyNumber`。
+- **テスト**: `BranchArraySorterTests.cs` +15。テストは 1550 → **1565**。
+  次は段階21(KDATAソートキー: CompareSortIndex/SortIndex/KouseiGetElement―YOYAKU_TBL・機器構成は引数/delegate注入、GetMinimumHeino/GetFloorElementsForSortX/NotForSort もここ)。
 
 
 

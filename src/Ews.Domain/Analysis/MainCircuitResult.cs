@@ -118,6 +118,9 @@ public sealed class MainCircuitData
     /// <summary>グループ親データ追番。【C原典】goyano[3]("9")。"000" なら親データ追番(oyatno)を用いる。</summary>
     public string GroupParentSequenceNumber { get; set; } = "000";
 
+    /// <summary>グループ並列追番。【C原典】glheino[3]("9")。分岐配列並べ替え(Fyss3C)が再設定する。</summary>
+    public string GroupParallelNumber { get; set; } = "000";
+
     /// <summary>負荷発生元区分。【C原典】ahassei("C")。</summary>
     public char LoadSourceKind { get; set; } = ' ';
 

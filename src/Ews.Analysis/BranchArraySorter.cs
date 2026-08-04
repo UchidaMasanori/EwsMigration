@@ -1,3 +1,5 @@
+using Ews.Domain.Analysis;
+
 namespace Ews.Analysis;
 
 /// <summary>
@@ -147,5 +149,321 @@ public static class BranchArraySorter
         string digits = negative ? s[1..] : s;
         string zeroPadded = negative ? "-" + digits.PadLeft(width - 1, '0') : digits.PadLeft(width, '0');
         return zeroPadded[..width];
+    }
+
+    // =====================================================================
+    // 作業モデルと収集関数群。【C原典】Fyss3C.c の SDATA/TREE/Stat と
+    // InitializeWorkArea / SetResults / IsMatch_* / GetFloor* / GetBrothers /
+    // GetMinimumKaisono / GetMaximumKaisono。並べ替え本体は後段で移植する。
+    // =====================================================================
+
+    /// <summary>処理ステータス。【C原典】<c>enum Stat</c>(Fyss3C.c)。</summary>
+    public enum WorkStatus
+    {
+        NoDone, Doing, Sorting, SortDone, CDoing, CSorting, CSortDone, Done,
+    }
+
+    /// <summary>並べ替え作業用の要素データ(数値化)。【C原典】<c>struct TREE</c>(Fyss3C.c)。</summary>
+    public sealed class TreeData
+    {
+        /// <summary>入線番号。【C原典】nyuseno。</summary>
+        public int EntryLineNumber { get; set; }
+
+        /// <summary>上流並列追番。【C原典】joheino。</summary>
+        public int UpperParallelNumber { get; set; }
+
+        /// <summary>階層番号。【C原典】kaisono。</summary>
+        public int HierarchyNumber { get; set; }
+
+        /// <summary>並列追番。【C原典】heino。</summary>
+        public int ParallelNumber { get; set; }
+
+        /// <summary>直列追番。【C原典】chokuno。</summary>
+        public int SeriesNumber { get; set; }
+
+        /// <summary>行種グループ番号。【C原典】gyoglno。</summary>
+        public int LineTypeGroupNumber { get; set; }
+
+        /// <summary>親データ追番。【C原典】oyatno。</summary>
+        public int ParentSequenceNumber { get; set; }
+
+        /// <summary>グループ親データ追番。【C原典】goyano。</summary>
+        public int GroupParentNumber { get; set; }
+
+        /// <summary>回路要素(数値化 = kiryoso - '0')。【C原典】kiryoso。</summary>
+        public int CircuitElement { get; set; }
+
+        /// <summary>グループ並列追番。【C原典】glheino。</summary>
+        public int GroupParallelNumber { get; set; }
+
+        /// <summary>浅いコピーを返す。【C原典】memcpy(&sd.new,&sd.now,sizeof(TREE))。</summary>
+        public TreeData Clone() => (TreeData)MemberwiseClone();
+    }
+
+    /// <summary>並べ替え処理データ。【C原典】<c>struct SDATA</c>(Fyss3C.c)。</summary>
+    public sealed class WorkData
+    {
+        /// <summary>処理前データ。【C原典】TREE now。</summary>
+        public TreeData Now { get; set; } = new();
+
+        /// <summary>処理後データ。【C原典】TREE new。</summary>
+        public TreeData New { get; set; } = new();
+
+        /// <summary>処理ステータス。【C原典】Stat stat。</summary>
+        public WorkStatus Stat { get; set; } = WorkStatus.NoDone;
+    }
+
+    /// <summary>
+    /// 作業領域の初期設定。主回路データを数値変換して作業テーブルへ移送し、ステータスを nodone にする。
+    /// 【C原典】<c>InitializeWorkArea</c>(Fyss3C.c)。
+    /// </summary>
+    public static WorkData[] InitializeWorkArea(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        var sd = new WorkData[mains.Count];
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            var now = new TreeData
+            {
+                EntryLineNumber = EquipmentParameterFormatter.Stoi(d.IncomingNumber, 3),
+                UpperParallelNumber = EquipmentParameterFormatter.Stoi(d.UpperParallelNumber, 3),
+                HierarchyNumber = EquipmentParameterFormatter.Stoi(d.HierarchyNumber, 3),
+                ParallelNumber = EquipmentParameterFormatter.Stoi(d.ParallelNumber, 3),
+                SeriesNumber = EquipmentParameterFormatter.Stoi(d.SeriesNumber, 3),
+                LineTypeGroupNumber = EquipmentParameterFormatter.Stoi(d.LineTypeGroupNumber, 3),
+                ParentSequenceNumber = EquipmentParameterFormatter.Stoi(d.ParentSequenceNumber, 3),
+                GroupParentNumber = EquipmentParameterFormatter.Stoi(d.GroupParentSequenceNumber, 3),
+                CircuitElement = d.CircuitElement - '0',
+                GroupParallelNumber = EquipmentParameterFormatter.Stoi(d.GroupParallelNumber, 3),
+            };
+            sd[i] = new WorkData
+            {
+                Now = now,
+                New = now.Clone(),
+                Stat = WorkStatus.NoDone,
+            };
+        }
+
+        return sd;
+    }
+
+    /// <summary>
+    /// 処理結果の移送。処理完了(≠nodone)した要素の上流並列追番・並列追番・グループ並列追番を
+    /// 主回路データへ書き戻す。【C原典】<c>SetResults</c>(Fyss3C.c)。
+    /// </summary>
+    public static void SetResults(IReadOnlyList<MainCircuitResult> mains, WorkData[] sd)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(sd);
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            if (sd[i].Stat == WorkStatus.NoDone)
+            {
+                continue;
+            }
+
+            MainCircuitData d = mains[i].Data;
+            d.UpperParallelNumber = FormatFixedWidth(sd[i].New.UpperParallelNumber, 3);
+            d.ParallelNumber = FormatFixedWidth(sd[i].New.ParallelNumber, 3);
+            d.GroupParallelNumber = FormatFixedWidth(sd[i].New.GroupParallelNumber, 3);
+        }
+    }
+
+    /// <summary>
+    /// 行種コード(gyocd)が 'B'/'BO'/'O' のいずれかかを調べる。【C原典】<c>IsMatch_gyocd</c>(Fyss3C.c)。
+    /// </summary>
+    public static bool IsMatchLineTypeCode(MainCircuitResult record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        string g = (record.Data.LineTypeCode ?? string.Empty).PadRight(3)[..3];
+        return g is "B  " or "BO " or "O  ";
+    }
+
+    /// <summary>
+    /// 電気パラメータ[0]の盤種類(epabn)が '1'/'4' かを調べる。【C原典】<c>IsMatch_epabn</c>(Fyss3C.c)。
+    /// </summary>
+    public static bool IsMatchPanelKind(MainCircuitResult record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        char bn = record.Data.ElectricalParameterSlots[0].Bn;
+        return bn is '1' or '4';
+    }
+
+    /// <summary>
+    /// 処理対象(doing)かつ指定階層番号の要素インデックス一覧を得る。【C原典】<c>GetFloorElements</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetFloorElements(WorkData[] sd, int hierarchyNumber)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Doing && sd[i].Now.HierarchyNumber == hierarchyNumber)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 処理対象(doing)かつ指定階層番号・直列追番==1 の要素インデックス一覧を得る。
+    /// 【C原典】<c>GetFloorTopElements</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetFloorTopElements(WorkData[] sd, int hierarchyNumber)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Doing &&
+                sd[i].Now.HierarchyNumber == hierarchyNumber &&
+                sd[i].Now.SeriesNumber == 1)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 指定要素に直列に連なる要素群(上流並列追番・階層番号・並列追番が等しく直列追番≠1)を得る。
+    /// base の直後から連続する範囲で、条件を満たさなくなった時点で打ち切る。
+    /// 【C原典】<c>GetFloorElementsOfSirial</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetFloorElementsOfSeries(WorkData[] sd, int baseIndex)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        WorkData b = sd[baseIndex];
+        for (int i = baseIndex + 1; i < sd.Length; i++)
+        {
+            if (sd[i].Stat != WorkStatus.Doing ||
+                sd[i].Now.UpperParallelNumber != b.Now.UpperParallelNumber ||
+                sd[i].Now.HierarchyNumber != b.Now.HierarchyNumber ||
+                sd[i].Now.ParallelNumber != b.Now.ParallelNumber ||
+                sd[i].Now.SeriesNumber == 1)
+            {
+                break;
+            }
+
+            list.Add(i);
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 処理対象(doing)かつ指定階層番号・回路要素==4(VT)の要素インデックス一覧を得る。
+    /// 【C原典】<c>GetFloorElementsOfVT</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetFloorElementsOfVt(WorkData[] sd, int hierarchyNumber)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Doing &&
+                sd[i].Now.HierarchyNumber == hierarchyNumber &&
+                sd[i].Now.CircuitElement == 4)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 指定要素と同じ階層番号・行種グループ番号を持つ直列追番==1 の計器回路(CT)一覧を得る。
+    /// 【C原典】<c>GetFloorElementsOfCT</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetFloorElementsOfCt(WorkData[] sd, int baseIndex)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        WorkData b = sd[baseIndex];
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Doing &&
+                sd[i].Now.HierarchyNumber == b.Now.HierarchyNumber &&
+                sd[i].Now.LineTypeGroupNumber == b.Now.LineTypeGroupNumber &&
+                sd[i].Now.SeriesNumber == 1)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 指定要素と同じ親データ追番を持つ要素インデックス一覧を得る(ステータス無関係)。
+    /// 【C原典】<c>GetBrothers</c>(Fyss3C.c)。
+    /// </summary>
+    public static List<int> GetBrothers(WorkData[] sd, int index)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        var list = new List<int>();
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Now.ParentSequenceNumber == sd[index].Now.ParentSequenceNumber)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// 処理対象(doing)データの最小階層番号を得る(該当なしは 0x7FFF)。【C原典】<c>GetMinimumKaisono</c>(Fyss3C.c)。
+    /// </summary>
+    public static int GetMinimumHierarchyNumber(WorkData[] sd)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        int r = 0x7FFF;
+        foreach (WorkData w in sd)
+        {
+            if (w.Stat != WorkStatus.Doing)
+            {
+                continue;
+            }
+
+            if (r > w.Now.HierarchyNumber)
+            {
+                r = w.Now.HierarchyNumber;
+            }
+        }
+
+        return r;
+    }
+
+    /// <summary>
+    /// 処理対象(doing)データの最大階層番号を得る(該当なしは -1)。【C原典】<c>GetMaximumKaisono</c>(Fyss3C.c)。
+    /// </summary>
+    public static int GetMaximumHierarchyNumber(WorkData[] sd)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        int r = -1;
+        foreach (WorkData w in sd)
+        {
+            if (w.Stat != WorkStatus.Doing)
+            {
+                continue;
+            }
+
+            if (r < w.Now.HierarchyNumber)
+            {
+                r = w.Now.HierarchyNumber;
+            }
+        }
+
+        return r;
     }
 }
