@@ -1397,5 +1397,135 @@ public static class BranchArraySorter
 
         return 0;
     }
+
+    /// <summary>
+    /// 処理対象マーキング判定。【C原典】<c>CMPS(i,j)</c>マクロ(Fyss3C.c)。行種コード B/BO/O・
+    /// 盤種類 BN 1/4・回路要素 '1'・末端回路行種先頭機器フラグ '1'・グループ親データ追番が i と等しい。
+    /// </summary>
+    private static bool Cmps(WorkData[] sd, IReadOnlyList<MainCircuitResult> mains, int i, int j)
+        => IsMatchLineTypeCode(mains[j])
+            && IsMatchPanelKind(mains[j])
+            && mains[j].Data.CircuitElement == '1'
+            && mains[j].Work.LeadingEquipmentFlag == '1'
+            && sd[i].Now.GroupParentNumber == sd[j].Now.GroupParentNumber;
+
+    /// <summary>
+    /// 分岐配列指定無し時の並べ替え(オーケストレータ本体)。【C原典】<c>Fyss3C_Bunki_Sort</c>(Fyss3C.c)。
+    /// 分岐配列指定有無区分(buhaskbn)が '2' の時のみ処理する。主回路を作業領域へ移送し、末端回路ブレーカ群を
+    /// グループごとに <see cref="SortGroupElements"/> / <see cref="SortUnderGroupElements"/> /
+    /// <see cref="SetGroupAllElements"/> で並べ替え・追番再設定し、<see cref="SetResults"/> で主回路へ書き戻す。
+    /// エラー時(いずれかが負を返す)は書き戻さず終了する(C の goto error 相当)。
+    /// </summary>
+    /// <param name="branchArrayDesignationKind">分岐配列指定有無区分。【C原典】bukken2->com.mei.buhaskbn。</param>
+    public static void SortBranchArray(
+        char branchArrayDesignationKind,
+        IReadOnlyList<MainCircuitResult> mains,
+        IReadOnlyList<ReservedWordMaster> reservedWords,
+        IReadOnlyList<ComponentEquipment> components)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(reservedWords);
+        ArgumentNullException.ThrowIfNull(components);
+
+        // 分岐配列指定有無区分 != '2' ならば処理をしない。
+        if (branchArrayDesignationKind != '2')
+        {
+            return;
+        }
+
+        // 作業領域の初期設定。
+        WorkData[] sd = InitializeWorkArea(mains);
+        int pmainc = sd.Length;
+
+        for (int i = 0; i < pmainc; i++)
+        {
+            // 既に処理済み項目ならばスキップする。
+            if (sd[i].Stat == WorkStatus.Done)
+            {
+                continue;
+            }
+
+            // 処理該当項目に「処理中」のマーキングをする。
+            int j;
+            for (j = i; j < pmainc; j++)
+            {
+                if (Cmps(sd, mains, i, j))
+                {
+                    sd[j].Stat = WorkStatus.Doing;
+                }
+                else if (j == i)
+                {
+                    // i番目が条件を満たさなければ即脱出。
+                    break;
+                }
+            }
+
+            // i番目要素が条件を満たさなければ次の要素へ。
+            if (j == i)
+            {
+                continue;
+            }
+
+            // 同族の親系統リストを得てマーキングする。
+            IReadOnlyList<int>? nolist = DownstreamSelector.SelectDownstream(mains, sd[i].Now.GroupParentNumber);
+            if (nolist is null)
+            {
+                // ゴミデータは無視して排除する。
+                for (int m = 0; m < pmainc; m++)
+                {
+                    if (sd[m].Stat == WorkStatus.Doing)
+                    {
+                        sd[m].Stat = WorkStatus.Done;
+                    }
+                }
+
+                continue;
+            }
+
+            foreach (int no in nolist)
+            {
+                sd[no - 1].Stat = WorkStatus.Doing;
+            }
+
+            // i番目要素グループを並べ替えて並列追番を再設定する。
+            if (SortGroupElements(sd, mains, reservedWords, components, i) < 0)
+            {
+                return;
+            }
+
+            // 下位階層の上流並列追番・並列追番を再設定する。
+            if (SortUnderGroupElements(sd, i) < 0)
+            {
+                return;
+            }
+
+            // グループ並列追番を再設定する。
+            if (SetGroupAllElements(sd) < 0)
+            {
+                return;
+            }
+
+            // 処理を完了した領域にマーキングをする(960919 f.k add)。
+            for (int m = 0; m < i; m++)
+            {
+                if (sd[m].Stat != WorkStatus.NoDone)
+                {
+                    sd[m].Stat = WorkStatus.Done;
+                }
+            }
+
+            for (int m = i; m < pmainc; m++)
+            {
+                if (sd[m].Stat != WorkStatus.NoDone && sd[m].Stat != WorkStatus.Done)
+                {
+                    sd[m].Stat = Cmps(sd, mains, i, m) ? WorkStatus.Done : WorkStatus.SortDone;
+                }
+            }
+        }
+
+        // 後処理: 結果の書き戻し。
+        SetResults(mains, sd);
+    }
 }
+
 

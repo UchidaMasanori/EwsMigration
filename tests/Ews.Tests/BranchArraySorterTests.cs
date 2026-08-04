@@ -733,5 +733,52 @@ public class BranchArraySorterTests
         Assert.Equal(1, sd[2].New.GroupParallelNumber); // 4-4+1(束の先頭)
         Assert.Equal(BranchArraySorter.WorkStatus.Doing, sd[1].Stat); // sorting は doing へ戻る
     }
+
+    // --- 段階28: オーケストレータ本体 ---
+
+    private static MainCircuitResult OrchBreaker(
+        string yoyaku, string datano, string goyano, string gyoglno, string heino)
+    {
+        var r = Node(
+            kaisono: "001", chokuno: "001", heino: heino, oyatno: "000", gyoglno: gyoglno,
+            kiryoso: '1', gyocd: "B", epabn: '1');
+        r.Data.ReservedWord = yoyaku;
+        r.Data.GroupParentSequenceNumber = goyano;
+        r.Data.SystemKind = '1';
+        r.SequenceNumber = datano;
+        r.Work.LeadingEquipmentFlag = '1';
+        return r;
+    }
+
+    [Fact]
+    public void SortBranchArrayは区分が2以外なら何もしない()
+    {
+        var mains = new[] { OrchBreaker("MCB", "001", "001", "001", "005") };
+
+        BranchArraySorter.SortBranchArray(
+            '1', mains, new[] { Rw("MCB", '1') }, System.Array.Empty<ComponentEquipment>());
+
+        Assert.Equal("005", mains[0].Data.ParallelNumber); // 無変更
+    }
+
+    [Fact]
+    public void SortBranchArrayはグループを並べ替えて結果を書き戻す()
+    {
+        // MCB(kikirui'2'→KEY1'2')と MMCB(kikirui'1'→KEY1'1')。KEY1 昇順で MMCB が先。
+        var mains = new[]
+        {
+            OrchBreaker("MCB", "001", "001", "001", "001"),
+            OrchBreaker("MMCB", "002", "001", "002", "002"),
+        };
+
+        BranchArraySorter.SortBranchArray(
+            '2', mains,
+            new[] { Rw("MCB", '2'), Rw("MMCB", '1') },
+            System.Array.Empty<ComponentEquipment>());
+
+        Assert.Equal("002", mains[0].Data.ParallelNumber); // MCB は後(並列追番2)
+        Assert.Equal("001", mains[1].Data.ParallelNumber); // MMCB が先(並列追番1)
+    }
 }
+
 
