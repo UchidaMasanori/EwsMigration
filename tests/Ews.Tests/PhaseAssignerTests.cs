@@ -865,6 +865,90 @@ public sealed class PhaseAssignerTests
         PhaseAssigner.AssignParent1P3WPole3([parent, child], 1, 0, ' ', ref mc, set, n => reported = n);
         Assert.Equal(1, reported);
     }
+
+    // ── AssignParent1P2WPole2 ────────────────────────────────────────────────
+
+    [Fact]
+    public void 親1P2W2_子極1は親相をXYからX等へ変換する()
+    {
+        var parent = Row(datano: "001", yoyaku: "MCB     ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '1');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("X   ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W2_非MC子極2は親の使用相をコピーする()
+    {
+        var parent = Row(datano: "001", yoyaku: "ELB     ", siyouso: "RS  ");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '1', '2', '2');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("RS  ", child.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 親1P2W2_親MC無指定なら親相と回路電圧をコピーして終了する()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XY  ", kpav0: "210", fpalv0: "200");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ", fpalv0: "000");
+        SetKpa(child, '1', '2', '2');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XY  ", child.Data.UsedPhase);
+        Assert.Equal("210", child.Data.CircuitVoltage[0]);
+    }
+
+    [Fact]
+    public void 親1P2W2_親MCで100V機器は使用相を交互設定し回路電圧を105にする()
+    {
+        var parent = Row(datano: "001", yoyaku: "MC      ", siyouso: "XN  ", fpalv0: "000");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ", fpalv0: "100");
+        SetKpa(child, '1', '2', '2');
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set);
+        Assert.Null(err);
+        Assert.Equal("XN  ", child.Data.UsedPhase);
+        Assert.Equal("105", child.Data.CircuitVoltage[0]);
+        Assert.Contains("001", set);
+    }
+
+    [Fact]
+    public void 親1P2W2_LACSLリレー負荷電圧不正でエラーを返す()
+    {
+        var parent = Row(datano: "001", yoyaku: "ELB     ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "RRY     ", siyouso: "    ", fpalv0: "200", ep0P: "001");
+        SetKpa(child, '1', '2', '2');
+        child.Data.DataType[1] = "LA ";
+        var set = new HashSet<string>();
+        var err = PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set);
+        Assert.NotNull(err);
+        Assert.Equal("FY-074E", err!.ErrorCode);
+    }
+
+    [Fact]
+    public void 親1P2W2_想定外の子種別は設計エラーを通知する()
+    {
+        var parent = Row(datano: "001", yoyaku: "MCB     ", siyouso: "XN  ");
+        SetKpa(parent, '1', '2', '2');
+        var child = Row(datano: "002", oyatno: "001", yoyaku: "MCB     ", siyouso: "    ");
+        SetKpa(child, '3', '4', '4'); // 想定外
+        var set = new HashSet<string>();
+        int? reported = null;
+        PhaseAssigner.AssignParent1P2WPole2([parent, child], 1, 0, set, n => reported = n);
+        Assert.Equal(2, reported);
+    }
 }
 
 

@@ -1294,6 +1294,113 @@ public static class PhaseAssigner
         }
     }
 
+    // 1P3W 電源で親が 1P2W 極2 の子機器(childIndex)の使用相をセットする。【C原典】Fyss3D_PH_Kettei 1P3W-親1P2W2 ケース。
+    public static CircuitParseError? AssignParent1P2WPole2(
+        IReadOnlyList<MainCircuitResult> mains, int childIndex, int parentIndex,
+        HashSet<string> processedParents, Action<int>? reportDesignError = null)
+    {
+        MainCircuitData dj = mains[childIndex].Data;
+        MainCircuitData dk = mains[parentIndex].Data;
+
+        if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' &&
+            (dj.CircuitPoleCount == '2' || dj.CircuitPoleCount == '1'))
+        {
+            // 改訂<3><4>: 親 MC で負荷電圧指定無しなら親に合わせて終了。
+            if (Matches(dk.ReservedWord, "MC ", 3))
+            {
+                if (!Matches(dk.AttachedParameter.LoadVoltage[0], "000", 3) &&
+                    Matches(dj.AttachedParameter.LoadVoltage[0], "000", 3))
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4);
+                    dj.CircuitVoltage[0] = Fixed(dk.CircuitVoltage[0], 3);
+                    return null; // 原典 continue
+                }
+            }
+
+            // LACSL リレーの負荷電圧チェック。改訂<15>
+            CircuitParseError? err = CheckLacslRryLoad(dj);
+            if (err is not null)
+            {
+                return err;
+            }
+
+            if (dj.CircuitPoleCount == '2') // 回路極数 = 2
+            {
+                // 改訂<2>: 親が MC/003 で分岐の負荷電圧が 200V のケース。
+                if (Matches(dk.ReservedWord, "MC ", 3) ||
+                    Matches(dk.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    err = CheckUseVolt(dk, dj);
+                    if (err is not null)
+                    {
+                        return err; // 親が 100V のためエラー
+                    }
+
+                    if (Matches(dj.AttachedParameter.LoadVoltage[0], "200", 3))
+                    {
+                        SetParamFor2P200V(dj);
+                    }
+                }
+
+                // 改訂<1>: 親が MC/003 で分岐の負荷電圧が 100V のケース。
+                if (Matches(dk.ReservedWord, "MC ", 3) ||
+                    Matches(dk.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    if (!processedParents.Add(Fixed(dj.ParentSequenceNumber, 3)))
+                    {
+                        return null; // 特殊処理済みならば次のデータへ
+                    }
+
+                    int count = 0;
+                    int[] t = new int[mains.Count];
+                    CountVolt100VDevices(mains, dj.ParentSequenceNumber, dk.ReservedWord, t, ref count);
+                    if (count > 0)
+                    {
+                        SortByParallelNumber(mains, t, count);
+                        SetPhase100VDevices(mains, t, count);
+                        for (int m = 0; m < count; m++)
+                        {
+                            mains[t[m]].Data.CircuitVoltage[0] = "105"; // 回路電圧
+                        }
+                    }
+                    else
+                    {
+                        dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                    }
+                }
+                else
+                {
+                    dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+                }
+            }
+            else // 回路極数 = 1 のケース
+            {
+                if (Matches(dk.UsedPhase, "XN  ", 4))
+                {
+                    dj.UsedPhase = Fixed("X   ", 4);
+                }
+                else if (Matches(dk.UsedPhase, "YN  ", 4))
+                {
+                    dj.UsedPhase = Fixed("Y   ", 4);
+                }
+                else if (Matches(dk.UsedPhase, "XY  ", 4))
+                {
+                    dj.UsedPhase = Fixed("X   ", 4);
+                }
+                else if (Matches(dk.UsedPhase, "YX  ", 4))
+                {
+                    dj.UsedPhase = Fixed("X   ", 4);
+                }
+            }
+        }
+        else
+        {
+            reportDesignError?.Invoke(2); // FyHcErrFunc(ER_SEKKEI, err_func, 2)
+        }
+
+        return null;
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {
