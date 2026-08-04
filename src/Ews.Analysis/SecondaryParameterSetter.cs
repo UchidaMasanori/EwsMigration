@@ -1,3 +1,4 @@
+using System.Globalization;
 using Ews.Domain.Analysis;
 
 namespace Ews.Analysis;
@@ -272,11 +273,12 @@ public static class SecondaryParameterSetter
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
-    ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
+    ///   ・MC の子機エレメント修正 PropMcChildElement(改訂&lt;6&gt;=fp.fpalv 依存)。
     ///   ・記録列参照 WH/VT/TR/TB。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
-    /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)を収録済。
+    /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)・
+    /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -308,9 +310,9 @@ public static class SecondaryParameterSetter
 
             case "MC":
                 // 【C原典】case y_MC。epap(極数)は 2 次側検出(全レコード配列 maina の走査で同一 ysno の
-                //   MC 数を数える等)・SetParam_ep2_epap2P・PropMcChildElement に依存し、単一レコードの
-                //   ディスパッチャでは決定できない。かつ ep[2].epap は最終 FYDF806 で機器選定が実極数に
-                //   上書きするため golden 非検証。C のディスパッチャ末尾で必ず呼ばれる V2/AC/BC のみ設定する。
+                //   MC 数を数える等)・SetParam_ep2_epap2P に依存するため、単一レコード版では決定できない
+                //   (極数決定は list+index 版 SetMc で収録)。かつ ep[2].epap は最終 FYDF806 で機器選定が
+                //   実極数に上書きするため golden 非検証。単一レコード版では必ず呼ばれる V2/AC/BC のみ設定する。
                 SetMcVoltage2(data);
                 SetMcContactA(data);
                 SetMcContactB(data);
@@ -601,7 +603,8 @@ public static class SecondaryParameterSetter
     /// 【C原典】Fyss14.c の SetParam_ep2 ディスパッチャ(maina/index を受ける版)。
     /// 現状で収録するのは DCPW(親の V2 を V1 へ複写+負荷容量から A2 算出)・
     /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)・LGR(ELR に加え K 数決定)・
-    /// PLTR(親/RTR 親の回路電圧から 1 次側電圧 V1 を決定)。
+    /// PLTR(親/RTR 親の回路電圧から 1 次側電圧 V1 を決定)・
+    /// MC(2 次側機器検出・epap2P・同一 ysno の MC 数で極数 epap を決定)。
     /// 他の予約語は単一レコード版へ委譲する。
     /// 戻り値: 設計エラー(LGR の K 数が 0 または 6 以上)なら <see cref="CircuitParseError"/>、正常時 null。
     /// 【C原典】ret==2 → 呼び元が FY-632E を Error_Proc に渡す。
@@ -626,6 +629,10 @@ public static class SecondaryParameterSetter
 
             case "PLTR":
                 SetPltr(maina, index);
+                return null;
+
+            case "MC":
+                SetMc(maina, index);
                 return null;
 
             default:
@@ -837,6 +844,238 @@ public static class SecondaryParameterSetter
 
         // 【C原典】epavckbn=kpakv1kb。
         ep2.VcKbn = data.MeterPrimaryVoltageKind;
+    }
+
+    /// <summary>
+    /// MC(電磁接触器)の ep[2] 極数(epap)を配列走査で決定する。【C原典】case y_MC の極数決定部。
+    /// 行種コードが TM/SM/M 系なら epap2P(2P自動選定)→未設定時 SetMcbPole(系統種別で極数)、
+    /// それ以外は 2 次側機器の有無で分岐する。最後に V2/AC/BC を設定する。
+    /// 【未収録】改訂&lt;6&gt; PropMcChildElement(子機エレメント修正=fp.fpalv 依存)は後続増分。
+    /// </summary>
+    private static void SetMc(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】memcmp(gyocd,"TM "/"SM "/"M  ",3): 行種コードが変圧器系。
+        string gyo = data.LineTypeCode.TrimEnd();
+        if (gyo is "TM" or "SM" or "M")
+        {
+            // 【C原典】極数の2P自動選定。設定されなければ系統種別で極数設定。
+            if (SetEpap2P(maina, index) == 0)
+            {
+                SetMcbPole(data);
+            }
+        }
+        else
+        {
+            SetMcSecondarySideEpap(maina, index);
+        }
+
+        SetMcVoltage2(data);
+        SetMcContactA(data);
+        SetMcContactB(data);
+    }
+
+    /// <summary>
+    /// MC の極数を条件が揃えば 2P("002")に自動選定する。【C原典】SetParam_ep2_epap2P(改訂&lt;17&gt;)。
+    /// 戻り値: 0=2P設定なし / -1=2P設定済み。極数入力済み・タイプが SF/未指定以外・回路相数!='1' なら何もしない。
+    /// 同一系統に TM 行があれば行種 M/SM を、無ければ SM を 2P にする(MC は 3P より 2P の使用頻度が高いため)。
+    /// </summary>
+    private static int SetEpap2P(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData mc = maina[index].Data;
+
+        // 【C原典】極数入力チェック(入力ありなら終了)。
+        if (mc.ElectricalParameterSlots[0].P != "000")
+        {
+            return 0;
+        }
+
+        // 【C原典】タイプ指定無し時 SF 自動選定。SF/空白以外は対象外。
+        string type0 = mc.DataType[0].TrimEnd();
+        if (type0 is not ("SF" or ""))
+        {
+            return 0;
+        }
+
+        // 【C原典】電源相数(1P2W/1P3W)チェック。
+        if (mc.CircuitPhaseCount != '1')
+        {
+            return 0;
+        }
+
+        string kno = mc.SystemNumber;
+
+        // 【C原典】同一系統に TM 行があるか。
+        bool tmAri = false;
+        for (int i = 0; i < maina.Count; i++)
+        {
+            if (maina[i].Data.SystemNumber != kno)
+            {
+                continue;
+            }
+            if (maina[i].Data.LineTypeCode.StartsWith("TM", StringComparison.Ordinal))
+            {
+                tmAri = true;
+                break;
+            }
+        }
+
+        string gyo = mc.LineTypeCode;
+        if (tmAri)
+        {
+            // 【C原典】TM 行あり: 行種 M または SM を 2P。
+            if (gyo.StartsWith("M", StringComparison.Ordinal)
+                || gyo.StartsWith("SM", StringComparison.Ordinal))
+            {
+                mc.ElectricalParameterSlots[2].P = "002";
+                return -1;
+            }
+        }
+        else
+        {
+            // 【C原典】TM 行なし: 行種 SM を 2P。
+            if (gyo.StartsWith("SM", StringComparison.Ordinal))
+            {
+                mc.ElectricalParameterSlots[2].P = "002";
+                return -1;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// MC の 2 次側機器の有無で極数(epap)を決める。【C原典】case y_MC の非変圧器系分岐。
+    /// 自分の追番を親に持つ要素(または同一機器認識番号の兄弟の 2 次側)があれば「2 次側あり」。
+    /// INVBP(tokkbn=='7')は "003" 固定、2 次側なしは同一 ysno の MC 数、
+    /// 2 次側ありは共用時の MC 数集計で極数を決める。
+    /// </summary>
+    private static void SetMcSecondarySideEpap(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        string datano = maina[index].SequenceNumber;
+
+        // 【C原典】2 次側に機器が接続されるか(自分の datano を親に持つ要素があるか)。
+        bool kiki2ari = false;
+        for (int i = 0; i < maina.Count; i++)
+        {
+            if (maina[i].Data.ParentSequenceNumber == datano)
+            {
+                kiki2ari = true;
+                break;
+            }
+        }
+
+        // 【C原典】950519: 2 次側が無くても同一機器認識番号(doukkno)の他機器の 2 次側を調べる。
+        if (!kiki2ari && data.IdentityNumber != "00")
+        {
+            for (int i = 0; i < maina.Count && !kiki2ari; i++)
+            {
+                if (i == index)
+                {
+                    continue;
+                }
+                MainCircuitData m = maina[i].Data;
+                if (m.IdentityNumber == data.IdentityNumber && m.ReservedWord == data.ReservedWord)
+                {
+                    for (int j = 0; j < maina.Count; j++)
+                    {
+                        if (maina[j].Data.ParentSequenceNumber == maina[i].SequenceNumber)
+                        {
+                            kiki2ari = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (data.SpecialReservedWordKind == '7')
+        {
+            // 【C原典】改訂<37> INVBP の M は 3 固定。
+            ep2.P = "003";
+        }
+        else if (!kiki2ari)
+        {
+            // 【C原典】2 次側に機器がない。
+            if (data.DesignationNumber == "00"
+                || data.ElectricalParameterSlots[0].P != "000"
+                || data.DesignationSuffix != ' ')
+            {
+                SetMcbPole(data);
+            }
+            else
+            {
+                int icnt = 0;
+                for (int i = 0; i < maina.Count; i++)
+                {
+                    MainCircuitData m = maina[i].Data;
+                    if (m.ReservedWord != "MC")
+                    {
+                        continue;
+                    }
+                    if (m.DesignationNumber == data.DesignationNumber)
+                    {
+                        icnt++;
+                        if (string.CompareOrdinal(m.CircuitVoltage[0], "105") > 0)
+                        {
+                            icnt++;
+                        }
+                    }
+                }
+                if (icnt > 1)
+                {
+                    ep2.P = icnt.ToString("D3", CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    SetMcbPole(data);
+                }
+            }
+        }
+        else
+        {
+            // 【C原典】2 次側に機器がある。
+            if (data.DesignationSuffix == ' ' && data.DesignationNumber != "00")
+            {
+                // 【C原典】共用する場合: 105 超を 2 極分として集計。
+                int icnt100 = 0;
+                int icnt200 = 0;
+                for (int i = 0; i < maina.Count; i++)
+                {
+                    MainCircuitData m = maina[i].Data;
+                    if (m.ReservedWord != "MC")
+                    {
+                        continue;
+                    }
+                    if (m.DesignationNumber == data.DesignationNumber)
+                    {
+                        if (string.CompareOrdinal(m.CircuitVoltage[0], "105") > 0)
+                        {
+                            icnt200++;
+                        }
+                        else
+                        {
+                            icnt100++;
+                        }
+                    }
+                }
+                int val = icnt100 + icnt200 * 2 <= 3 ? icnt100 + icnt200 * 2 : icnt100 + icnt200;
+                ep2.P = val.ToString("D3", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                // 【C原典】共用しない場合。
+                SetMcPole(data);
+            }
+        }
     }
 
     /// <summary>
