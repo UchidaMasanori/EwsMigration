@@ -270,6 +270,122 @@ public static class LowerParameterGenerator
         }
     }
 
+    /// <summary>
+    /// 計器回路(CT/ZCT)の通電電流値をセットする。回路要素'2'の CT は同一機器認識番号の回路要素'1'CT の
+    /// 通電電流値を、回路要素≠'1'の ZCT は親データ追番の通電電流値を、それぞれ自身と下流の全要素にセットする。
+    /// 【C原典】<c>Fyss3H_Keiki_Iset</c>(toku/sekkei/src/Fyss3H.c, 940719)。下流抽出は
+    /// <see cref="DownstreamSelector.SelectDownstream"/>(=Fyss35_Select_Karyu_Sub)を再利用。
+    /// </summary>
+    /// <param name="mains">主回路エリア(FYRT800 配列相当)。</param>
+    public static void SetMeterCircuitCurrent(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        // 回路要素'2'・予約語'CT' の通電電流値をセットする。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (d.CircuitElement == '2' && Matches(d.ReservedWord, "CT      ", 8))
+            {
+                int no = EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3);
+                int dno = EquipmentParameterFormatter.Stoi(d.IdentityNumber, 2);
+                if (dno != 0)
+                {
+                    SetCtCurrent(mains, no, dno);
+                }
+            }
+        }
+
+        // 回路要素≠'1'・予約語'ZCT' の通電電流値をセットする。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (d.CircuitElement != '1' && Matches(d.ReservedWord, "ZCT     ", 8))
+            {
+                int no = EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3);
+                int oyano = EquipmentParameterFormatter.Stoi(d.ParentSequenceNumber, 3);
+                if (oyano != 0)
+                {
+                    SetZctCurrent(mains, no, oyano);
+                }
+            }
+        }
+    }
+
+    // 【C原典】Fyss3H_Set_Den1(no, dno, num, syu)。同一機器認識番号の回路要素'1'CT の通電電流値を取得しセット。
+    private static void SetCtCurrent(IReadOnlyList<MainCircuitResult> mains, int no, int dno)
+    {
+        string tsuden = "00000000"; // 【C原典】未初期化(UB)。設計上 CT'1' は存在する前提。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            int doukkno = EquipmentParameterFormatter.Stoi(d.IdentityNumber, 2);
+            if (dno != doukkno || doukkno == 0)
+            {
+                continue;
+            }
+
+            if (d.CircuitElement == '1' && Matches(d.ReservedWord, "CT      ", 8))
+            {
+                tsuden = Fix8(d.EnergizingCurrent);
+                break;
+            }
+        }
+
+        SetCurrentByDataNumber(mains, no, tsuden);
+        SetDownstreamCurrent(mains, tsuden, no);
+    }
+
+    // 【C原典】Fyss3H_Set_Den2(no, oya, num, syu)。親データ追番の通電電流値を取得しセット。
+    private static void SetZctCurrent(IReadOnlyList<MainCircuitResult> mains, int no, int oya)
+    {
+        string tsuden = "00000000"; // 【C原典】未初期化(UB)。設計上親要素は存在する前提。
+        for (int i = 0; i < mains.Count; i++)
+        {
+            if (oya != EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3))
+            {
+                continue;
+            }
+
+            tsuden = Fix8(mains[i].Data.EnergizingCurrent);
+            break;
+        }
+
+        SetCurrentByDataNumber(mains, no, tsuden);
+        SetDownstreamCurrent(mains, tsuden, no);
+    }
+
+    // 【C原典】Fyss3H_Set_Karu(tu, no, num, syu)。指定データ追番の下流全要素に通電電流値をセット。
+    private static void SetDownstreamCurrent(IReadOnlyList<MainCircuitResult> mains, string tsuden, int no)
+    {
+        IReadOnlyList<int>? downstream = DownstreamSelector.SelectDownstream(mains, no);
+        if (downstream is null)
+        {
+            return;
+        }
+
+        foreach (int kdatano in downstream)
+        {
+            SetCurrentByDataNumber(mains, kdatano, tsuden);
+        }
+    }
+
+    // データ追番 no に一致する最初の要素の通電電流値に tsuden をセットする。
+    private static void SetCurrentByDataNumber(IReadOnlyList<MainCircuitResult> mains, int no, string tsuden)
+    {
+        for (int i = 0; i < mains.Count; i++)
+        {
+            if (EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3) == no)
+            {
+                mains[i].Data.EnergizingCurrent = tsuden;
+                break;
+            }
+        }
+    }
+
+    // memcpy(dest, denryu, 8) 相当。通電電流値の先頭 8 桁を取り出す。
+    private static string Fix8(string s) => (s ?? string.Empty).PadRight(8)[..8];
+
     // 積算エリア(6 スロット)の全機器種別値をクリアする。【C原典】sk_area[m].?_area = 0.0。
     private static void ClearAccumulation(MainCircuitResult record)
     {

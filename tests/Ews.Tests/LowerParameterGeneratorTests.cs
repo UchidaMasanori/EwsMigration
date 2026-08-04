@@ -230,4 +230,57 @@ public sealed class LowerParameterGeneratorTests
         Assert.Equal(5.0, mate.Work.AccumulationSlots[0].A);
         Assert.Equal(0.0, mcdt.Work.AccumulationSlots[0].A);
     }
+
+    [Fact]
+    public void CT回路要素2は同一機器認識番号のCT回路要素1の通電電流値を自身にセットする()
+    {
+        var ct1 = Row("001", yoyaku: "CT      ", oyatno: "000", kiryoso: '1',
+            doukkno: "05", denryu: "00012.00");
+        var ct2 = Row("002", yoyaku: "CT      ", oyatno: "000", kiryoso: '2',
+            doukkno: "05", denryu: "00000000");
+        LowerParameterGenerator.SetMeterCircuitCurrent([ct1, ct2]);
+        Assert.Equal("00012.00", ct2.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void CT回路要素2の下流要素にも通電電流値がセットされる()
+    {
+        var ct1 = Row("001", yoyaku: "CT      ", oyatno: "000", kiryoso: '1',
+            doukkno: "05", denryu: "00012.00");
+        var ct2 = Row("002", yoyaku: "CT      ", oyatno: "000", kiryoso: '2',
+            doukkno: "05", denryu: "00000000");
+        var child = Row("003", yoyaku: "LOAD    ", oyatno: "002", kiryoso: '1',
+            denryu: "00000000");
+        LowerParameterGenerator.SetMeterCircuitCurrent([ct1, ct2, child]);
+        Assert.Equal("00012.00", child.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void ZCT回路要素2は親データ追番の通電電流値を自身にセットする()
+    {
+        var parent = Row("001", yoyaku: "MCB     ", oyatno: "000", kiryoso: '1',
+            denryu: "00020.00");
+        var zct = Row("002", yoyaku: "ZCT     ", oyatno: "001", kiryoso: '2',
+            denryu: "00000000");
+        LowerParameterGenerator.SetMeterCircuitCurrent([parent, zct]);
+        Assert.Equal("00020.00", zct.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 同一機器認識番号が0のCT回路要素2は対象外()
+    {
+        var ct2 = Row("001", yoyaku: "CT      ", oyatno: "000", kiryoso: '2',
+            doukkno: "00", denryu: "00000000");
+        LowerParameterGenerator.SetMeterCircuitCurrent([ct2]);
+        Assert.Equal("00000000", ct2.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void ZCTの親データ追番が0は対象外()
+    {
+        var zct = Row("001", yoyaku: "ZCT     ", oyatno: "000", kiryoso: '2',
+            denryu: "00000000");
+        LowerParameterGenerator.SetMeterCircuitCurrent([zct]);
+        Assert.Equal("00000000", zct.Data.EnergizingCurrent);
+    }
 }

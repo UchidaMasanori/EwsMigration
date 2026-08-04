@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1533 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1538 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -340,6 +340,13 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 
 - **`LowerParameterGenerator.Process21McdtCsdt(mains)`**(=Fyss3I_21_MCDT_CSDT, 950428): 回路要素'1'・予約語MCDT/CSDT・末端区分!='1'・切換タイプ'2'(2-1型)を走査し `TerminalCurrentIntegrator.IntegrateCurrent`(=Fyss37_I_Set_Sub)で通電電流を積算。全件走査し同一機器認識番号(IdentityNumber)一致の相手へ 通電電流値(EnergizingCurrent)・機器選定区分(Work.EquipmentSelectionKind)・積算エリア をコピーし、負荷発生元(LoadSourceKind='1')をセット。機器選定区分が異なるときは親データ追番(oyatno)を轿って no1 の区分を伝播(while(1)で親を登り、oyatno=="000"で打切り)。最後に対象要素の積算エリアをクリア・通電電流="00000.00"。新規 private `CopyAccumulation`(積算エリアコピー)。
 - **テスト**: `LowerParameterGeneratorTests.cs` +6件(相手へ電流コピーし対象クリア・CSDT同様・末端区分1対象外・切換タイプ2以外対象外・機器選定区分相違で親追番伝播・積算エリアコピーと対象クリア)。テストは 1527 → **1533**（+6）。次はFyss15呼出順の残り(Fyss3H_Keiki_Iset/Pre_CT_Make/Mainfile_CT_Make等)。
+
+### 段階18: Fyss3H_Keiki_Iset 移植(計器回路の通電電流値セット)
+
+`Fyss15_Make_LowerParm` が呼ぶ計器回路(CT/ZCT)の通電電流値セットを `LowerParameterGenerator` に追加。
+
+- **`LowerParameterGenerator.SetMeterCircuitCurrent(mains)`**(=Fyss3H_Keiki_Iset, 940719): (1)回路要素'2'・予約語'CT'を走査し同一機器認識番号(dno≠01)の回路要素'1'CT の通電電流値を SetCtCurrent(=Set_Den1)で取得し自身と下流へセット。(2)回路要素≠'1'・予約語'ZCT'を走査し親データ追番(oyano≠0)の通電電流値を SetZctCurrent(=Set_Den2)で取得し自身と下流へセット。下流抽出=SetDownstreamCurrent(=Set_Karu, DownstreamSelector.SelectDownstreamを再利用、nullはreturn)。private SetCurrentByDataNumber/Fix8 ヘルパ。C原典の tsuden 未初期化(UB)は "00000000" で初期化し設計上対象存在前提をコメント明記。
+- **テスト**: `LowerParameterGeneratorTests.cs` +5件(CT回路要素2は同一機器認識番号CT1の電流を自身に・CT下流にもセット・ZCTは親の電流を自身に・同一機器認識番号0は対象外・ZCT親追番0は対象外)。テストは 1533 → **1538**（+5）。次はFyss15呼出順の残り(Pre_CT_Make/Mainfile_CT_Make/Fyss3C_Bunki_Sort等)。
 
 
 
