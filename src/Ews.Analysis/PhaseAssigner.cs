@@ -1078,6 +1078,90 @@ public static class PhaseAssigner
                StrncmpAix(SeriesKey(oya), SeriesKey(d), 15) == -1;
     }
 
+    // 使用相未設定の WH/CT を同一機器認識番号(doukkno)の設定済み機器の使用相で埋める。【C原典】Fyss3D_PH_Kettei 941227 ループ。
+    public static void CopyMeterPhaseByIdentity(IReadOnlyList<MainCircuitResult> mains)
+    {
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData di = mains[i].Data;
+            if (!Matches(di.UsedPhase, "    ", 4))
+            {
+                continue; // 使用相が設定済みなら対象外
+            }
+
+            if (!Matches(di.ReservedWord, "WH      ", 8) && !Matches(di.ReservedWord, "CT      ", 8))
+            {
+                continue;
+            }
+
+            if (Matches(di.IdentityNumber, "00", 2))
+            {
+                continue; // 同一機器認識番号なし
+            }
+
+            for (int j = 0; j < mains.Count; j++)
+            {
+                if (i == j)
+                {
+                    continue;
+                }
+
+                MainCircuitData dj = mains[j].Data;
+                if (Matches(di.IdentityNumber, dj.IdentityNumber, 2) && !Matches(dj.UsedPhase, "    ", 4))
+                {
+                    di.UsedPhase = Fixed(dj.UsedPhase, 4);
+                }
+            }
+        }
+    }
+
+    // RRY/RMCB の 2 極を 1 極へ変更し(下流も追随)、AM(電流計)の使用相を整える。【C原典】Fyss3D_PH_Kettei RRY/AM ループ。
+    public static void ReducePhaseForRelayAndAmmeter(IReadOnlyList<MainCircuitResult> mains)
+    {
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData di = mains[i].Data;
+            if (Matches(di.ReservedWord, "RRY     ", 8) || Matches(di.ReservedWord, "RMCB    ", 8))
+            {
+                if (!Matches(di.ElectricalParameterSlots[0].P, "001", 3) &&
+                    !(Matches(di.ElectricalParameterSlots[0].P, "000", 3) &&
+                      Matches(di.ElectricalParameterSlots[2].P, "001", 3)))
+                {
+                    continue;
+                }
+
+                // RRY のコンパクトタイプ(CT)/LACSLタイプ(LA)は極数変更なし。【改訂15】
+                if (Matches(di.ReservedWord, "RRY ", 4) &&
+                    (Matches(di.DataType[1], "CT ", 3) || Matches(di.DataType[1], "LA ", 3)))
+                {
+                    continue;
+                }
+
+                if (Convert2PhaseTo1Phase(di) == 0)
+                {
+                    continue; // 2極→1極変換対象外なら下流も処理しない
+                }
+
+                IReadOnlyList<int>? downstream = DownstreamSelector.SelectDownstream(mains, i + 1);
+                if (downstream is not null)
+                {
+                    foreach (int datano in downstream)
+                    {
+                        int k = datano - 1;
+                        if (k >= 0 && k < mains.Count)
+                        {
+                            Convert2PhaseTo1Phase(mains[k].Data);
+                        }
+                    }
+                }
+            }
+            else if (Matches(di.ReservedWord, "AM      ", 8) && di.CircuitElement == '1')
+            {
+                di.UsedPhase = Matches(di.UsedPhase, "RST ", 4) ? Fixed("S   ", 4) : ClearPhaseFrom(di.UsedPhase, 1);
+            }
+        }
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {

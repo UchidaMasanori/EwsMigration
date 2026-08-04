@@ -605,3 +605,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropGetF800Index33,PhaseAssigner.CollectF800Index33,toku/sekkei/src/Fyss3D.c,同一親追番の機器index収集(t/ta/tb/tf)に加え極数3P機器数Count3Pを計上(改訂29)
 関数,PropChgSiyousou,PhaseAssigner.ChangeSiyousouFor3P4W,toku/sekkei/src/Fyss3D.c,3P4Wと繋がる1相3線電源の使用相XNYをRNSに変更。後続に同一行種番号の電源があればパス・同系統の下流機器もX→R/Y→Sへ変換(改訂32)
 関数,PropConnect3P4W,PhaseAssigner.IsConnectedTo3P4W,toku/sekkei/src/Fyss3D.c,1相3線電源が同一行種番号の3相4線電源と繋がっているか判定(0:無し/1:有り)。行種番号0は連携無し(改訂32)
+処理ブロック,Fyss3D_PH_Kettei WH/CTループ,PhaseAssigner.CopyMeterPhaseByIdentity,toku/sekkei/src/Fyss3D.c,使用相未設定のWH/CTを同一機器認識番号doukknoの設定済み機器の使用相でコピーする(941227)
+処理ブロック,Fyss3D_PH_Kettei RRY/AMループ,PhaseAssigner.ReducePhaseForRelayAndAmmeter,toku/sekkei/src/Fyss3D.c,RRY/RMCBの2極を1極へ変更し下流も追随(RRYのCT/LAは対象外・改訂15)。AM電流計はRST→S・他はN相以降クリア

@@ -680,5 +680,64 @@ public sealed class PhaseAssignerTests
         PhaseAssigner.ChangeSiyousouFor3P4W(mains);
         Assert.Equal("XNY ", mains[0].Data.UsedPhase);
     }
+
+    // ── CopyMeterPhaseByIdentity ──────────────────────────────────────────────
+
+    [Fact]
+    public void 計器同一認識番号_設定済み機器の使用相をコピーする()
+    {
+        var wh = Row(yoyaku: "WH      ", siyouso: "    ");
+        wh.Data.IdentityNumber = "01";
+        var mate = Row(yoyaku: "MCB     ", siyouso: "XN  ");
+        mate.Data.IdentityNumber = "01";
+        PhaseAssigner.CopyMeterPhaseByIdentity([wh, mate]);
+        Assert.Equal("XN  ", wh.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 計器同一認識番号_認識番号00は対象外()
+    {
+        var wh = Row(yoyaku: "WH      ", siyouso: "    ");
+        wh.Data.IdentityNumber = "00";
+        var mate = Row(yoyaku: "MCB     ", siyouso: "XN  ");
+        mate.Data.IdentityNumber = "00";
+        PhaseAssigner.CopyMeterPhaseByIdentity([wh, mate]);
+        Assert.Equal("    ", wh.Data.UsedPhase);
+    }
+
+    // ── ReducePhaseForRelayAndAmmeter ─────────────────────────────────────────
+
+    [Fact]
+    public void リレー極数変更_RRYと下流を2極から1極へ変更する()
+    {
+        var rry = Row(datano: "001", yoyaku: "RRY     ", oyatno: "000", siyouso: "XN  ", ep0P: "001");
+        rry.Data.SystemKind = '1';
+        var karyu = Row(datano: "002", yoyaku: "TB      ", oyatno: "001", siyouso: "YN  ");
+        PhaseAssigner.ReducePhaseForRelayAndAmmeter([rry, karyu]);
+        Assert.Equal("X   ", rry.Data.UsedPhase);
+        Assert.Equal("Y   ", karyu.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void リレー極数変更_RRYコンパクトタイプは変更しない()
+    {
+        var rry = Row(yoyaku: "RRY     ", siyouso: "XN  ", ep0P: "001");
+        rry.Data.DataType[1] = "CT ";
+        PhaseAssigner.ReducePhaseForRelayAndAmmeter([rry]);
+        Assert.Equal("XN  ", rry.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 電流計_RSTはSへ他はN相以降をクリアする()
+    {
+        var am1 = Row(yoyaku: "AM      ", siyouso: "RST ");
+        am1.Data.CircuitElement = '1';
+        var am2 = Row(yoyaku: "AM      ", siyouso: "XNY ");
+        am2.Data.CircuitElement = '1';
+        PhaseAssigner.ReducePhaseForRelayAndAmmeter([am1, am2]);
+        Assert.Equal("S   ", am1.Data.UsedPhase);
+        Assert.Equal("X   ", am2.Data.UsedPhase);
+    }
 }
+
 

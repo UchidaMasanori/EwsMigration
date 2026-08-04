@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1463 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1468 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -254,6 +254,14 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`IsConnectedTo3P4W`**(=PropConnect3P4W): 1P3W電源が同一行種番号の3P4W電源(gyocd"P "&kpaph'3'&kpawr'4')と繋がるか判定(0:無/1:有)。行種番号 Stoi==0 は連携無し。
 - **フィールド**: gyono→`LineTypeNumber`(2ch)・gyocd→`LineTypeCode`(3ch)・kno→`SystemNumber`(3ch)。
 - **テスト**: `PhaseAssignerTests.cs` +4件(PowerRowヘルパ追加)。テストは 1459 → **1463**（+4）。★★Fyss3D残りは統括本体 Fyss3D_PH_Kettei(~1000行) のみ。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(6) 統括本体末尾2ループ）
+
+`Fyss3D_PH_Kettei` のメインP別相割付ループ直後の末尾2ループを `PhaseAssigner` へ移植。
+
+- **`CopyMeterPhaseByIdentity`**: 使用相未設定("    ")の WH/CT で同一機器認識番号(doukkno≠"00")の設定済み機器の使用相をコピー(memcpy4)。
+- **`ReducePhaseForRelayAndAmmeter`**: RRY/RMCBで ep0.P="001" または (ep0.P="000"&ep2.P="001") のとき 2極→1極変換(Convert2PhaseTo1Phase)し、変換されたら下流(DownstreamSelector.SelectDownstream=Fyss35_Select_Karyu_Sub)も変換。RRYのCT/LAタイプは対象外(改訂15)。AM(電流計,kiryoso'1')はRST→S・他はClearPhaseFrom(_,1)でN相以降クリア。★下流indexは datano-1(原典UB)に範囲ガード付。
+- **テスト**: `PhaseAssignerTests.cs` +5件。テストは 1463 → **1468**（+5）。★★Fyss3D残りは Fyss3D_PH_Kettei のメインP別相割付ループ(~700行) のみ。
 
 
 
