@@ -957,4 +957,189 @@ public sealed class SecondaryParameterSetterTests
         Assert.Null(error);
         Assert.Equal("00020000", pltr.ElectricalParameterSlots[2].V1[0]); // 祖父 kv0=210>105
     }
+
+    // ---- SetParam_ep2 MC (list+index) ---------------------------------------
+
+    private static MainCircuitData Mc(string ysno, string kv0)
+    {
+        MainCircuitData mc = NewData();
+        mc.ReservedWord = "MC";
+        mc.DesignationNumber = ysno;
+        mc.IdentityNumber = "00"; // 同一機器認識番号の 2 次側探索をスキップ
+        mc.CircuitVoltage = [kv0, "000", "000"];
+        return mc;
+    }
+
+    [Fact]
+    public void SetParam_ep2_MCはINVBPなら極数003固定()
+    {
+        MainCircuitData mc = Mc("01", "210");
+        mc.SpecialReservedWordKind = '7';
+
+        MainCircuitResult[] maina = [Res("001", mc)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("003", mc.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void SetParam_ep2_MCは2次側なしで同一ysnoのMC数から極数を決める()
+    {
+        MainCircuitData mc1 = Mc("01", "100");
+        MainCircuitData mc2 = Mc("01", "100");
+
+        MainCircuitResult[] maina = [Res("001", mc1), Res("002", mc2)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("002", mc1.ElectricalParameterSlots[2].P); // icnt=2
+    }
+
+    [Fact]
+    public void SetParam_ep2_MCは2次側あり共用時にMC数集計で極数を決める()
+    {
+        MainCircuitData mc1 = Mc("01", "100");
+        MainCircuitData child = NewData();
+        child.ReservedWord = "MCB";
+        child.ParentSequenceNumber = "001";
+        MainCircuitData mc2 = Mc("01", "200");
+
+        MainCircuitResult[] maina = [Res("001", mc1), Res("002", child), Res("003", mc2)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("003", mc1.ElectricalParameterSlots[2].P); // icnt100=1+icnt200*2=2 → 3
+    }
+
+    [Fact]
+    public void SetParam_ep2_MCは2次側あり非共用ならMC極数を設定する()
+    {
+        MainCircuitData mc = Mc("01", "100");
+        mc.DesignationSuffix = 'A'; // 共用しない
+        MainCircuitData child = NewData();
+        child.ReservedWord = "MCB";
+        child.ParentSequenceNumber = "001";
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", child)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("001", mc.ElectricalParameterSlots[2].P); // SetMcPole 100<=105 → '1'
+    }
+
+    [Fact]
+    public void SetParam_ep2_MCはTM行ありのM系で極数を2Pにする()
+    {
+        MainCircuitData tm = NewData();
+        tm.ReservedWord = "MCB";
+        tm.LineTypeCode = "TM";
+        tm.SystemNumber = "001";
+
+        MainCircuitData mc = NewData();
+        mc.ReservedWord = "MC";
+        mc.LineTypeCode = "M";
+        mc.SystemNumber = "001";
+        mc.CircuitPhaseCount = '1';
+        mc.DataType[0] = "SF";
+
+        MainCircuitResult[] maina = [Res("001", tm), Res("002", mc)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Null(error);
+        Assert.Equal("002", mc.ElectricalParameterSlots[2].P); // epap2P で 2P
+    }
+
+    // ---- PropMcChildElement (改訂<6>/<8>/<9>/<10>) ---------------------------
+
+    private static MainCircuitData McParent(string kv0, char pole)
+    {
+        MainCircuitData mc = NewData();
+        mc.ReservedWord = "MC";
+        mc.LineTypeCode = "M"; // TM/SM/M 系 → PropMcChildElement 経由
+        mc.CircuitVoltage = [kv0, "000", "000"];
+        mc.CircuitPoleCount = pole;
+        return mc;
+    }
+
+    private static MainCircuitData Child(string yoyaku, string fpalv0)
+    {
+        MainCircuitData c = NewData();
+        c.ReservedWord = yoyaku;
+        c.ParentSequenceNumber = "001";
+        c.AttachedParameter.LoadVoltage[0] = fpalv0;
+        return c;
+    }
+
+    [Fact]
+    public void PropMcChildElementは負荷電圧200の子機をエレメント2にする()
+    {
+        MainCircuitData mc = McParent("210", '2');
+        MainCircuitData sb = Child("SB", "200");
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", sb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal("2", sb.ElectricalParameterSlots[2].E);
+    }
+
+    [Fact]
+    public void PropMcChildElementは負荷電圧100の子機をエレメント1にする()
+    {
+        MainCircuitData mc = McParent("210", '2');
+        MainCircuitData mcb = Child("MCB", "100");
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", mcb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal("1", mcb.ElectricalParameterSlots[2].E);
+    }
+
+    [Fact]
+    public void PropMcChildElementは負荷電圧なしで親210かつ非3Pならエレメント2にする()
+    {
+        MainCircuitData mc = McParent("210", '2'); // ep[2].P="002"(非003)
+        MainCircuitData elb = Child("ELB", "000");
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", elb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal("2", elb.ElectricalParameterSlots[2].E);
+    }
+
+    [Fact]
+    public void PropMcChildElementは負荷電圧なしで親3Pならエレメント1にする()
+    {
+        MainCircuitData mc = McParent("105", '3'); // ep[2].P="003"
+        MainCircuitData sb = Child("SB", "000");
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", sb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal("1", sb.ElectricalParameterSlots[2].E);
+    }
+
+    [Fact]
+    public void PropMcChildElementは子機が3Pなら線式と極数を3にする()
+    {
+        MainCircuitData mc = McParent("210", '2');
+        MainCircuitData mcb = Child("MCB", "");
+        mcb.ElectricalParameterSlots[0].P = "003"; // 子機3P
+
+        MainCircuitResult[] maina = [Res("001", mc), Res("002", mcb)];
+
+        SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Equal('3', mcb.CircuitWireType);
+        Assert.Equal('3', mcb.CircuitPoleCount);
+    }
 }

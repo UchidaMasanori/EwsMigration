@@ -273,12 +273,11 @@ public static class SecondaryParameterSetter
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
-    ///   ・MC の子機エレメント修正 PropMcChildElement(改訂&lt;6&gt;=fp.fpalv 依存)。
     ///   ・記録列参照 WH/VT/TR/TB。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
     /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)・
-    /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap)を収録済。
+    /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap/子機エレメント修正)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -848,9 +847,9 @@ public static class SecondaryParameterSetter
 
     /// <summary>
     /// MC(電磁接触器)の ep[2] 極数(epap)を配列走査で決定する。【C原典】case y_MC の極数決定部。
-    /// 行種コードが TM/SM/M 系なら epap2P(2P自動選定)→未設定時 SetMcbPole(系統種別で極数)、
-    /// それ以外は 2 次側機器の有無で分岐する。最後に V2/AC/BC を設定する。
-    /// 【未収録】改訂&lt;6&gt; PropMcChildElement(子機エレメント修正=fp.fpalv 依存)は後続増分。
+    /// 行種コードが TM/SM/M 系なら epap2P(2P自動選定)→未設定時 SetMcbPole(系統種別で極数)→
+    /// 子機エレメント修正 PropMcChildElement、それ以外は 2 次側機器の有無で分岐する。
+    /// 最後に V2/AC/BC を設定する。
     /// </summary>
     private static void SetMc(IReadOnlyList<MainCircuitResult> maina, int index)
     {
@@ -870,6 +869,9 @@ public static class SecondaryParameterSetter
             {
                 SetMcbPole(data);
             }
+
+            // 【C原典】改訂<6> MCの子機のエレメント数修正。
+            PropMcChildElement(maina, index);
         }
         else
         {
@@ -948,6 +950,68 @@ public static class SecondaryParameterSetter
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// MC の子機(SB/MCB/ELB)のエレメント数(ep[2].E)を負荷電圧(fpalv[0])で修正する。
+    /// 【C原典】PropMcChildElement(改訂&lt;6&gt;/&lt;8&gt;/&lt;9&gt;/&lt;10&gt;/&lt;16&gt;)。
+    /// 負荷電圧 200→'2'、100→'1'、000(指定なし)→親の回路電圧/極数で判定(210かつ非3P→'2'、105または3P→'1')。
+    /// また改訂&lt;10&gt;で子機が 3P(ep[0].P=="003")の場合は N 相素通しとして線式・極数を '3' にする。
+    /// </summary>
+    private static void PropMcChildElement(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData oya = maina[index].Data;
+        string oyaDatano = maina[index].SequenceNumber;
+
+        for (int i = 0; i < maina.Count; i++)
+        {
+            MainCircuitData child = maina[i].Data;
+
+            // 【C原典】親の追番 == 子の親追番。
+            if (child.ParentSequenceNumber != oyaDatano)
+            {
+                continue;
+            }
+
+            // 【C原典】改訂<16> SB/MCB/ELB を対象。
+            if (child.ReservedWord is "SB" or "MCB" or "ELB")
+            {
+                string fpalv0 = child.AttachedParameter.LoadVoltage[0];
+                ElectricalParameters cep2 = child.ElectricalParameterSlots[2];
+
+                if (fpalv0.StartsWith("200", StringComparison.Ordinal))
+                {
+                    cep2.E = "2";
+                }
+                else if (fpalv0.StartsWith("100", StringComparison.Ordinal))
+                {
+                    // 【C原典】改訂<8>。
+                    cep2.E = "1";
+                }
+                else if (fpalv0.StartsWith("000", StringComparison.Ordinal))
+                {
+                    // 【C原典】改訂<8>/<9> 負荷電圧指定なし: 親の回路電圧/極数で判定。
+                    if (oya.CircuitVoltage[0].StartsWith("210", StringComparison.Ordinal)
+                        && !oya.ElectricalParameterSlots[2].P.StartsWith("003", StringComparison.Ordinal))
+                    {
+                        cep2.E = "2";
+                    }
+                    else if (oya.CircuitVoltage[0].StartsWith("105", StringComparison.Ordinal)
+                        || oya.ElectricalParameterSlots[2].P.StartsWith("003", StringComparison.Ordinal))
+                    {
+                        // 【C原典】改訂<9> 電圧指定が無い時の MC3P 時は 1E 選定。
+                        cep2.E = "1";
+                    }
+                }
+            }
+
+            // 【C原典】改訂<10> MC の子機が3P(ep[0].P=="003")の時は N 相素通し。
+            if (child.ElectricalParameterSlots[0].P.StartsWith("003", StringComparison.Ordinal))
+            {
+                child.CircuitWireType = '3';
+                child.CircuitPoleCount = '3';
+            }
+        }
     }
 
     /// <summary>
