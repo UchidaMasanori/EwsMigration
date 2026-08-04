@@ -1204,6 +1204,96 @@ public static class PhaseAssigner
         return null;
     }
 
+    // 1P3W 電源で親が 1P3W 極3 の子機器(childIndex)の使用相をセットする。【C原典】Fyss3D_PH_Kettei 1P3W-親1P3W3 ケース。
+    public static void AssignParent1P3WPole3(
+        IReadOnlyList<MainCircuitResult> mains, int childIndex, int parentIndex,
+        char hycpskbn, ref int mcCount, HashSet<string> processedParents,
+        Action<int>? reportDesignError = null)
+    {
+        MainCircuitData dj = mains[childIndex].Data;
+        MainCircuitData dk = mains[parentIndex].Data;
+
+        if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '3' && dj.CircuitPoleCount == '3')
+        {
+            // MC,TB のケースは MC の相を TB にセットしない(SetPhaseMc2P でセット)。改訂<20><21>
+            if (Matches(dk.ReservedWord, "MC ", 3) && Matches(dj.ReservedWord, "TB ", 3) &&
+                !Matches(dj.UsedPhase, "   ", 3))
+            {
+                // なにもしない
+            }
+            else
+            {
+                dj.UsedPhase = Fixed(dk.UsedPhase, 4); // 親の使用相をセット
+            }
+
+            if (childIndex + 1 < mains.Count) // 原典 j+1 参照の範囲ガード
+            {
+                SetPhaseMc2P(mains[childIndex], mains[childIndex + 1]); // 改訂<20>
+                SetPhaseMc3P(mains[childIndex], mains[childIndex + 1], ref mcCount); // 改訂<16>
+            }
+        }
+        else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '2')
+        {
+            dj.UsedPhase = Fixed("XY  ", 4);
+        }
+        else if (dj.CircuitPhaseCount == '1' && dj.CircuitWireType == '2' && dj.CircuitPoleCount == '1')
+        {
+            if (!processedParents.Add(Fixed(dj.ParentSequenceNumber, 3)))
+            {
+                return; // 特殊処理済みならば次のデータへ
+            }
+
+            F800IndexResult r = CollectF800Index(mains, dj.ParentSequenceNumber, hycpskbn, '1', '2', '1');
+            int[] t = [.. r.T];
+            int[] ta = [.. r.Ta];
+            int[] tb = [.. r.Tb];
+            int[] tf = [.. r.Tf];
+            int count = t.Length;
+            int countf = tf.Length;
+
+            if (count <= 2)
+            {
+                SortByParallelNumber(mains, t, count);
+                for (int m = 0; m < count; m++)
+                {
+                    MainCircuitData dm = mains[t[m]].Data;
+                    dm.UsedPhase = m % 2 == 0 ? Fixed("XN  ", 4) : Fixed("YN  ", 4);
+
+                    // ヒューズの直後が WL のケースは XN 固定。改訂<10>
+                    if (Matches(dm.ReservedWord, "F       ", 8) &&
+                        t[m] + 1 < mains.Count && // 原典 1+t[m] 参照の範囲ガード
+                        Matches(mains[t[m] + 1].Data.ReservedWord, "WL      ", 8))
+                    {
+                        dm.UsedPhase = Fixed("XN  ", 4);
+                    }
+
+                    SetPhaseMc(dm); // 改訂<3>
+                }
+
+                // ヒューズ有りの場合、分岐・送り機器を追い番順に相設定。改訂<11>
+                if (countf > 0)
+                {
+                    SortByParallelNumber(mains, ta, ta.Length);
+                    SetPhase100VDevices(mains, ta, ta.Length);
+                }
+            }
+            else
+            {
+                SortByParallelNumber(mains, ta, ta.Length); // 分岐・送り機器(A Group)
+                SetPhase100VDevices(mains, ta, ta.Length);
+                SortByParallelNumber(mains, tb, tb.Length); // 分岐・送り機器以外(B Group)
+                SetPhase100VDevices(mains, tb, tb.Length);
+            }
+
+            SortByParallelNumber(mains, tf, countf); // ヒューズ機器。改訂<11>
+            SetPhase100VDevices(mains, tf, countf);
+        }
+        else
+        {
+            reportDesignError?.Invoke(1); // FyHcErrFunc(ER_SEKKEI, err_func, 1)
+        }
+    }
+
     // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
     public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
     {

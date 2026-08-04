@@ -608,3 +608,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 処理ブロック,Fyss3D_PH_Kettei WH/CTループ,PhaseAssigner.CopyMeterPhaseByIdentity,toku/sekkei/src/Fyss3D.c,使用相未設定のWH/CTを同一機器認識番号doukknoの設定済み機器の使用相でコピーする(941227)
 処理ブロック,Fyss3D_PH_Kettei RRY/AMループ,PhaseAssigner.ReducePhaseForRelayAndAmmeter,toku/sekkei/src/Fyss3D.c,RRY/RMCBの2極を1極へ変更し下流も追随(RRYのCT/LAは対象外・改訂15)。AM電流計はRST→S・他はN相以降クリア処理ブロック,Fyss3D_PH_Kettei DC/1P2W-2ケース,PhaseAssigner.AssignPhaseDcOr1P2WPole2,toku/sekkei/src/Fyss3D.c,電源がDCまたは1相2線極数2のときPと同系統番号の下流の使用相をXYにセット
 処理ブロック,Fyss3D_PH_Kettei 1P2W-1ケース,PhaseAssigner.AssignPhase1P2WPole1,toku/sekkei/src/Fyss3D.c,電源が1相2線極数1のときPと同系統番号の下流の使用相をXNにセットしPropChkElem1P2Wでエレメント数検査(改訂19)
+処理ブロック,Fyss3D_PH_Kettei 1P3W-親1P3W3ケース,PhaseAssigner.AssignParent1P3WPole3,toku/sekkei/src/Fyss3D.c,1P3W電源で親が1P3W極の子機器の使用相をセット(子1P3Wは親コピー・MC2P/3P/子1P2W2はXY/子1P2W1はF800Index収集後XN・YN交互)
