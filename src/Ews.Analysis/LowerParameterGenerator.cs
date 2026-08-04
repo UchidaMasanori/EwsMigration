@@ -167,6 +167,109 @@ public static class LowerParameterGenerator
         }
     }
 
+    /// <summary>
+    /// 2-1 型 MCDT/CSDT の処理。下流の負荷を算出し、同一機器認識番号の相手側テーブル要素へ
+    /// 通電電流値・機器選定区分・積算エリアをコピーする。対象要素の通電電流値・積算エリアはクリアする。
+    /// 機器選定区分が異なるときは親データ追番を辿って伝播する。
+    /// 【C原典】<c>Fyss3I_21_MCDT_CSDT</c>(toku/sekkei/src/Fyss3I.c, 950428)。通電電流値積算は
+    /// <see cref="TerminalCurrentIntegrator.IntegrateCurrent"/>(=Fyss37_I_Set_Sub)を再利用。
+    /// </summary>
+    /// <param name="mains">主回路エリア(FYRT800 配列相当)。</param>
+    public static void Process21McdtCsdt(IReadOnlyList<MainCircuitResult> mains)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+
+        const int MaxNo = 100; // 【C原典】MAX_NO=100。datano の固定長。
+        int[] datano = new int[MaxNo];
+
+        // 回路要素'1'・予約語MCDT/CSDT・末端区分!='1'・切り換えタイプ'2'(2-1型)を取得し、通電電流値を積算する。
+        int num = 0;
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData d = mains[i].Data;
+            if (d.CircuitElement != '1')
+            {
+                continue;
+            }
+
+            if (!Matches(d.ReservedWord, "MCDT", 4) && !Matches(d.ReservedWord, "CSDT", 4))
+            {
+                continue;
+            }
+
+            if (d.TerminalKind == '1')
+            {
+                continue;
+            }
+
+            if (d.SwitchType == '2')
+            {
+                int no = EquipmentParameterFormatter.Stoi(mains[i].SequenceNumber, 3);
+                datano[num] = no;
+                num++;
+                TerminalCurrentIntegrator.IntegrateCurrent(mains, no);
+            }
+        }
+
+        // 同一機器認識番号が同じテーブル要素へ通電電流値・機器選定区分・積算エリアをコピーする。
+        for (int i = 0; i < num; i++)
+        {
+            int no1 = datano[i] - 1;
+
+            for (int j = 0; j < mains.Count; j++)
+            {
+                if (no1 == j)
+                {
+                    continue;
+                }
+
+                if (!Matches(mains[j].Data.IdentityNumber, mains[no1].Data.IdentityNumber, 2))
+                {
+                    continue;
+                }
+
+                mains[j].Data.EnergizingCurrent = mains[no1].Data.EnergizingCurrent;
+                mains[j].Data.LoadSourceKind = '1'; // 負荷発生元
+
+                // 機器選定区分が異なるとき、親データ追番を辿って no1 の区分を伝播する。
+                if (mains[j].Work.EquipmentSelectionKind != mains[no1].Work.EquipmentSelectionKind)
+                {
+                    string work = mains[j].Data.ParentSequenceNumber;
+                    mains[j].Work.EquipmentSelectionKind = mains[no1].Work.EquipmentSelectionKind;
+                    while (true)
+                    {
+                        int k = 0;
+                        for (; k < mains.Count; k++)
+                        {
+                            if (Matches(mains[k].SequenceNumber, work, 3))
+                            {
+                                break;
+                            }
+                        }
+
+                        if (k >= mains.Count)
+                        {
+                            break;
+                        }
+
+                        mains[k].Work.EquipmentSelectionKind = mains[no1].Work.EquipmentSelectionKind;
+                        if (Matches(mains[k].Data.ParentSequenceNumber, "000", 3))
+                        {
+                            break;
+                        }
+
+                        work = mains[k].Data.ParentSequenceNumber;
+                    }
+                }
+
+                CopyAccumulation(mains[j], mains[no1]);
+            }
+
+            ClearAccumulation(mains[no1]);
+            mains[no1].Data.EnergizingCurrent = "00000.00";
+        }
+    }
+
     // 積算エリア(6 スロット)の全機器種別値をクリアする。【C原典】sk_area[m].?_area = 0.0。
     private static void ClearAccumulation(MainCircuitResult record)
     {
@@ -179,6 +282,23 @@ public static class LowerParameterGenerator
             a.E = 0.0;
             a.M = 0.0;
             a.S = 0.0;
+        }
+    }
+
+    // 積算エリア(6 スロット)を src から dest へコピーする。【C原典】dest.sk_area[m] = src.sk_area[m]。
+    private static void CopyAccumulation(MainCircuitResult dest, MainCircuitResult src)
+    {
+        for (int m = 0; m < dest.Work.AccumulationSlots.Length; m++)
+        {
+            AccumulationArea s = src.Work.AccumulationSlots[m];
+            AccumulationArea d = dest.Work.AccumulationSlots[m];
+            d.A = s.A;
+            d.B = s.B;
+            d.C = s.C;
+            d.D = s.D;
+            d.E = s.E;
+            d.M = s.M;
+            d.S = s.S;
         }
     }
 

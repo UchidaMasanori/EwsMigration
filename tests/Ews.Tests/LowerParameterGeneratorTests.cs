@@ -153,4 +153,81 @@ public sealed class LowerParameterGeneratorTests
         LowerParameterGenerator.Process12McdtCsdt([mcdt, child]);
         Assert.Equal("00003.00", child.Data.EnergizingCurrent);
     }
+
+    [Fact]
+    public void 型MCDTは同一機器認識番号の相手へ通電電流値をコピーし対象をクリアする()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00010.00");
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([mcdt, mate]);
+        Assert.Equal("00010.00", mate.Data.EnergizingCurrent);
+        Assert.Equal('1', mate.Data.LoadSourceKind);
+        Assert.Equal("00000.00", mcdt.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 型CSDTも2_1型として処理される()
+    {
+        var csdt = Row("001", yoyaku: "CSDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00007.00");
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([csdt, mate]);
+        Assert.Equal("00007.00", mate.Data.EnergizingCurrent);
+        Assert.Equal("00000.00", csdt.Data.EnergizingCurrent);
+    }
+
+    [Fact]
+    public void 型で末端区分1のMCDTは対象外()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00010.00");
+        mcdt.Data.TerminalKind = '1';
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([mcdt, mate]);
+        Assert.Equal("00000.00", mate.Data.EnergizingCurrent);
+        Assert.Equal(' ', mate.Data.LoadSourceKind);
+    }
+
+    [Fact]
+    public void 型で切り換えタイプ2以外のMCDTは対象外()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00010.00");
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([mcdt, mate]);
+        Assert.Equal(' ', mate.Data.LoadSourceKind);
+    }
+
+    [Fact]
+    public void 型で機器選定区分が異なると親を辿って伝播する()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00010.00");
+        mcdt.Work.EquipmentSelectionKind = '3';
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "003", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        var parent = Row("003", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "09", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([mcdt, mate, parent]);
+        Assert.Equal('3', mate.Work.EquipmentSelectionKind);
+        Assert.Equal('3', parent.Work.EquipmentSelectionKind);
+    }
+
+    [Fact]
+    public void 型で積算エリアが相手へコピーされ対象がクリアされる()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00010.00");
+        mcdt.Work.AccumulationSlots[0].A = 5.0;
+        var mate = Row("002", yoyaku: "LOAD    ", oyatno: "000", kiryoso: '1',
+            doukkno: "01", denryu: "00000.00");
+        LowerParameterGenerator.Process21McdtCsdt([mcdt, mate]);
+        Assert.Equal(5.0, mate.Work.AccumulationSlots[0].A);
+        Assert.Equal(0.0, mcdt.Work.AccumulationSlots[0].A);
+    }
 }
