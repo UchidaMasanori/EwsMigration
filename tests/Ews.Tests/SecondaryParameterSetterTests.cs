@@ -912,9 +912,9 @@ public sealed class SecondaryParameterSetterTests
     // ---- SetParam_ep2 PLTR (list+index) -------------------------------------
 
     [Theory]
-    [InlineData("210", "00020000")] // kv0>105 → "200"
-    [InlineData("105", "00010000")] // kv0<=105 → "100"
-    [InlineData("400", "00040000")] // kv0>=380 かつ PLTR → "400"
+    [InlineData("210", "000200.0")] // kv0>105 → "200"
+    [InlineData("105", "000100.0")] // kv0<=105 → "100"
+    [InlineData("400", "000400.0")] // kv0>=380 かつ PLTR → "400"
     public void SetParam_ep2_PLTRは親の回路電圧で1次側電圧V1を決める(string kv, string expectedV1)
     {
         MainCircuitData parent = NewData();
@@ -955,7 +955,7 @@ public sealed class SecondaryParameterSetterTests
         CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
 
         Assert.Null(error);
-        Assert.Equal("00020000", pltr.ElectricalParameterSlots[2].V1[0]); // 祖父 kv0=210>105
+        Assert.Equal("000200.0", pltr.ElectricalParameterSlots[2].V1[0]); // 祖父 kv0=210>105
     }
 
     // ---- SetParam_ep2 MC (list+index) ---------------------------------------
@@ -1420,6 +1420,108 @@ public sealed class SecondaryParameterSetterTests
         Assert.Null(error);
         Assert.Equal("000000.0", ep2.V2[0]); // 初期化のみで電圧未設定
         Assert.Equal("00", ep2.Hz);          // Hz は設定されない
+    }
+
+    // ---- SetParam_ep2 RTR (list+index) --------------------------------------
+
+    private static MainCircuitData RtrParent()
+    {
+        MainCircuitData p = NewData();
+        p.ReservedWord = "MCB";
+        p.CircuitPhaseCount = '3';
+        p.CircuitWireType = '3';
+        p.CircuitPoleCount = '3';
+        p.CircuitVoltage = ["210", "000", "000"];
+        p.CircuitVoltageKind = 'A';
+        p.CircuitFrequency = "60";
+        return p;
+    }
+
+    [Fact]
+    public void SetParam_ep2_RTRは1電源で親情報複写しV1V2を設定する()
+    {
+        MainCircuitData parent = RtrParent();
+
+        MainCircuitData rtr = NewData();
+        rtr.ReservedWord = "RTR";
+        rtr.ParentSequenceNumber = "001";
+        rtr.MeterPrimaryVoltageKind = 'B';
+        rtr.ElectricalParameterSlots[0].V2 = ["000420.0", "000210.0", "000000.0"];
+        // ep[0].epaph2[1] 既定 "0" → 1 電源トランス。
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", rtr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        ElectricalParameters ep2 = rtr.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        // 親情報複写
+        Assert.Equal('3', rtr.CircuitPhaseCount);
+        Assert.Equal("420", rtr.CircuitVoltage[0]); // ep[0].epav2[0] 由来
+        Assert.Equal("210", rtr.CircuitVoltage[1]);
+        // V1 = 親回路電圧 210>105 → 200
+        Assert.Equal("000200.0", ep2.V1[0]);
+        Assert.Equal('B', ep2.VcKbn);
+        // V2(1電源) = 自身回路電圧 3 スロット
+        Assert.Equal("000420.0", ep2.V2[0]);
+        Assert.Equal("000210.0", ep2.V2[1]);
+        Assert.Equal("000000.0", ep2.V2[2]);
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_RTRは2電源で前方に同一TRがあればV2を1_2スロットに振る()
+    {
+        MainCircuitData parent = RtrParent();
+
+        MainCircuitData sibling = NewData(); // 前方の同一 TR
+        sibling.ReservedWord = "RTR";
+        sibling.ParentSequenceNumber = "001";
+        sibling.IncomingNumber = "001";
+        sibling.IdentityNumber = "01";
+
+        MainCircuitData rtr = NewData();
+        rtr.ReservedWord = "RTR";
+        rtr.ParentSequenceNumber = "001";
+        rtr.IncomingNumber = "001";
+        rtr.IdentityNumber = "01";
+        rtr.ElectricalParameterSlots[0].V2 = ["000420.0", "000210.0", "000000.0"];
+        rtr.ElectricalParameterSlots[0].Ph2[1] = "2"; // 2 電源トランス
+
+        MainCircuitResult[] maina =
+            [Res("001", parent), Res("002", sibling), Res("003", rtr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
+
+        ElectricalParameters ep2 = rtr.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        Assert.Equal("000000.0", ep2.V2[0]); // 未設定(初期化のまま)
+        Assert.Equal("000420.0", ep2.V2[1]);
+        Assert.Equal("000210.0", ep2.V2[2]);
+    }
+
+    [Fact]
+    public void SetParam_ep2_RTRは2電源で同一TRが無ければV2を0スロットに振る()
+    {
+        MainCircuitData parent = RtrParent();
+
+        MainCircuitData rtr = NewData();
+        rtr.ReservedWord = "RTR";
+        rtr.ParentSequenceNumber = "001";
+        rtr.IncomingNumber = "001";
+        rtr.IdentityNumber = "01";
+        rtr.ElectricalParameterSlots[0].V2 = ["000420.0", "000210.0", "000000.0"];
+        rtr.ElectricalParameterSlots[0].Ph2[1] = "2"; // 2 電源トランス
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", rtr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        ElectricalParameters ep2 = rtr.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        Assert.Equal("000420.0", ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V2[1]);
+        Assert.Equal("000000.0", ep2.V2[2]);
     }
 }
 

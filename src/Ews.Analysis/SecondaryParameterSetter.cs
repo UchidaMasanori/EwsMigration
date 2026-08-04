@@ -641,6 +641,10 @@ public static class SecondaryParameterSetter
                 SetPltr(maina, index);
                 return null;
 
+            case "RTR":
+                SetRtr(maina, index);
+                return null;
+
             case "MC":
                 SetMc(maina, index);
                 return null;
@@ -858,8 +862,9 @@ public static class SecondaryParameterSetter
         {
             int kv0 = AtoiC(maina[kvIndex].Data.CircuitVoltage[0]);
 
-            // 【C原典】epav1[0][3] に kv0>105 なら"200"、以下なら"100"。
-            ep2.V1[0] = ReplaceSegment(ep2.V1[0], 3, kv0 > 105 ? "200" : "100");
+            // 【C原典】epav1[0] はレコード初期化の "000000.0"(Fyss17/Fyss40 の零値照合と一致)前提で
+            // 4 桁目に kv0>105 なら"200"、以下なら"100"を複写する。
+            ep2.V1[0] = ReplaceSegment("000000.0", 3, kv0 > 105 ? "200" : "100");
 
             // 【C原典】95.03.20 add: kv0>=380 かつ PLTR は"400"。
             if (kv0 >= 380 && data.ReservedWord == "PLTR")
@@ -873,7 +878,110 @@ public static class SecondaryParameterSetter
     }
 
     /// <summary>
-    /// MC(電磁接触器)の ep[2] 極数(epap)を配列走査で決定する。【C原典】case y_MC の極数決定部。
+    /// RTR(計器用変流器付トランス)の ep[2] 設定。【C原典】Parm_Set_RTR(引数 Helutzu/pprmp/newpprmp 未使用)。
+    /// ep[0].epav2 から定格電圧を取り出して自身の回路電圧に据え、回路相数・線式・極数・区分・周波数を親から複写する。
+    /// V1 は RTR_V1(=<see cref="SetPltr"/>)、V2 は TR_V2(=<see cref="SetTrV2"/>)で決定する。
+    /// </summary>
+    private static void SetRtr(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】ep[0].epav2[k] の先頭6文字を atoi し 3 桁で自身の回路電圧に据える。
+        string[] kvs =
+        [
+            Format3(AtoiC(ep0.V2[0].Length >= 6 ? ep0.V2[0][..6] : ep0.V2[0])),
+            Format3(AtoiC(ep0.V2[1].Length >= 6 ? ep0.V2[1][..6] : ep0.V2[1])),
+            Format3(AtoiC(ep0.V2[2].Length >= 6 ? ep0.V2[2][..6] : ep0.V2[2])),
+        ];
+
+        // 【C原典】親データ p=&maina[atoi(oyatno)-1]。回路情報を親から複写する。
+        int pIdx = AtoiC(data.ParentSequenceNumber) - 1;
+        if (pIdx >= 0 && pIdx < maina.Count)
+        {
+            MainCircuitData p = maina[pIdx].Data;
+            data.CircuitPhaseCount = p.CircuitPhaseCount;
+            data.CircuitWireType = p.CircuitWireType;
+            data.CircuitVoltage[0] = kvs[0];
+            data.CircuitVoltage[1] = kvs[1];
+            data.CircuitVoltage[2] = kvs[2];
+            data.CircuitVoltageKind = p.CircuitVoltageKind;
+            data.CircuitPoleCount = p.CircuitPoleCount;
+            data.CircuitFrequency = p.CircuitFrequency;
+        }
+
+        // 【C原典】SetParam_ep2_RTR_V1(=SetPltr) と SetParam_ep2_TR_V2 を呼ぶ。
+        SetPltr(maina, index);
+        SetTrV2(maina, index);
+    }
+
+    /// <summary>
+    /// TR/RTR の 2 次側電圧(epav2)を設定する。【C原典】SetParam_ep2_TR_V2。
+    /// ep[0].epaph2[1] で 1/2 電源トランスを判別し、2 電源時は同一 TR(予約語/入線番号/同一機器認識番号一致)の
+    /// 前後関係で電圧格納先スロットを振り分ける。
+    /// </summary>
+    private static void SetTrV2(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+
+        // 【C原典】epav2[1]/[2] はレコード初期化の "000000.0" 前提でオフセット3へ複写する。
+        ep2.V2[1] = "000000.0";
+        ep2.V2[2] = "000000.0";
+
+        // 【C原典】m: ep[0].epaph2[1]=='0' で 1 電源、他は 2 電源トランス。
+        int m = ep0.Ph2[1] == "0" ? 1 : 2;
+
+        int k = 0;
+        if (m == 2)
+        {
+            // 【C原典】同一 TR(予約語/入線番号 nyuseno/同一機器認識番号 doukkno 一致)を探す。
+            int t = 0;
+            for (; t < maina.Count; t++)
+            {
+                if (t == index)
+                {
+                    continue;
+                }
+
+                MainCircuitData c = maina[t].Data;
+                if (c.ReservedWord == data.ReservedWord
+                    && c.IncomingNumber == data.IncomingNumber
+                    && c.IdentityNumber == data.IdentityNumber)
+                {
+                    break;
+                }
+            }
+
+            // 【C原典】同一 TR が自分より後方(未検出含む)なら k=0、前方なら k=1。
+            k = t > index ? 0 : 1;
+        }
+
+        // 【C原典】V2 格納。epav2[x][3] に kpav を 3 桁複写する。
+        if (m == 2 && k == 1)
+        {
+            ep2.V2[1] = ReplaceSegment(ep2.V2[1], 3, data.CircuitVoltage[0]);
+            ep2.V2[2] = ReplaceSegment(ep2.V2[2], 3, data.CircuitVoltage[1]);
+        }
+        if (m == 2 && k == 0)
+        {
+            ep2.V2[0] = ReplaceSegment(ep2.V2[0], 3, data.CircuitVoltage[0]);
+        }
+        if (m == 1)
+        {
+            ep2.V2[0] = ReplaceSegment(ep2.V2[0], 3, data.CircuitVoltage[0]);
+            ep2.V2[1] = ReplaceSegment(ep2.V2[1], 3, data.CircuitVoltage[1]);
+            ep2.V2[2] = ReplaceSegment(ep2.V2[2], 3, data.CircuitVoltage[2]);
+        }
+
+        ep2.V2Kbn = data.CircuitVoltageKind;
+    }
     /// 行種コードが TM/SM/M 系なら epap2P(2P自動選定)→未設定時 SetMcbPole(系統種別で極数)→
     /// 子機エレメント修正 PropMcChildElement、それ以外は 2 次側機器の有無で分岐する。
     /// 最後に V2/AC/BC を設定する。
