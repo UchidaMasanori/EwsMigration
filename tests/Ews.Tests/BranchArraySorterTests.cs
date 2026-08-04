@@ -1,5 +1,6 @@
 using Ews.Analysis;
 using Ews.Domain.Analysis;
+using Ews.Domain.Masters;
 using Xunit;
 
 namespace Ews.Tests;
@@ -497,5 +498,68 @@ public class BranchArraySorterTests
 
         Assert.Equal("00000.000", key.Key6);
         Assert.Equal("00000.000", key.Key7);
+    }
+
+    private static ReservedWordTypeSlot Slot(int yukoidx, params string[] ptypes)
+    {
+        var arr = new string[ReservedWordMaster.ParameterTypeCount];
+        for (int i = 0; i < arr.Length; i++)
+        {
+            arr[i] = i < ptypes.Length ? ptypes[i].PadRight(7)[..7] : new string(' ', 7);
+        }
+
+        return new ReservedWordTypeSlot { EffectiveIndexCount = yukoidx, ParameterTypes = arr };
+    }
+
+    private static ReservedWordMaster Word(char kikirui, params ReservedWordTypeSlot[] slots)
+    {
+        var full = new ReservedWordTypeSlot[7];
+        for (int i = 0; i < 7; i++)
+        {
+            full[i] = i < slots.Length ? slots[i] : Slot(0);
+        }
+
+        return new ReservedWordMaster { Kikirui = kikirui, TypeSlots = full };
+    }
+
+    [Theory]
+    [InlineData('1', '1')]
+    [InlineData(' ', '2')]
+    [InlineData('2', '2')]
+    public void ResolveEquipmentKind‚Íkikirui‚ª1‚Ì‚Æ‚«‚Ì‚Ý1‚ð•Ô‚·(char kikirui, char expected)
+    {
+        Assert.Equal(expected, BranchArraySorter.ResolveEquipmentKind(Word(kikirui)));
+    }
+
+    [Fact]
+    public void ResolveAttachedFunction‚ÍALX’P“Æ“o˜^‚Å1‚ð•Ô‚·()
+    {
+        Assert.Equal('1', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(1, "ALX"))));
+    }
+
+    [Fact]
+    public void ResolveAttachedFunction‚ÍAL’P“Æ“o˜^‚Å2‚ð•Ô‚·()
+    {
+        Assert.Equal('2', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(1, "AL"))));
+    }
+
+    [Fact]
+    public void ResolveAttachedFunction‚ÍŠY“–‚È‚µ‚Å3‚ð•Ô‚·()
+    {
+        Assert.Equal('3', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(1, "MCB"))));
+    }
+
+    [Fact]
+    public void ResolveAttachedFunction‚Íyukoidx0‚Ì˜g‚Å‘–¸‚ð‘Å‚¿Ø‚é()
+    {
+        // æ“ª˜g yukoidx=0 ‚È‚Ì‚Å ALX ‚ª‚ ‚Á‚Ä‚àŽQÆ‚³‚ê‚¸ '3'B
+        Assert.Equal('3', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(0), Slot(1, "ALX"))));
+    }
+
+    [Fact]
+    public void ResolveAttachedFunction‚ÍALX‚Ì’¼Œã‚É“o˜^‚ª‚ ‚é‚Æˆê’v‚µ‚È‚¢()
+    {
+        // yCŒ´“Tzmemcmp 12 ‚ÍŠuÚ—v‘f‚Ü‚Å“Ç‚Þ‚½‚ßAALX ‚ÌŒã‚É”ñ‹ó”’‚ª‘±‚­‚Æ•sˆê’vB
+        Assert.Equal('3', BranchArraySorter.ResolveAttachedFunction(Word(' ', Slot(2, "ALX", "MCB"))));
     }
 }

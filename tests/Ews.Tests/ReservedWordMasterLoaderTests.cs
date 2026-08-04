@@ -25,6 +25,10 @@ public sealed class ReservedWordMasterLoaderTests
     private const int OffsetTypeTable = 1445;
     private const int TypeTableEntrySize = 1915;
     private const int OffsetKsenkbnInEntry = 20;
+    private const int OffsetYukoidxInEntry = 21;
+    private const int OffsetParameterTypesInEntry = 25;
+    private const int ParameterEntrySize = 47;
+    private const int OffsetKikirui = 14878;
 
     /// <summary>
     /// 合成した 14980 バイトレコードから予約語と 7 枠の ksenkbn を正しく抽出できる。
@@ -39,6 +43,34 @@ public sealed class ReservedWordMasterLoaderTests
         Assert.Equal("AM", m.ReservedWord);
         Assert.Equal(7, m.SelectionElementKinds.Count);
         Assert.Equal(new[] { '1', '1', '1', ' ', '1', ' ', '1' }, m.SelectionElementKinds);
+    }
+
+    /// <summary>
+    /// 合成レコードから kikirui(機器大分類)と タイプ枠 0 の yukoidx・ptype を
+    /// 検証済オフセットで読む。【C原典】Fysk08_CreYoyakuTbl。
+    /// </summary>
+    [Fact]
+    public void 合成レコード_kikiruiとyukoidxとptypeを検証済オフセットで読む()
+    {
+        byte[] record = BuildRecord(
+            "MCB",
+            ['1', '1', '1', ' ', ' ', ' ', ' '],
+            kikirui: '1',
+            slot0Yukoidx: 2,
+            slot0Ptypes: ["ALX", "AL"]);
+
+        ReservedWordMaster m = ReservedWordMaster.FromFixedRecord(record);
+
+        Assert.Equal('1', m.Kikirui);
+        Assert.Equal(7, m.TypeSlots.Count);
+        Assert.Equal(2, m.TypeSlots[0].EffectiveIndexCount);
+        Assert.Equal(ReservedWordMaster.ParameterTypeCount, m.TypeSlots[0].ParameterTypes.Count);
+        // ptype は空白パディングを含む生の 7 文字。
+        Assert.Equal("ALX    ", m.TypeSlots[0].ParameterTypes[0]);
+        Assert.Equal("AL     ", m.TypeSlots[0].ParameterTypes[1]);
+        Assert.Equal("       ", m.TypeSlots[0].ParameterTypes[2]);
+        // 未設定の枠 1 は yukoidx=0(打ち切り対象)。
+        Assert.Equal(0, m.TypeSlots[1].EffectiveIndexCount);
     }
 
     /// <summary>
@@ -124,6 +156,17 @@ public sealed class ReservedWordMasterLoaderTests
     /// 予約語(8) + タイプ枠(7 枠)ごとの ksenkbn を配置した 14980 バイトレコードを生成する。
     /// </summary>
     private static byte[] BuildRecord(string reservedWord, char[] ksenkbn)
+        => BuildRecord(reservedWord, ksenkbn, ' ', 0, null);
+
+    /// <summary>
+    /// 予約語・ksenkbn に加え kikirui とタイプ枠 0 の yukoidx・ptype を配置する。
+    /// </summary>
+    private static byte[] BuildRecord(
+        string reservedWord,
+        char[] ksenkbn,
+        char kikirui,
+        int slot0Yukoidx,
+        string[]? slot0Ptypes)
     {
         var record = new byte[RecordLength];
         record.AsSpan().Fill((byte)' ');
@@ -135,6 +178,25 @@ public sealed class ReservedWordMasterLoaderTests
         {
             int offset = OffsetTypeTable + (i * TypeTableEntrySize) + OffsetKsenkbnInEntry;
             record[offset] = (byte)ksenkbn[i];
+        }
+
+        record[OffsetKikirui] = (byte)kikirui;
+
+        if (slot0Yukoidx > 0)
+        {
+            int entry = OffsetTypeTable;
+            byte[] yuko = FixedFieldCodec.ShiftJis.GetBytes(slot0Yukoidx.ToString("00"));
+            yuko.AsSpan(0, 2).CopyTo(record.AsSpan(entry + OffsetYukoidxInEntry, 2));
+
+            if (slot0Ptypes is not null)
+            {
+                for (int j = 0; j < slot0Ptypes.Length; j++)
+                {
+                    int po = entry + OffsetParameterTypesInEntry + (j * ParameterEntrySize);
+                    byte[] pt = FixedFieldCodec.ShiftJis.GetBytes(slot0Ptypes[j]);
+                    pt.AsSpan(0, Math.Min(pt.Length, 7)).CopyTo(record.AsSpan(po, 7));
+                }
+            }
         }
 
         return record;

@@ -642,3 +642,8 @@ struct FYDF811,ComponentEquipment,ComponentEquipment,toku/include/common/fydf811
 struct p805_key,MachineMasterKey,MachineMasterKey,toku/include/common/fydm805.h,機器マスターキー(予約語yoyaku[8]・メーカーコードmkcd[3]・パラメータタイプptype[7][7]・定格キーteikkey[80])
 SortIndex(構成機器検索),BranchArraySorter.FindComponentByDataNumber,BranchArraySorter.FindComponentByDataNumber,toku/sekkei/src/Fyss3C.c,主回路のデータ追番に一致する構成機器のインデックス(memcmp datano 3桁、該当なし-1)
 KouseiGetElement,BranchArraySorter.SetComponentSortCurrent,BranchArraySorter.SetComponentSortCurrent,toku/sekkei/src/Fyss3C.c,構成機器の定格キー(fyrt701 union)から予約語別にAF/ATを抽出しKEY6/7を%09.3fで設定。MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/HPSB/HSB/CP/NHMBのみ抽出、他は0
+フィールド,kikirui,ReservedWordMaster.Kikirui,toku/include/common/fydf810.h,機器大分類(offset14878)。SortIndexのKEY1で使用
+フィールド,typetjg[].yukoidx,ReservedWordMaster.TypeSlots[].EffectiveIndexCount,toku/include/common/fydf810.h,タイプ枠の有効インデックス数(2桁数値をsscanf%hd)。0で走査打ち切り
+フィールド,typetjg[].ptype,ReservedWordMaster.TypeSlots[].ParameterTypes,toku/include/common/fydf810.h,パラメータタイプ記号(ptype[40][7]パック配列、生7文字)。KEY9で走査
+SortIndex(KEY1),BranchArraySorter.ResolveEquipmentKind,BranchArraySorter.ResolveEquipmentKind,toku/sekkei/src/Fyss3C.c,KEY1機器種別。YOYAKU_TBL.kikirui=='1'→'1'、それ以外→'2'
+SortIndex(KEY9),BranchArraySorter.ResolveAttachedFunction,BranchArraySorter.ResolveAttachedFunction,toku/sekkei/src/Fyss3C.c,KEY9付属機能。typetjgを走査しptype(12バイトmemcmp)がALX→'1'/AL→'2'、無し'3'。yukoidx==0で打切。★12バイト比較はptype[k]と隣接要素にまたがる忠実仕様

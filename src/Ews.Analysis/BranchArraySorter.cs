@@ -1,5 +1,6 @@
 using System.Globalization;
 using Ews.Domain.Analysis;
+using Ews.Domain.Masters;
 
 namespace Ews.Analysis;
 
@@ -923,6 +924,56 @@ public static class BranchArraySorter
 
         string formatted = value.ToString("00000.000", CultureInfo.InvariantCulture);
         return formatted.Length > 9 ? formatted[..9] : formatted;
+    }
+
+    /// <summary>
+    /// KEY1(機器種別)を解決する。【C原典】Fyss3C.c SortIndex:
+    /// <c>YOYAKU_TBL[n].kikirui=='1' ? '1' : '2'</c>。
+    /// </summary>
+    public static char ResolveEquipmentKind(ReservedWordMaster master)
+        => master.Kikirui == '1' ? '1' : '2';
+
+    /// <summary>
+    /// KEY9(付属機能)を解決する。【C原典】Fyss3C.c SortIndex: 予約語のタイプ枠を
+    /// 順に走査し、有効インデックス数(yukoidx)が 0 の枠で打ち切る。パラメータタイプ
+    /// 記号に "ALX" があれば '1'、"AL" があれば '2'、いずれも無ければ '3'。
+    /// </summary>
+    public static char ResolveAttachedFunction(ReservedWordMaster master)
+    {
+        for (int j = 0; j < master.TypeSlots.Count && j < 7; j++)
+        {
+            ReservedWordTypeSlot slot = master.TypeSlots[j];
+            if (slot.EffectiveIndexCount == 0)
+            {
+                break;
+            }
+
+            // 【C原典】memcmp(ptype[k], "...",12) は 7 幅パック配列(ptype[40][7])を 12
+            // バイト比較するため隣接要素へまたがる。ptype 全枠を連結し 12 文字窓で照合して
+            // その挙動を忠実に再現する。
+            string packed = string.Concat(slot.ParameterTypes);
+            for (int k = 0; k < slot.EffectiveIndexCount; k++)
+            {
+                string window = TwelveByteWindow(packed, k * 7);
+                if (window == "ALX".PadRight(12))
+                {
+                    return '1';
+                }
+                if (window == "AL".PadRight(12))
+                {
+                    return '2';
+                }
+            }
+        }
+
+        return '3';
+    }
+
+    /// <summary>パック配列の指定位置から 12 文字を取り出す(不足分は空白補填)。</summary>
+    private static string TwelveByteWindow(string packed, int start)
+    {
+        string padded = packed.Length < start + 12 ? packed.PadRight(start + 12) : packed;
+        return padded.Substring(start, 12);
     }
 }
 
