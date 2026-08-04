@@ -648,4 +648,90 @@ public class BranchArraySorterTests
         Assert.Equal(0, r);
         Assert.Equal(1, klist[0].Index); // MMCB(KEY1='1')が先頭
         Assert.Equal(0, klist[1].Index); // MCB(KEY1='2')が後
-    }}
+    }
+
+    // --- 段階27: 並べ替え本体 ---
+
+    private static MainCircuitResult Breaker(
+        string yoyaku, string datano, string kaisono, string gyoglno, string heino, string goyano = "000")
+    {
+        var r = Node(
+            kaisono: kaisono, chokuno: "001", heino: heino, gyoglno: gyoglno,
+            kiryoso: '1', gyocd: "B", epabn: '1', glheino: "000");
+        r.Data.ReservedWord = yoyaku;
+        r.Data.GroupParentSequenceNumber = goyano;
+        r.SequenceNumber = datano;
+        return r;
+    }
+
+    [Fact]
+    public void SortGroupElementsはソート順に並列追番を割り当てる()
+    {
+        // MCB(kikirui'2') と MMCB(kikirui'1')。KEY1 昇順で MMCB が先→小さい並列追番。
+        var mains = new[]
+        {
+            Breaker("MCB", "001", "001", "001", "002"),
+            Breaker("MMCB", "002", "001", "002", "005"),
+        };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        foreach (var w in sd) { w.Stat = BranchArraySorter.WorkStatus.Doing; }
+
+        int r = BranchArraySorter.SortGroupElements(
+            sd, mains,
+            new[] { Rw("MCB", '2'), Rw("MMCB", '1') },
+            System.Array.Empty<ComponentEquipment>(),
+            0);
+
+        Assert.Equal(0, r);
+        Assert.Equal(2, sd[1].New.ParallelNumber); // MMCB が先(=最小並列追番2)
+        Assert.Equal(3, sd[0].New.ParallelNumber); // MCB が後
+        Assert.Equal(BranchArraySorter.WorkStatus.Doing, sd[0].Stat); // マーキングは戻る
+        Assert.Equal(BranchArraySorter.WorkStatus.Doing, sd[1].Stat);
+    }
+
+    [Fact]
+    public void SortUnderGroupElementsは下位階層を上流並列追番と並列追番で並べ替える()
+    {
+        var mains = new[]
+        {
+            Node(kaisono: "001", chokuno: "001", heino: "000"),          // index=0(基準)
+            Node(kaisono: "002", chokuno: "001", heino: "005", oyatno: "001"),
+            Node(kaisono: "002", chokuno: "001", heino: "002", oyatno: "001"),
+        };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        foreach (var w in sd) { w.Stat = BranchArraySorter.WorkStatus.Doing; }
+        sd[0].New.ParallelNumber = 3; // 親の新並列追番→子の上流並列追番
+
+        int r = BranchArraySorter.SortUnderGroupElements(sd, 0);
+
+        Assert.Equal(0, r);
+        Assert.Equal(2, sd[2].New.ParallelNumber); // heino 小さい方が先(=最小2)
+        Assert.Equal(3, sd[1].New.ParallelNumber);
+        Assert.Equal(3, sd[1].New.UpperParallelNumber); // 親の新並列追番
+        Assert.Equal(3, sd[2].New.UpperParallelNumber);
+    }
+
+    [Fact]
+    public void SetGroupAllElementsは兄弟内順位でグループ並列追番を振る()
+    {
+        var mains = new[]
+        {
+            Node(oyatno: "000"),               // 親0→glheino 0
+            Node(oyatno: "005", heino: "007"),
+            Node(oyatno: "005", heino: "004"),
+        };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        foreach (var w in sd) { w.Stat = BranchArraySorter.WorkStatus.Doing; }
+        sd[1].New.ParallelNumber = 7;
+        sd[2].New.ParallelNumber = 4;
+
+        int r = BranchArraySorter.SetGroupAllElements(sd);
+
+        Assert.Equal(0, r);
+        Assert.Equal(0, sd[0].New.GroupParallelNumber);
+        Assert.Equal(4, sd[1].New.GroupParallelNumber); // 7-4+1
+        Assert.Equal(1, sd[2].New.GroupParallelNumber); // 4-4+1(束の先頭)
+        Assert.Equal(BranchArraySorter.WorkStatus.Doing, sd[1].Stat); // sorting は doing へ戻る
+    }
+}
+

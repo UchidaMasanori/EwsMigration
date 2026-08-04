@@ -1140,5 +1140,262 @@ public static class BranchArraySorter
     /// </summary>
     private static bool IsCurrentFromMain(string reservedWord)
         => reservedWord is "THR" or "2ERY" or "3ERY" or "4ERY" or "MGFR" or "MGSD" or "MGFRSD";
+
+    /// <summary>
+    /// 全キーを空白で埋めたソートキーを作る(上流並列追番・並列追番のみ有効)。
+    /// SortUnderGroupElements / SetGroupAllElements の qsort 用(比較は joheino と heino のみに効く)。
+    /// </summary>
+    private static SortKey NewBlankSortKey(int index, int upperParallelNumber, int parallelNumber)
+        => new()
+        {
+            Index = index,
+            UpperParallelNumber = upperParallelNumber,
+            Key0 = ' ',
+            Key1 = ' ',
+            Key2 = ' ',
+            Key3 = "   ",
+            Key4 = "        ",
+            Key5 = "  ",
+            Key6 = new string(' ', 9),
+            Key7 = new string(' ', 9),
+            Key8 = ' ',
+            Key9 = ' ',
+            ParallelNumber = parallelNumber,
+        };
+
+    /// <summary>
+    /// 指定グループ要素を並べ替え、対象要素とそれに連なる計器回路(CT)・直列要素の並列追番を再設定する。
+    /// 【C原典】<c>SortGroupElements</c>(Fyss3C.c)。ソート対象末端ブレーカ(<see cref="GetFloorElementsForSort"/>)を
+    /// <see cref="SortIndex"/> で並べ替え、ソート対象外要素(VTlist)の現並列追番と衝突しない値を順に割り当てる。
+    /// C 原典の <c>slist</c>(<see cref="GetFloorTopElements"/>)は未使用のため省略する。
+    /// </summary>
+    public static int SortGroupElements(
+        WorkData[] sd,
+        IReadOnlyList<MainCircuitResult> mains,
+        IReadOnlyList<ReservedWordMaster> reservedWords,
+        IReadOnlyList<ComponentEquipment> components,
+        int index)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(reservedWords);
+        ArgumentNullException.ThrowIfNull(components);
+
+        // 対象要素(末端回路ブレーカ)の抽出。
+        List<int> sortedIndexes = GetFloorElementsForSort(sd, mains, index);
+
+        // ソート対象外要素と系統最小並列追番を得る(ソート前の並びで評価する)。
+        (List<int> vtList, int minParallel) = GetFloorElementsNotForSort(sd, mains, sortedIndexes);
+
+        // ソートキーリストを構築して並べ替える。
+        var klist = new List<SortKey>(sortedIndexes.Count);
+        foreach (int idx in sortedIndexes)
+        {
+            klist.Add(new SortKey { Index = idx });
+        }
+
+        int r = SortIndex(klist, sd, mains, reservedWords, components);
+        if (r < 0)
+        {
+            return r;
+        }
+
+        // 並列追番の再設定(l は外側ループをまたいで連続加算する)。
+        int l = minParallel;
+        foreach (SortKey key in klist)
+        {
+            foreach (int ct in GetFloorElementsOfCt(sd, key.Index))
+            {
+                // ソート対象外(VTlist)に存在する要素は無視。
+                if (vtList.Contains(ct))
+                {
+                    continue;
+                }
+
+                // マーキング済みは無視。
+                if (sd[ct].Stat is WorkStatus.CDoing or WorkStatus.CSorting or WorkStatus.CSortDone)
+                {
+                    continue;
+                }
+
+                // 使える並列追番を探す(VTlist の現並列追番と衝突しない値)。
+                while (true)
+                {
+                    bool used = false;
+                    foreach (int v in vtList)
+                    {
+                        if (sd[v].Now.ParallelNumber == l)
+                        {
+                            used = true;
+                            break;
+                        }
+                    }
+
+                    if (!used)
+                    {
+                        break;
+                    }
+
+                    l++;
+                }
+
+                // 自分の並列追番の再設定。
+                sd[ct].New.ParallelNumber = l;
+
+                // マーキング。
+                sd[ct].Stat = sd[ct].Stat switch
+                {
+                    WorkStatus.Doing => WorkStatus.CDoing,
+                    WorkStatus.Sorting => WorkStatus.CSorting,
+                    WorkStatus.SortDone => WorkStatus.CSortDone,
+                    _ => sd[ct].Stat,
+                };
+
+                // 自分に連なる直列要素の並列追番を移動する。
+                foreach (int v in GetFloorElementsOfSeries(sd, ct))
+                {
+                    sd[v].New.ParallelNumber = l;
+                }
+
+                l++;
+            }
+        }
+
+        // マーキングを戻す。
+        for (int i = 0; i < sd.Length; i++)
+        {
+            sd[i].Stat = sd[i].Stat switch
+            {
+                WorkStatus.CDoing => WorkStatus.Doing,
+                WorkStatus.CSorting => WorkStatus.Sorting,
+                WorkStatus.CSortDone => WorkStatus.SortDone,
+                _ => sd[i].Stat,
+            };
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// 指定要素の下位階層データの上流並列追番・並列追番を再設定する。【C原典】<c>SortUnderGroupElements</c>(Fyss3C.c)。
+    /// 指定階層の一つ下から最下層まで、各階層の先頭要素を上流並列追番(=親の新並列追番)昇順に並べ替え、
+    /// 最小並列追番から連番を振り直す。★C 原典の副作用: <c>klist[j].joheino=sd[slist[j]].new.joheino=sd[k-1].new.heino</c>
+    /// で作業データの上流並列追番も同時に更新する。
+    /// </summary>
+    public static int SortUnderGroupElements(WorkData[] sd, int index)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+
+        int start = sd[index].Now.HierarchyNumber + 1;
+        int maxHierarchy = GetMaximumHierarchyNumber(sd);
+
+        for (int hier = start; hier <= maxHierarchy; hier++)
+        {
+            List<int> slist = GetFloorTopElements(sd, hier);
+            var klist = new List<SortKey>(slist.Count);
+            foreach (int si in slist)
+            {
+                int k = sd[si].New.ParentSequenceNumber;
+                int joheino;
+                if (k > 0)
+                {
+                    // ★C の副作用: 作業データの上流並列追番も更新する。
+                    joheino = sd[k - 1].New.ParallelNumber;
+                    sd[si].New.UpperParallelNumber = joheino;
+                }
+                else
+                {
+                    joheino = 0;
+                }
+
+                klist.Add(NewBlankSortKey(si, joheino, sd[si].Now.ParallelNumber));
+            }
+
+            klist.Sort(CompareSortIndex);
+
+            int m = GetMinimumParallelNumber(sd, klist, hier);
+            for (int j = 0; j < klist.Count; j++)
+            {
+                int idx = klist[j].Index;
+                sd[idx].New.ParallelNumber = j + m;
+                foreach (int v in GetFloorElementsOfSeries(sd, idx))
+                {
+                    sd[v].New.ParallelNumber = j + m;
+                    sd[v].New.UpperParallelNumber = sd[idx].New.UpperParallelNumber;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// グループ並列追番を再設定する。【C原典】<c>SetGroupAllElements</c>(Fyss3C.c)。処理対象(doing)要素を
+    /// 親データ追番ごとに束ね(<see cref="GetBrothers"/>)、新並列追番の昇順に並べ替えて、束の先頭を 1 とする連番を振る。
+    /// 親データ追番が 0 または兄弟が自分だけの要素はグループ並列追番 0。処理した要素は一時的に sorting とマークし
+    /// 兄弟の二重処理を防いだ後、最後に doing へ戻す。
+    /// </summary>
+    public static int SetGroupAllElements(WorkData[] sd)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+
+        for (int i = 0; i < sd.Length; i++)
+        {
+            // 関係のない要素ははじく。
+            if (sd[i].Stat != WorkStatus.Doing)
+            {
+                continue;
+            }
+
+            // 親データ追番が 0 の要素。
+            if (sd[i].Now.ParentSequenceNumber == 0)
+            {
+                sd[i].New.GroupParallelNumber = 0;
+                sd[i].Stat = WorkStatus.Sorting;
+                continue;
+            }
+
+            // 自分の兄弟のリストを抽出する。
+            List<int> slist = GetBrothers(sd, i);
+
+            // 兄弟がいない場合。
+            if (slist.Count == 1)
+            {
+                sd[i].New.GroupParallelNumber = 0;
+                sd[i].Stat = WorkStatus.Sorting;
+                continue;
+            }
+
+            // ソートキー群の設定(兄弟を sorting にマークして二重処理を防ぐ)。
+            var klist = new List<SortKey>(slist.Count);
+            foreach (int si in slist)
+            {
+                sd[si].Stat = WorkStatus.Sorting;
+                klist.Add(NewBlankSortKey(si, 0, sd[si].New.ParallelNumber));
+            }
+
+            // 新並列追番の昇順にソート。
+            klist.Sort(CompareSortIndex);
+
+            // グループ並列追番の再設定(束の先頭を 1 とする)。
+            int baseParallel = sd[klist[0].Index].New.ParallelNumber;
+            foreach (SortKey k in klist)
+            {
+                sd[k.Index].New.GroupParallelNumber =
+                    sd[k.Index].New.ParallelNumber - baseParallel + 1;
+            }
+        }
+
+        // sorting を doing へ戻す。
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Sorting)
+            {
+                sd[i].Stat = WorkStatus.Doing;
+            }
+        }
+
+        return 0;
+    }
 }
 
