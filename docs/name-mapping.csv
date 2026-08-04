@@ -669,3 +669,8 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),SetParam_ep2 case y_MC,SecondaryParameterSetter.SetParam_ep2(list)/SetMc,toku/sekkei/src/Fyss14.c,MCのep[2]極数epap決定(list+index版)。行種TM/SM/MはSetEpap2P(2P自動選定)->未設定時SetMcbPole+子機エレメント修正PropMcChildElement・他は2次側機器有無で分岐(INVBP tokkbn7=003/無=同一ysnoのMC数icnt/有=共用時icnt100+icnt200集計)。V2/AC/BCも設定
 関数(移植),SetParam_ep2_epap2P,SecondaryParameterSetter.SetEpap2P,toku/sekkei/src/Fyss14.c,MC極数の2P自動選定(改訂17)。極数未入力かつタイプSF/未指定かつ回路相数1のとき同一系統kno内にTM行あれば行種M/SM・無ければSMをepap=002に設定(戻り-1)
 関数(移植),PropMcChildElement,SecondaryParameterSetter.PropMcChildElement,toku/sekkei/src/Fyss14.c,MC子機(SB/MCB/ELB)のエレメント数ep[2].E修正(改訂6/8/9/10/16)。負荷電圧fpalv[0]で200=2/100=1/000は親回路電圧kpav[0]210かつ非3P=2または105/3P=1。子機3P(ep[0].P=003)は線式kpawr・極数kpapを3に
+関数(移植),SetParam_ep2 case y_TB,SecondaryParameterSetter.SetParam_ep2(list)/SetTb,toku/sekkei/src/Fyss14.c,TB(端子台)のep[2]極数epap決定(list+index版)。記述行gyo/系統kno走査で優先順に判定。直列トリップ->6・MGSH電源相線->6/5/4・27A27B27C->2/2/3かつ自身tokkbn=6・MC回路N相共用TBKY->1/2・基本は相数線式で2/3/3/4。最後にV2へ回路電圧最大値
+関数(移植),Parm_Set_TB_Chk,SecondaryParameterSetter.TbHasSeriesTrip,toku/sekkei/src/Fyss14.c,TB同一記述行に直列トリップMCSD/MGSD/MCFRSD/MGFRSD兄弟があるか判定(戻り0=あり)
+関数(移植),Parm_Set_TB_Chk2,SecondaryParameterSetter.TbFindShutterMg,toku/sekkei/src/Fyss14.c,TB同一記述行のMGSH(MG+tokkbn1/2)判定+同一系統knoの電源P探索(改訂33)
+関数(移植),Parm_Set_TB_Chk3,SecondaryParameterSetter.TbFind27,toku/sekkei/src/Fyss14.c,TB同一記述行の27A/27B/27C(CR+tokkbn3/4/5)判定(改訂35)
+関数(移植),Parm_Set_TB_Chk4,SecondaryParameterSetter.TbCheckMcNShare,toku/sekkei/src/Fyss14.c,MC回路N相共用TB判定(改訂36)。自身コメントfpacm1がTBKY(先頭3文字)=2・同一記述行の他機コメントTBKY(4文字)=1・無=0

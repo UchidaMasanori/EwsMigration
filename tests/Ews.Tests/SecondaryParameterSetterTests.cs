@@ -1142,4 +1142,120 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal('3', mcb.CircuitWireType);
         Assert.Equal('3', mcb.CircuitPoleCount);
     }
+
+    // ---- SetParam_ep2 TB (list+index) ---------------------------------------
+
+    private static MainCircuitData Tb()
+    {
+        MainCircuitData tb = NewData();
+        tb.ReservedWord = "TB";
+        return tb;
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBは直列トリップ兄弟ありで極数6にする()
+    {
+        MainCircuitData p = NewData();
+        p.ReservedWord = "P";
+        MainCircuitData sd = NewData();
+        sd.ReservedWord = "MCSD";
+        MainCircuitData tb = Tb();
+
+        MainCircuitResult[] maina = [Res("001", p), Res("002", sd), Res("003", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
+
+        Assert.Null(error);
+        Assert.Equal("006", tb.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBはMGSH3Pの電源3P3Wで極数6にする()
+    {
+        MainCircuitData p = NewData();
+        p.ReservedWord = "P";
+        p.SystemNumber = "001";
+        p.CircuitPhaseCount = '3';
+        p.CircuitWireType = '3';
+        MainCircuitData mg = NewData();
+        mg.ReservedWord = "MG";
+        mg.SpecialReservedWordKind = '1'; // MGSH+(3P)
+        MainCircuitData tb = Tb();
+        tb.SystemNumber = "001";
+
+        MainCircuitResult[] maina = [Res("001", p), Res("002", mg), Res("003", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
+
+        Assert.Null(error);
+        Assert.Equal("006", tb.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBは27Cで極数3かつ自身を特殊区分6にする()
+    {
+        MainCircuitData p = NewData();
+        p.ReservedWord = "P";
+        MainCircuitData cr = NewData();
+        cr.ReservedWord = "CR";
+        cr.SpecialReservedWordKind = '5'; // 27C
+        MainCircuitData tb = Tb();
+
+        MainCircuitResult[] maina = [Res("001", p), Res("002", cr), Res("003", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 2);
+
+        Assert.Null(error);
+        Assert.Equal("003", tb.ElectricalParameterSlots[2].P);
+        Assert.Equal('6', tb.SpecialReservedWordKind);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBは自身にTBKYコメントがあれば極数2にする()
+    {
+        MainCircuitData tb = Tb();
+        tb.AttachedParameter.Comment = "TBKY";
+
+        MainCircuitResult[] maina = [Res("001", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("002", tb.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBは同一行のTBKYコメントで極数1にする()
+    {
+        MainCircuitData other = NewData();
+        other.ReservedWord = "TB";
+        other.AttachedParameter.Comment = "TBKY";
+        MainCircuitData tb = Tb();
+
+        MainCircuitResult[] maina = [Res("001", other), Res("002", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1);
+
+        Assert.Null(error);
+        Assert.Equal("001", tb.ElectricalParameterSlots[2].P);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TBは基本ケースで相線式から極数と電圧2を決める()
+    {
+        MainCircuitData tb = Tb();
+        tb.CircuitPhaseCount = '1';
+        tb.CircuitWireType = '2';
+        tb.CircuitVoltage = ["210", "000", "000"];
+        tb.CircuitVoltageKind = 'A';
+
+        MainCircuitResult[] maina = [Res("001", tb)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        Assert.Equal("002", tb.ElectricalParameterSlots[2].P);
+        Assert.Equal("000210.0", tb.ElectricalParameterSlots[2].V2[0]);
+        Assert.Equal('A', tb.ElectricalParameterSlots[2].V2Kbn);
+    }
 }

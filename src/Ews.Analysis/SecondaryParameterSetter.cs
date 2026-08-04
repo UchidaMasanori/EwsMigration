@@ -273,11 +273,12 @@ public static class SecondaryParameterSetter
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
-    ///   ・記録列参照 WH/VT/TR/TB。
+    ///   ・記録列参照 WH/VT/TR。
     ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     /// 記録列参照(親/兄弟)は list+index を受ける <see cref="SetParam_ep2(IReadOnlyList{MainCircuitResult},int)"/>
     /// で DCPW(親V2→V1複写+A2算出)・ELR(直前ZCT判定+同一ysno VC伝播)・LGR(+K数決定/エラー返却)・
-    /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap/子機エレメント修正)を収録済。
+    /// PLTR(親/RTR親回路電圧→V1)・MC(2次側検出/epap2Pで極数epap/子機エレメント修正)・
+    /// TB(記述行/系統走査で端子台極数epap+電圧２)を収録済。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -603,7 +604,8 @@ public static class SecondaryParameterSetter
     /// 現状で収録するのは DCPW(親の V2 を V1 へ複写+負荷容量から A2 算出)・
     /// ELR(直前 ZCT 判定+同一 ysno への VC 伝播)・LGR(ELR に加え K 数決定)・
     /// PLTR(親/RTR 親の回路電圧から 1 次側電圧 V1 を決定)・
-    /// MC(2 次側機器検出・epap2P・同一 ysno の MC 数で極数 epap を決定)。
+    /// MC(2 次側機器検出・epap2P・同一 ysno の MC 数で極数 epap を決定)・
+    /// TB(記述行/系統走査で端子台極数 epap と電圧２を決定)。
     /// 他の予約語は単一レコード版へ委譲する。
     /// 戻り値: 設計エラー(LGR の K 数が 0 または 6 以上)なら <see cref="CircuitParseError"/>、正常時 null。
     /// 【C原典】ret==2 → 呼び元が FY-632E を Error_Proc に渡す。
@@ -632,6 +634,10 @@ public static class SecondaryParameterSetter
 
             case "MC":
                 SetMc(maina, index);
+                return null;
+
+            case "TB":
+                SetTb(maina, index);
                 return null;
 
             default:
@@ -1140,6 +1146,247 @@ public static class SecondaryParameterSetter
                 SetMcPole(data);
             }
         }
+    }
+
+    /// <summary>
+    /// TB(端子台)の ep[2] 極数(epap)・電圧２を設定する。【C原典】case y_TB。
+    /// 記述行(同一 gyo)や系統(kno)を走査して以下の優先順で極数 3 桁目を決める:
+    ///   (1)直列トリップ(MCSD/MGSD/MCFRSD/MGFRSD 兄弟)あり→'6'、
+    ///   (2)シャッター回路(MGSH=MG+特殊区分'1'/'2')→電源相線で 6/5/4、
+    ///   (3)27A/27B/27C(CR+特殊区分'3'/'4'/'5')→2/2/3 かつ自 TB を特殊区分'6'、
+    ///   (4)MC 回路 N 相共用(コメント TBKY)→1P/2P、
+    ///   (5)上記以外→回路相数・線式で 2/3/3/4。
+    /// 最後に回路電圧最大値を V2[0] に格納し、V2 区分を回路電圧区分とする。
+    /// </summary>
+    private static void SetTb(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        if (TbHasSeriesTrip(maina, index))
+        {
+            // 【C原典】1996.09.03: MC*SD 等の直列トリップは 6P。
+            ep2.P = SetCharAt(ep2.P, 2, '6');
+        }
+        else if (TbFindShutterMg(maina, index, out int mgIndex, out int pIndex))
+        {
+            // 【C原典】改訂<33> シャッター回路の端子台極数。
+            MainCircuitData p = maina[pIndex].Data;
+            char mgTok = maina[mgIndex].Data.SpecialReservedWordKind;
+            if (mgTok == '1')
+            {
+                // MGSH+(3P)
+                if (p.CircuitPhaseCount == '3' && p.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '6');
+                }
+                if (p.CircuitPhaseCount == '1' && p.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '5');
+                }
+            }
+            else if (mgTok == '2')
+            {
+                // MGSH+(2P)
+                if (p.CircuitPhaseCount == '3' && p.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '5');
+                }
+                if (p.CircuitPhaseCount == '1' && p.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '4');
+                }
+            }
+        }
+        else if (TbFind27(maina, index, out int cr27Index))
+        {
+            // 【C原典】改訂<35> 27A/27B は 2P、27C は 3P。自 TB を特殊区分'6'(27*,TB)に。
+            char tok = maina[cr27Index].Data.SpecialReservedWordKind;
+            if (tok is '3' or '4')
+            {
+                ep2.P = SetCharAt(ep2.P, 2, '2');
+            }
+            else if (tok == '5')
+            {
+                ep2.P = SetCharAt(ep2.P, 2, '3');
+            }
+
+            data.SpecialReservedWordKind = '6';
+        }
+        else
+        {
+            int ret = TbCheckMcNShare(maina, index);
+            if (ret != 0)
+            {
+                // 【C原典】改訂<36> MC 回路 N 相共用: 共用側 1P・自身 TBKY は 2P。
+                if (ret == 1)
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '1');
+                }
+                else if (ret == 2)
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '2');
+                }
+            }
+            else
+            {
+                // 【C原典】950621 基本ケース: 回路相数・線式で極数。
+                if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '2')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '2');
+                }
+                if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '3');
+                }
+                if (data.CircuitPhaseCount == '3' && data.CircuitWireType == '3')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '3');
+                }
+                if (data.CircuitPhaseCount == '3' && data.CircuitWireType == '4')
+                {
+                    ep2.P = SetCharAt(ep2.P, 2, '4');
+                }
+            }
+        }
+
+        // 【C原典】V2: 回路電圧最大値を epav2[0] のオフセット 3 から 3 桁格納。
+        int n = MaxVoltageIndex(data.CircuitVoltage);
+        ep2.V2[0] = ReplaceSegment(ep2.V2[0], 3, data.CircuitVoltage[n]);
+        ep2.V2[1] = "000000.0";
+        ep2.V2[2] = "000000.0";
+        ep2.V2Kbn = data.CircuitVoltageKind;
+    }
+
+    /// <summary>
+    /// TB と同一記述行に直列トリップ(MCSD/MGSD/MCFRSD/MGFRSD)兄弟があるか。
+    /// 【C原典】Parm_Set_TB_Chk(1996.09.03, 戻り 0=あり)。index-1 から記述行が変わるまで遡る。
+    /// </summary>
+    private static bool TbHasSeriesTrip(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        string gyo = maina[index].Data.DescriptionRow;
+        for (int i = index - 1; i > 0; i--)
+        {
+            MainCircuitData m = maina[i].Data;
+            if (m.DescriptionRow != gyo)
+            {
+                break;
+            }
+            if (m.ReservedWord is "MCSD" or "MGSD" or "MCFRSD" or "MGFRSD")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// TB と同一記述行に MGSH(MG+特殊区分'1'/'2')があるか。あれば同一系統の電源も探す。
+    /// 【C原典】Parm_Set_TB_Chk2(改訂<33>, 戻り 0=あり)。
+    /// </summary>
+    private static bool TbFindShutterMg(IReadOnlyList<MainCircuitResult> maina, int index, out int mgIndex, out int pIndex)
+    {
+        mgIndex = 0;
+        pIndex = 0;
+        bool found = false;
+
+        string gyo = maina[index].Data.DescriptionRow;
+        for (int i = index - 1; i > 0; i--)
+        {
+            MainCircuitData m = maina[i].Data;
+            if (m.DescriptionRow != gyo)
+            {
+                break;
+            }
+            if (m.ReservedWord == "MG")
+            {
+                // 【C原典】MG を見つけたら特殊区分に関わらず走査終了。
+                if (m.SpecialReservedWordKind is '1' or '2')
+                {
+                    found = true;
+                    mgIndex = i;
+                }
+                break;
+            }
+        }
+
+        if (found)
+        {
+            string kno = maina[index].Data.SystemNumber;
+            for (int i = 0; i < maina.Count; i++)
+            {
+                MainCircuitData m = maina[i].Data;
+                if (m.ReservedWord == "P" && m.SystemNumber == kno)
+                {
+                    pIndex = i;
+                    break;
+                }
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// TB と同一記述行に 27A/27B/27C(CR+特殊区分'3'/'4'/'5')があるか。
+    /// 【C原典】Parm_Set_TB_Chk3(改訂<35>, 戻り 0=あり)。
+    /// </summary>
+    private static bool TbFind27(IReadOnlyList<MainCircuitResult> maina, int index, out int cr27Index)
+    {
+        cr27Index = 0;
+        string gyo = maina[index].Data.DescriptionRow;
+        for (int i = index - 1; i > 0; i--)
+        {
+            MainCircuitData m = maina[i].Data;
+            if (m.DescriptionRow != gyo)
+            {
+                break;
+            }
+            if (m.ReservedWord == "CR" && m.SpecialReservedWordKind is '3' or '4' or '5')
+            {
+                cr27Index = i;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// MC 回路 N 相共用の TB 判定。【C原典】Parm_Set_TB_Chk4(改訂<36>)。
+    /// 自身のコメントが TBKY(自身は先頭 3 文字比較=C原典の strncmp3 を踏襲)なら 2、
+    /// 同一記述行の他機器コメントが TBKY(4 文字)なら 1、いずれも無ければ 0。
+    /// </summary>
+    private static int TbCheckMcNShare(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+
+        // 【C原典】strncmp(fpacm1,"TBKY",3): 自身は先頭3文字("TBK")比較。
+        if (data.AttachedParameter.Comment.StartsWith("TBK", StringComparison.Ordinal))
+        {
+            return 2;
+        }
+
+        string gyo = data.DescriptionRow;
+        for (int i = 0; i < maina.Count; i++)
+        {
+            MainCircuitData m = maina[i].Data;
+            if (m.DescriptionRow != gyo)
+            {
+                continue;
+            }
+            if (m.AttachedParameter.Comment.StartsWith("TBKY", StringComparison.Ordinal))
+            {
+                return 1;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>
