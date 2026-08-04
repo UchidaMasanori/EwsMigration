@@ -612,3 +612,4 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 処理ブロック,Fyss3D_PH_Kettei 1P3W-親1P2W2ケース,PhaseAssigner.AssignParent1P2WPole2,toku/sekkei/src/Fyss3D.c,1P3W電源で親が1P2W極2の子機器の使用相をセット(親MC無指定は親コピー/子極2は200V検査・100V機器交互/子極1はXN→X等変換/LACSLリレー検査)
 処理ブロック,Fyss3D_PH_Kettei 1P3W-親1P2W1ケース,PhaseAssigner.AssignParent1P2WPole1,toku/sekkei/src/Fyss3D.c,1P3W電源で親が1P2W極1の子機器の使用相をセット(親MC/003は200V検査/親MCは子MC最大電圧200Vで親200V化・100V機器交互・TB3P対応・未設定は親コピー/子1P3W3は親MC中抜きXNY/非MCは親コピー)
 処理ブロック,Fyss3D_PH_Kettei 3P3W電源ケース,PhaseAssigner.AssignPhase3P3W,toku/sekkei/src/Fyss3D.c,3P3W電源配下の同系統機器の使用相をセット(PはRST/親3P3W3は子3P3W3コピー・子1P2W2はF800Index33収集後3P3W相交互・MC子3Pは親データコピー/親1P2W2はMC子3Pを3P3W化・子1P2W2は親コピー)
+処理ブロック,Fyss3D_PH_Kettei 3P4Wv0電源ケース,PhaseAssigner.AssignPhase3P4WNoV2,toku/sekkei/src/Fyss3D.c,3P4W(回路電圧v2なし)電源配下の同系統機器の使用相をセット(PはRSTN/親3P4W4v0は子3P4W4コピー・子3P3W3はRST・子1P2W2は3P3W相・子1P2W1は3P4W相/親3P3W3は子3P3W3コピー・子1P2W2は3P3W相/親1P2W2は子1P2W2コピー)
