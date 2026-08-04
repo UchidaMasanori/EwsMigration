@@ -791,6 +791,293 @@ public static class PhaseAssigner
         new("", '\0', '\0', '\0', "", ""),
     };
 
+    /// <summary>
+    /// 同じ親追番を持つ機器の主回路データ index を用途別(主回路 t／分岐送り ta／その他 tb／ヒューズ tf)に収集する。
+    /// 【C原典】<c>PropGetF800Index</c>(改訂&lt;11&gt;&lt;16&gt;&lt;17&gt;&lt;27&gt;)。
+    /// </summary>
+    public static F800IndexResult CollectF800Index(
+        IReadOnlyList<MainCircuitResult> mains, string oyatno, char hycpskbn, char kpaph, char kpawr, char kpap)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(oyatno);
+
+        var r = new F800IndexResult();
+        int count = mains.Count;
+
+        for (int m = 0; m < count; m++)
+        {
+            MainCircuitResult rec = mains[m];
+            MainCircuitData d = rec.Data;
+
+            if (Matches(d.ReservedWord, "WH      ", 8) && (d.CircuitElement == '3' || d.CircuitElement == '4'))
+            {
+                continue; // WH の計器用回路(VT無/付)はパス
+            }
+
+            if (Matches(d.ReservedWord, "CT      ", 8) && d.CircuitElement == '2')
+            {
+                continue; // CT の計器用回路(CT付)はパス
+            }
+
+            if (!Matches(d.ParentSequenceNumber, oyatno, 3))
+            {
+                continue; // 親データ追番が異なる
+            }
+
+            if (d.CircuitPhaseCount != kpaph || d.CircuitWireType != kpawr || d.CircuitPoleCount != kpap)
+            {
+                if ((hycpskbn == '3' || hycpskbn == '7') && Matches(d.LineTypeCode, "BO ", 3))
+                {
+                    continue; // 特注の "BO" は単独配置のため対象外
+                }
+
+                if (kpap == '1')
+                {
+                    r.Ta.Add(m); // 100V 機器の相振付時に 200V 機器をパスするため登録
+                }
+
+                continue; // 回路相数/線式/極数が異なる
+            }
+
+            if (IsMc3PParentAlreadySet(mains, oyatno, d))
+            {
+                continue; // 親が分岐 MC3P で子が 2P なら親と同じ使用相で設定済み
+            }
+
+            r.T.Add(m);
+
+            if (IsBranchSender(d, rec))
+            {
+                if (Matches(d.ReservedWord, "F ", 2))
+                {
+                    r.Tf.Add(m); // ヒューズは個別に相セット
+                }
+                else
+                {
+                    r.Ta.Add(m); // 分岐/送り機器
+                }
+            }
+            else
+            {
+                r.Tb.Add(m); // その他
+            }
+        }
+
+        return r;
+    }
+
+    /// <summary>
+    /// 同じ親追番を持つ機器の index を収集する(3相4線対応)。ヒューズ識別・MC3P 親判定は行わない。
+    /// 【C原典】<c>PropGetF800Index34</c>(改訂&lt;11&gt;)。t=主回路／ta=分岐送り／tb=その他。
+    /// </summary>
+    public static F800IndexResult CollectF800Index34(
+        IReadOnlyList<MainCircuitResult> mains, string oyatno, char kpaph, char kpawr, char kpap)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(oyatno);
+
+        var r = new F800IndexResult();
+        int count = mains.Count;
+
+        for (int m = 0; m < count; m++)
+        {
+            MainCircuitResult rec = mains[m];
+            MainCircuitData d = rec.Data;
+
+            if (Matches(d.ReservedWord, "WH      ", 8) && (d.CircuitElement == '3' || d.CircuitElement == '4'))
+            {
+                continue;
+            }
+
+            if (Matches(d.ReservedWord, "CT      ", 8) && d.CircuitElement == '2')
+            {
+                continue;
+            }
+
+            if (d.CircuitPhaseCount != kpaph || d.CircuitWireType != kpawr || d.CircuitPoleCount != kpap)
+            {
+                continue;
+            }
+
+            if (!Matches(d.ParentSequenceNumber, oyatno, 3))
+            {
+                continue;
+            }
+
+            r.T.Add(m);
+
+            if (IsBranchSender(d, rec))
+            {
+                r.Ta.Add(m);
+            }
+            else
+            {
+                r.Tb.Add(m);
+            }
+        }
+
+        return r;
+    }
+
+    /// <summary>
+    /// 同じ親追番を持つ機器の index を収集する(3相4線・極数別)。
+    /// 【C原典】<c>PropGetF800Index34P</c>(改訂&lt;18&gt;)。t=その他／ta=2P 分岐送り／tb=3P 分岐送り。
+    /// </summary>
+    public static F800IndexResult CollectF800Index34P(
+        IReadOnlyList<MainCircuitResult> mains, string oyatno, char kpaph, char kpawr, char kpap)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(oyatno);
+
+        var r = new F800IndexResult();
+        int count = mains.Count;
+
+        for (int m = 0; m < count; m++)
+        {
+            MainCircuitResult rec = mains[m];
+            MainCircuitData d = rec.Data;
+
+            if (Matches(d.ReservedWord, "WH      ", 8) && (d.CircuitElement == '3' || d.CircuitElement == '4'))
+            {
+                continue;
+            }
+
+            if (Matches(d.ReservedWord, "CT      ", 8) && d.CircuitElement == '2')
+            {
+                continue;
+            }
+
+            if (d.CircuitPhaseCount != kpaph || d.CircuitWireType != kpawr || d.CircuitPoleCount != kpap)
+            {
+                continue;
+            }
+
+            if (!Matches(d.ParentSequenceNumber, oyatno, 3))
+            {
+                continue;
+            }
+
+            if (IsBranchSender(d, rec))
+            {
+                if (Matches(d.ElectricalParameterSlots[0].P, "002", 3))
+                {
+                    r.Ta.Add(m); // 2P 分岐/送り機器
+                }
+                else if (Matches(d.ElectricalParameterSlots[0].P, "003", 3))
+                {
+                    r.Tb.Add(m); // 3P 分岐/送り機器
+                }
+            }
+            else
+            {
+                r.T.Add(m); // その他
+            }
+        }
+
+        return r;
+    }
+
+    /// <summary>
+    /// 同じ親追番を持つ機器の index を収集する(3P 機器数も計上)。
+    /// 【C原典】<c>PropGetF800Index33</c>(改訂&lt;29&gt;)。t/ta/tb/tf は <see cref="CollectF800Index"/> と同義、
+    /// <see cref="F800IndexResult.Count3P"/> に極数 3P の機器数を積む。
+    /// </summary>
+    public static F800IndexResult CollectF800Index33(
+        IReadOnlyList<MainCircuitResult> mains, string oyatno, char hycpskbn, char kpaph, char kpawr, char kpap)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(oyatno);
+
+        var r = new F800IndexResult();
+        int count = mains.Count;
+
+        for (int m = 0; m < count; m++)
+        {
+            MainCircuitResult rec = mains[m];
+            MainCircuitData d = rec.Data;
+
+            if (Matches(d.ReservedWord, "WH      ", 8) && (d.CircuitElement == '3' || d.CircuitElement == '4'))
+            {
+                continue;
+            }
+
+            if (Matches(d.ReservedWord, "CT      ", 8) && d.CircuitElement == '2')
+            {
+                continue;
+            }
+
+            if (!Matches(d.ParentSequenceNumber, oyatno, 3))
+            {
+                continue;
+            }
+
+            if (d.CircuitPoleCount == '3')
+            {
+                r.Count3P++; // 極数 3P 機器数
+            }
+
+            if (d.CircuitPhaseCount != kpaph || d.CircuitWireType != kpawr || d.CircuitPoleCount != kpap)
+            {
+                if ((hycpskbn == '3' || hycpskbn == '7') && Matches(d.LineTypeCode, "BO ", 3))
+                {
+                    continue;
+                }
+
+                if (kpap == '1')
+                {
+                    r.Ta.Add(m);
+                }
+
+                continue;
+            }
+
+            if (IsMc3PParentAlreadySet(mains, oyatno, d))
+            {
+                continue;
+            }
+
+            r.T.Add(m);
+
+            if (IsBranchSender(d, rec))
+            {
+                if (Matches(d.ReservedWord, "F ", 2))
+                {
+                    r.Tf.Add(m);
+                }
+                else
+                {
+                    r.Ta.Add(m);
+                }
+            }
+            else
+            {
+                r.Tb.Add(m);
+            }
+        }
+
+        return r;
+    }
+
+    // 分岐/送り機器(行種 B/BO/O・回路要素'1'・先頭機器フラグ'1')か。
+    private static bool IsBranchSender(MainCircuitData d, MainCircuitResult rec) =>
+        (Matches(d.LineTypeCode, "B  ", 3) || Matches(d.LineTypeCode, "BO ", 3) || Matches(d.LineTypeCode, "O  ", 3)) &&
+        d.CircuitElement == '1' && rec.Work.LeadingEquipmentFlag == '1';
+
+    // 親が分岐 MC3P で子が 2P、かつ直下(15桁キー strncmp==-1)なら親と同じ使用相で設定済み。
+    private static bool IsMc3PParentAlreadySet(IReadOnlyList<MainCircuitResult> mains, string oyatno, MainCircuitData d)
+    {
+        int oyano = EquipmentParameterFormatter.Stoi(oyatno, 3) - 1;
+        if (oyano < 0 || oyano >= mains.Count)
+        {
+            return false; // C原典は maina[oyano] を無条件参照(範囲外はUB)
+        }
+
+        MainCircuitData oya = mains[oyano].Data;
+        return Matches(oya.ReservedWord, "MC ", 3) && oya.CircuitPoleCount == '3' &&
+               Matches(oya.LineTypeCode, "B  ", 3) && Matches(d.ElectricalParameterSlots[0].P, "002", 3) &&
+               StrncmpAix(SeriesKey(oya), SeriesKey(d), 15) == -1;
+    }
+
     private static CircuitParseError MakeError(string code, MainCircuitData d) =>
         new(code, EquipmentParameterFormatter.Stoi(d.DescriptionRow, 3),
             EquipmentParameterFormatter.Stoi(d.DescriptionColumn, 3), "FYMEE90");
@@ -869,4 +1156,26 @@ public static class PhaseAssigner
 
     private static bool Matches(string value, string expected, int width) =>
         string.CompareOrdinal(value.PadRight(width)[..width], expected.PadRight(width)[..width]) == 0;
+}
+
+/// <summary>
+/// <c>PropGetF800Index*</c> が収集する主回路データ index の用途別テーブル。
+/// 【C原典】Fyss3D.c の t/ta/tb/tf/count3P 出力引数群に対応する。
+/// </summary>
+public sealed class F800IndexResult
+{
+    /// <summary>主回路 index。【C原典】t[]／PropGetF800Index34P では「その他」。</summary>
+    public List<int> T { get; } = new();
+
+    /// <summary>分岐/送り機器 index。【C原典】ta[]／PropGetF800Index34P では「2P」。</summary>
+    public List<int> Ta { get; } = new();
+
+    /// <summary>その他機器 index。【C原典】tb[]／PropGetF800Index34P では「3P」。</summary>
+    public List<int> Tb { get; } = new();
+
+    /// <summary>ヒューズ機器 index。【C原典】tf[]。</summary>
+    public List<int> Tf { get; } = new();
+
+    /// <summary>極数 3P の機器数。【C原典】count3P(PropGetF800Index33 のみ)。</summary>
+    public int Count3P { get; set; }
 }

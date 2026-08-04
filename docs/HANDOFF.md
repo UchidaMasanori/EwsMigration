@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1452 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1459 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -233,6 +233,18 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **★C原典バグ忠実再現**: `if(maina[i].dt.ep[2].epaqty = '2')` は == のつもりが 代入。常に真で "KL  " 分岐は到達不能、かつ CT の ep[2].Qty='2' となる副作用も発生→両方忠実再現しコメント明記。
 - **C原典UBガード**: "P"未発見(j<0)は continue、i+1/iNo の配列参照は範囲ガード追加(原典は maina[-1]/maina[Pmainc] 参照でUB)。
 - **テスト**: `PhaseAssignerTests.cs` +8件。テストは 1444 → **1452**（+8）。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(4) index 収集四関数）
+
+`PhaseAssigner` へ `PropGetF800Index`/`34`/`34P`/`33` の index 収集 4 関数を追加移植。同一親追番の機器を用途別の index リストへ分類する。
+
+- **結果型**: 新規 `F800IndexResult`(Ews.Analysis)。`List<int> T/Ta/Tb/Tf` と `int Count3P`。C原典の出力引数 t/ta/tb/tf/count3P に対応。
+- **`CollectF800Index`**(=PropGetF800Index 11/16/17/27): WH計器/CT計器回路パス→親追番一致→回路相/線/極数不一致は特注BO除外・1P対象はTa登録→親分岐MC3P直下2P(15桁キStrncmpAix==-1)はパス→T登録後分岐送り(行種B/BO/O&kiryoso'1'&sentflg'1')のFはTf他Ta、非分岐はTb。
+- **`CollectF800Index34`**(=PropGetF800Index34 11): ヒューズ識別・MC3P親判定なし。t=主回路/ta=分岐送り/tb=その他。
+- **`CollectF800Index34P`**(=PropGetF800Index34P 18): t=その他/ta=2P分岐送り(ep0.P=002)/tb=3P分岐送り(ep0.P=003)。
+- **`CollectF800Index33`**(=PropGetF800Index33 29): t/ta/tb/tf は CollectF800Index と同義、加えて Count3P(極数3P機器数)を計上。
+- **共通ヘルパ**: `IsBranchSender`(行種B/BO/O・kiryoso'1'・LeadingEquipmentFlag'1')・`IsMc3PParentAlreadySet`(oyatno-1で親index、範囲ガード付き=原典は maina[oyano] UB)。★親nyusenoの15桁strncmpは既存 SeriesKey+StrncmpAix を再利用。
+- **テスト**: `PhaseAssignerTests.cs` +7件。テストは 1452 → **1459**（+7）。
 
 
 

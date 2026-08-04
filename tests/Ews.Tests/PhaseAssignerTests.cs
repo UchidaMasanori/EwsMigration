@@ -501,4 +501,117 @@ public sealed class PhaseAssignerTests
         Assert.Equal("KL  ", lgr.Data.UsedPhase);
         Assert.Equal("KL  ", elr.Data.UsedPhase);
     }
+
+    // „Ÿ„Ÿ PropGetF800Index Œn „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+
+    private static MainCircuitResult IdxRow(
+        string datano = "000", string oyatno = "000", string yoyaku = "", string gyocd = "   ",
+        char kiryoso = '0', char kpaph = '0', char kpawr = '0', char kpap = '0',
+        char sentflg = ' ', string ep0P = "000")
+    {
+        var r = Row(datano: datano, oyatno: oyatno, yoyaku: yoyaku, gyocd: gyocd, ep0P: ep0P);
+        r.Data.CircuitElement = kiryoso;
+        r.Data.CircuitPhaseCount = kpaph;
+        r.Data.CircuitWireType = kpawr;
+        r.Data.CircuitPoleCount = kpap;
+        r.Work.LeadingEquipmentFlag = sentflg;
+        return r;
+    }
+
+    [Fact]
+    public void F800Index‚Í•ªŠò‘—‚è‹@Ší‚ğta‚»‚Ì‘¼‚ğtbƒqƒ…[ƒY‚ğtf‚ÖU‚è•ª‚¯‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(datano: "001", oyatno: "999", yoyaku: "MC      "), // e(oyatno•sˆê’v)
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "B  ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '1', sentflg: '1'), // ta
+            IdxRow(oyatno: "005", yoyaku: "F       ", gyocd: "B  ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '1', sentflg: '1'), // tf
+            IdxRow(oyatno: "005", yoyaku: "TB      ", gyocd: "   ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '1'), // tb
+        };
+        var res = PhaseAssigner.CollectF800Index(mains, "005", '0', '1', '2', '1');
+        Assert.Equal(new[] { 1, 2, 3 }, res.T.ToArray());
+        Assert.Equal(new[] { 1 }, res.Ta.ToArray());
+        Assert.Equal(new[] { 2 }, res.Tf.ToArray());
+        Assert.Equal(new[] { 3 }, res.Tb.ToArray());
+    }
+
+    [Fact]
+    public void F800Index‚ÍWHŒvŠí‰ñ˜H‚ÆCTŒvŠí‰ñ˜H‚ğƒpƒX‚·‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "WH      ", kiryoso: '3', kpaph: '1', kpawr: '2', kpap: '1'),
+            IdxRow(oyatno: "005", yoyaku: "CT      ", kiryoso: '2', kpaph: '1', kpawr: '2', kpap: '1'),
+        };
+        var res = PhaseAssigner.CollectF800Index(mains, "005", '0', '1', '2', '1');
+        Assert.Empty(res.T);
+    }
+
+    [Fact]
+    public void F800Index‚Í‹É”•sˆê’v‚Å1P‘ÎÛ‚Ì‚Æ‚«ta‚Ö“o˜^‚·‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "B  ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '3', sentflg: '1'),
+        };
+        var res = PhaseAssigner.CollectF800Index(mains, "005", '0', '1', '2', '1');
+        Assert.Empty(res.T); // ‹É”•sˆê’v‚Åå‰ñ˜H‚É‚Í“ü‚ç‚È‚¢
+        Assert.Equal(new[] { 0 }, res.Ta.ToArray());
+    }
+
+    [Fact]
+    public void F800Index‚Í“Á’BO’P“Æ”z’u‚ğ‘ÎÛŠO‚É‚·‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "BO ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '3', sentflg: '1'),
+        };
+        var res = PhaseAssigner.CollectF800Index(mains, "005", '3', '1', '2', '1'); // hycpskbn='3'
+        Assert.Empty(res.Ta);
+    }
+
+    [Fact]
+    public void F800Index34‚Íƒqƒ…[ƒY‚ğ¯•Ê‚¹‚¸•ªŠò‘—‚è‚Íta‚Ö“ü‚ê‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "F       ", gyocd: "B  ", kiryoso: '1', kpaph: '3', kpawr: '4', kpap: '4', sentflg: '1'),
+            IdxRow(oyatno: "005", yoyaku: "TB      ", gyocd: "   ", kiryoso: '1', kpaph: '3', kpawr: '4', kpap: '4'),
+        };
+        var res = PhaseAssigner.CollectF800Index34(mains, "005", '3', '4', '4');
+        Assert.Equal(new[] { 0, 1 }, res.T.ToArray());
+        Assert.Equal(new[] { 0 }, res.Ta.ToArray()); // F ‚àƒqƒ…[ƒY¯•Ê‚¹‚¸ ta
+        Assert.Equal(new[] { 1 }, res.Tb.ToArray());
+    }
+
+    [Fact]
+    public void F800Index34P‚Í2P‚ğta3P‚ğtb‚»‚Ì‘¼‚ğt‚ÖU‚è•ª‚¯‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "B  ", kiryoso: '1', kpaph: '3', kpawr: '4', kpap: '4', sentflg: '1', ep0P: "002"),
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "B  ", kiryoso: '1', kpaph: '3', kpawr: '4', kpap: '4', sentflg: '1', ep0P: "003"),
+            IdxRow(oyatno: "005", yoyaku: "TB      ", gyocd: "   ", kiryoso: '1', kpaph: '3', kpawr: '4', kpap: '4'),
+        };
+        var res = PhaseAssigner.CollectF800Index34P(mains, "005", '3', '4', '4');
+        Assert.Equal(new[] { 0 }, res.Ta.ToArray()); // 2P
+        Assert.Equal(new[] { 1 }, res.Tb.ToArray()); // 3P
+        Assert.Equal(new[] { 2 }, res.T.ToArray()); // ‚»‚Ì‘¼
+    }
+
+    [Fact]
+    public void F800Index33‚Í‹É”3P‹@Ší”‚ğŒvã‚·‚é()
+    {
+        var mains = new[]
+        {
+            IdxRow(oyatno: "005", yoyaku: "MCB     ", gyocd: "B  ", kiryoso: '1', kpaph: '3', kpawr: '3', kpap: '3', sentflg: '1'),
+            IdxRow(oyatno: "005", yoyaku: "TB      ", kiryoso: '1', kpaph: '3', kpawr: '3', kpap: '3'),
+            IdxRow(oyatno: "005", yoyaku: "TB      ", kiryoso: '1', kpaph: '1', kpawr: '2', kpap: '1'), // 3P‚Å‚È‚¢
+        };
+        var res = PhaseAssigner.CollectF800Index33(mains, "005", '0', '3', '3', '3');
+        Assert.Equal(2, res.Count3P);
+        Assert.Equal(new[] { 0, 1 }, res.T.ToArray());
+        Assert.Equal(new[] { 0 }, res.Ta.ToArray());
+        Assert.Equal(new[] { 1 }, res.Tb.ToArray());
+    }
 }
