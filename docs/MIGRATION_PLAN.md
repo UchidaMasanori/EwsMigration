@@ -60,7 +60,7 @@
 | テスト成功数 | **1703** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **677** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `WHHASH` | Fyss14 SetParam_ep2(list版) に WH(電力量計) case を追加。ep[0].epahz が 00 以外且つ回路周波数 kpahz と相違なら設定せず戻り1。回路要素 kiryoso=3(VT無)は自身回路電圧を右詰め+公称変換(Volt_Conv)の0でない最小値で V2 を、kiryoso=4(VT付)は上方 VT の回路電圧を同変換し V1 へ・V2 は 110 固定。引数 Helutzu/pprmp/newpprmp は未使用(物件非依存) |
+| 直近コミット | `9a253f7` | Fyss14 SetParam_ep2(list版) に WH(電力量計) case を追加。ep[0].epahz が 00 以外且つ回路周波数 kpahz と相違なら設定せず戻り1。回路要素 kiryoso=3(VT無)は自身回路電圧を右詰め+公称変換(Volt_Conv)の0でない最小値で V2 を、kiryoso=4(VT付)は上方 VT の回路電圧を同変換し V1 へ・V2 は 110 固定。引数 Helutzu/pprmp/newpprmp は未使用(物件非依存) |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
