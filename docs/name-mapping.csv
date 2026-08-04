@@ -657,3 +657,5 @@ CMPS,BranchArraySorter.Cmps,BranchArraySorter.Cmps,toku/sekkei/src/Fyss3C.c,処理
 CTINF,CtAutoGenerator.CtInfo,CtAutoGenerator.CtInfo,toku/sekkei/src/Fyss15.c,CT作成情報構造体。datano_WHAM(発生原因WH/AMの1始まりデータ追番)/datano_CT(CT挿入直前データ追番)
 SortCTINF,CtAutoGenerator.PrepareCtCreation(Sort),CtAutoGenerator.PrepareCtCreation,toku/sekkei/src/Fyss15.c,CTINF整列比較関数。datano_CT昇順。List.Sortのラムダとして集約
 Pre_CT_Make,CtAutoGenerator.PrepareCtCreation,CtAutoGenerator.PrepareCtCreation,toku/sekkei/src/Fyss15.c,CT自動生成の検出・挿入位置リスト作成。予約語AM+回路要素'1'+定格電流2>30Aの要素につき前後(i,i+1)へCT挿入位置対を作成し重複除去→datano_CT昇順整列。改訂<2>でWH経路は削除済
+Mainfile_CT_Make,CtAutoGenerator.InsertCtIntoMainCircuit,CtAutoGenerator.InsertCtIntoMainCircuit,toku/sekkei/src/Fyss15.c,CTINFを元に主回路へCTを挿入し再作成。WH/AM定格電流2→1写し(epaa1未入力時2次側5A)→旧を新リストへ複写しCT挿入・データ/親/グループ親追番を新採番へ付替え・挿入対間のWH/AM本体と偶数番CTを回路要素'2'化→挿入で重なる階層番号の繰上げ・同階層同並列要素のnarakbn-1調整。★atoi(kaisono)はkaisono→heino→chokuno→yoyakkbnの物理隣接を数字が続く限り読む忠実仕様(越境読取)。オブジェクト再利用でmemcpy相当
+Main_Area_Clear,MainCircuitData.Create,MainCircuitResult(new),toku/sekkei/src/Fyss1f.c,主回路要素の全フィールド初期化(数値'0'/文字' '/narakbn'1'/小数点SetPeri)。C#はドメイン既定値(new)が相当。CT挿入部初期化に使用
