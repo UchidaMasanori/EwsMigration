@@ -578,4 +578,110 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("003", ep2.P); // 3P3W → 3桁目 '3'
         Assert.Equal("000210.0", ep2.V2[0]);
     }
+
+    // ---- SetParam_ep2 NHMB --------------------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_NHMBはW入力があればATをW割るV2で算出する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "NHMB";
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["100", "000", "000"];
+        data.ElectricalParameterSlots[0].W1 = "0002000.00"; // 2000W
+        data.ElectricalParameterSlots[0].V2[0] = "000100.0"; // 100V
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        Assert.Equal("00020.000", data.ElectricalParameterSlots[2].At); // 2000/100=20
+    }
+
+    [Fact]
+    public void SetParam_ep2_NHMBはW入力時V2が0ならep2側V2を分母に使う()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "NHMB";
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["200", "000", "000"];
+        data.AttachedParameter.LoadCapacity = "0004000"; // 4000W
+        // ep[0].V2[0] は既定 "000000.0"(=0)のまま。ep[2].V2[0] は MCB_V2 が回路電圧から設定。
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        // MCB_V2 で ep[2].V2[0]="000200.0"(200V) → 4000/200=20
+        Assert.Equal("000200.0", data.ElectricalParameterSlots[2].V2[0]);
+        Assert.Equal("00020.000", data.ElectricalParameterSlots[2].At);
+    }
+
+    [Fact]
+    public void SetParam_ep2_NHMBはW無_A2入力ならep0のATにA2を設定する()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "NHMB";
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["100", "000", "000"];
+        data.ElectricalParameterSlots[0].A2 = "00050.000"; // 50A
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        Assert.Equal("00050.000", data.ElectricalParameterSlots[0].At); // ep[0] 側に設定
+        Assert.Equal("000000000", data.ElectricalParameterSlots[2].At); // ep[2] は未変更(既定)
+    }
+
+    [Fact]
+    public void SetParam_ep2_NHMBはW無_A2無ならATを設定しない()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "NHMB";
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["100", "000", "000"];
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        Assert.Equal("000000000", data.ElectricalParameterSlots[0].At);
+        Assert.Equal("000000000", data.ElectricalParameterSlots[2].At);
+    }
+
+    // ---- SetParam_ep2 CR ----------------------------------------------------
+
+    [Theory]
+    [InlineData('3')]
+    [InlineData('4')]
+    [InlineData('5')]
+    public void SetParam_ep2_CRは27ABCなら制御電圧_接点_タイプ_極数を設定する(char tokkbn)
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "CR";
+        data.SpecialReservedWordKind = tokkbn;
+        data.CircuitPoleCount = '2';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("210", ep2.Vc);
+        Assert.Equal('A', ep2.VcKbn);
+        Assert.Equal("02", data.ElectricalParameterSlots[0].Cc);
+        Assert.Equal("02", ep2.Cc);
+        Assert.Equal("NC     ", data.DataType[2]);
+        Assert.Equal("002", ep2.P); // 極数3桁目 '2'
+    }
+
+    [Fact]
+    public void SetParam_ep2_CRは27ABC以外なら何も設定しない()
+    {
+        MainCircuitData data = NewData();
+        data.ReservedWord = "CR";
+        data.SpecialReservedWordKind = '0';
+        data.CircuitVoltage = ["210", "000", "000"];
+        data.CircuitVoltageKind = 'A';
+
+        SecondaryParameterSetter.SetParam_ep2(data);
+
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        Assert.Equal("000", ep2.Vc); // 既定のまま
+        Assert.Equal("00", ep2.Cc);
+        Assert.Equal("", data.DataType[2]);
+    }
 }

@@ -268,13 +268,13 @@ public static class SecondaryParameterSetter
     /// 冒頭で部分設定部位(ep[2].epap/epav2[0])を初期化してから分岐する。
     /// 収録: MCB/ELB/MMCB/ELMB/RMCB系/MC/SB/THR/MG/SC/NT/RRY/MCDT/F/CP/LGT/HM/ZCT/HPSB/HSB/CKS/
     ///       CSDT/SSW/TSW/TS/FL/LSW/DSW/VS/AS/VM/LA/L/MCFR/MCSD/MCFRSD/MGFR/MGSD/MGFRSD/
-    ///       DCSIR/DCNI/TSU/SSWU/PBSU/COSU/2COSU/OLU/CON。
+    ///       DCSIR/DCNI/TSU/SSWU/PBSU/COSU/2COSU/OLU/CON/NHMB/CR。
     ///
     /// 未収録(後続増分・記録列/物件/未移植リーフ依存):
     ///   ・回路電気値 kpa* も再設定する RTR/WL/PLTR(=<see cref="UpperParameterBuilder.ApplyExceptionCircuitParameters"/>)。
     ///   ・MC の極数 epap(2次側検出=全レコード配列走査依存。V2/AC/BC は収録済)。
-    ///   ・記録列参照 WH/VT/TR/TB/LGR/ELR。
-    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。未移植リーフ DCPW/NHMB(計算)。
+    ///   ・記録列参照 WH/VT/TR/TB/LGR/ELR。親レコード相対参照 DCPW(DCPW_V1)。
+    ///   ・物件(FYDF801)依存 VT/TR/WH/VM。
     ///
     /// 【注意】ep[2].epap/epae は暫定値で、最終 FYDF806 は後段の機器選定が選定機器の実極数・
     /// 実エレメントで上書きする(電圧 V2 は不変)。詳細は GoldenEp2ComparisonTests のクラス doc。
@@ -537,8 +537,71 @@ public static class SecondaryParameterSetter
                 SetMcbVoltage2(data);
                 break;
 
+            case "NHMB":
+                // 【C原典】case y_NHMB: MCB_P + MCB_V2 の後、負荷容量(Ｗ)入力があれば AT を W/V2 で算出、
+                //   無く負荷電流２(A2)入力があれば ep[0].AT へ A2 を整形設定する自己完結ケース。
+                SetMcbPole(data);
+                SetMcbVoltage2(data);
+                {
+                    ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+                    double load = EquipmentParameterFormatter.Stof(data.AttachedParameter.LoadCapacity, 7);
+                    double w1 = EquipmentParameterFormatter.Stof(ep0.W1, 10);
+                    if (w1 != 0.0 || load != 0.0)
+                    {
+                        double work1 = 0.0;
+                        if (load != 0.0)
+                        {
+                            work1 = load;
+                        }
+
+                        if (w1 != 0.0)
+                        {
+                            work1 = w1;
+                        }
+
+                        double v20 = EquipmentParameterFormatter.Stof(ep0.V2[0], 8);
+                        double work2 = v20 != 0.0
+                            ? v20
+                            : EquipmentParameterFormatter.Stof(ep2.V2[0], 8);
+                        ep2.At = Format9(work1 / work2);
+                    }
+                    else if (EquipmentParameterFormatter.Stof(ep0.A2, 9) != 0.0)
+                    {
+                        // 【C原典】ここは ep[0].epaat へ設定する(ep[2] ではない)。
+                        ep0.At = Format9(EquipmentParameterFormatter.Stof(ep0.A2, 9));
+                    }
+                }
+
+                break;
+
+            case "CR":
+                // 【C原典】case y_CR(改訂<35>): 特殊予約語区分が 27A/27B/27C('3'/'4'/'5')のとき
+                //   MCB_V2 + 制御電圧(VC)+ c接点数(CC=02)+ タイプ[2]=NC + 極数3桁目=2 を設定。
+                if (data.SpecialReservedWordKind is '3' or '4' or '5')
+                {
+                    SetMcbVoltage2(data);
+                    ep2.Vc = data.CircuitVoltage[0];
+                    ep2.VcKbn = data.CircuitVoltageKind;
+                    data.ElectricalParameterSlots[0].Cc = "02";
+                    ep2.Cc = "02";
+                    data.DataType[2] = "NC     ";
+                    ep2.P = SetCharAt(ep2.P, 2, '2');
+                }
+
+                break;
+
                 // その他予約語は上記 TODO(記録列/物件/未移植リーフ依存)のため未処理。
         }
+    }
+
+    /// <summary>
+    /// C の <c>sprintf(buf,"%09.3f",v); memcpy(dst,buf,9)</c> を再現し、先頭 9 文字を返す。
+    /// 整数部が 6 桁を超えて 9 文字を上回った場合は先頭 9 文字に切り詰める(memcpy 9 と同じ)。
+    /// </summary>
+    private static string Format9(double value)
+    {
+        string s = EquipmentParameterFormatter.SprintfF("%09.3f", value);
+        return s.Length > 9 ? s[..9] : s;
     }
 
     /// <summary>
