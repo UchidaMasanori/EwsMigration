@@ -370,4 +370,52 @@ public class BranchArraySorterTests
     {
         Assert.Equal("00100.000", BranchArraySorter.SelectSortCurrent("00100.000", "00000.999"));
     }
+
+    [Fact]
+    public void GetFloorElementsForSortは条件一致要素を集める()
+    {
+        var mains = new[]
+        {
+            Node(gyocd: "B", epabn: '1', chokuno: "001"),               // 0 一致
+            Node(gyocd: "O", epabn: '4', chokuno: "001"),               // 1 一致
+            Node(gyocd: "B", epabn: '1', chokuno: "001", kiryoso: '2'), // 2 回路要素≠1
+            Node(gyocd: "SB", epabn: '1', chokuno: "001"),              // 3 行種コード不可
+            Node(gyocd: "B", epabn: '1', chokuno: "001"),               // 4 グループ親追番違い
+        };
+        mains[4].Data.GroupParentSequenceNumber = "005";
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        foreach (var w in sd) { w.Stat = BranchArraySorter.WorkStatus.Doing; }
+
+        Assert.Equal(new[] { 0, 1 }, BranchArraySorter.GetFloorElementsForSort(sd, mains, 0));
+    }
+
+    [Fact]
+    public void GetFloorElementsNotForSortはソート対象を除いた要素と最小新並列追番を返す()
+    {
+        var mains = new[]
+        {
+            Node(oyatno: "005", chokuno: "001", kaisono: "001", heino: "004"), // 0 = CT対象
+            Node(oyatno: "005", chokuno: "002", kaisono: "001"),               // 1 = 対象外
+            Node(oyatno: "007", chokuno: "001", kaisono: "003"),               // 2 = 親追番違い
+        };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+        foreach (var w in sd) { w.Stat = BranchArraySorter.WorkStatus.Doing; }
+
+        var (elements, minParallel) = BranchArraySorter.GetFloorElementsNotForSort(sd, mains, new[] { 0 });
+
+        Assert.Equal(new[] { 1 }, elements);
+        Assert.Equal(4, minParallel);
+    }
+
+    [Fact]
+    public void GetFloorElementsNotForSortは空入力で空と0x7FFFを返す()
+    {
+        var mains = new[] { Node() };
+        var sd = BranchArraySorter.InitializeWorkArea(mains);
+
+        var (elements, minParallel) = BranchArraySorter.GetFloorElementsNotForSort(sd, mains, System.Array.Empty<int>());
+
+        Assert.Empty(elements);
+        Assert.Equal(0x7FFF, minParallel);
+    }
 }

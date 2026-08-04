@@ -636,3 +636,5 @@ GetMinimumHeino,BranchArraySorter.GetMinimumParallelNumber,BranchArraySorter.Get
 SortIndex(KEY5),BranchArraySorter.GetReservedWordSortCategory,BranchArraySorter.GetReservedWordSortCategory,toku/sekkei/src/Fyss3C.c,予約語→KEY5予約語種別の2桁コード(ELB=01?RRY=12、その他=13)
 SortIndex(KEY2),BranchArraySorter.GetTypeKind,BranchArraySorter.GetTypeKind,toku/sekkei/src/Fyss3C.c,KEY2タイプ種別(構成機器非依存maina経路)。SB→'4'/協約系→'2'、他はdatatype[7]走査(SB'4'/KM,KY'2'/CT'3'/Sパワー'4')、無し'1'
 SortIndex(KEY6/7),BranchArraySorter.SelectSortCurrent,BranchArraySorter.SelectSortCurrent,toku/sekkei/src/Fyss3C.c,KEY6/7電流採用値(maina経路)。ep[1]値が数値で0.0ならep[2]値、非0ならep[1]値
+GetFloorElementsForSortX,BranchArraySorter.GetFloorElementsForSort,BranchArraySorter.GetFloorElementsForSort,toku/sekkei/src/Fyss3C.c,ソート対象末端回路ブレーカ収集。doingかつ行種B/BO/O・盤種BN1/4・回路要素=1・直列追番=1・グループ親追番一致
+GetFloorElementsNotForSort,BranchArraySorter.GetFloorElementsNotForSort,BranchArraySorter.GetFloorElementsNotForSort,toku/sekkei/src/Fyss3C.c,ソート非対象要素(親追番一致blistからCT和集合flistを除いた昇順)とflistの最小新並列追番。★kaisono==kaisonoは常に真の忠実バグ

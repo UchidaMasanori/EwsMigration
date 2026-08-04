@@ -710,4 +710,94 @@ public static class BranchArraySorter
 
         return d == 0.0 ? (slot2Value ?? string.Empty) : v1;
     }
+
+    /// <summary>
+    /// ソート対象となる末端回路ブレーカ要素の一覧を得る。【C原典】<c>GetFloorElementsForSortX</c>(Fyss3C.c)。
+    /// 処理中(doing)で、行種コードが B/BO/O・盤種類 BN が '1'/'4'・回路要素='1'・直列追番='001' で、
+    /// かつグループ親データ追番が指定要素と等しいものを集める。
+    /// </summary>
+    public static List<int> GetFloorElementsForSort(WorkData[] sd, IReadOnlyList<MainCircuitResult> mains, int index)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        ArgumentNullException.ThrowIfNull(mains);
+        var list = new List<int>();
+        int groupParent = sd[index].Now.GroupParentNumber;
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (sd[i].Stat == WorkStatus.Doing
+                && IsMatchLineTypeCode(mains[i])
+                && IsMatchPanelKind(mains[i])
+                && sd[i].Now.CircuitElement == 1
+                && sd[i].Now.SeriesNumber == 1
+                && sd[i].Now.GroupParentNumber == groupParent)
+            {
+                list.Add(i);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// ソートと同じ階層番号で、ソートの対象とならなかった要素の一覧と、その系統の最小の新並列追番を得る。
+    /// 【C原典】<c>GetFloorElementsNotForSort</c>(Fyss3C.c)。ソート対象の親データ追番に一致する全要素
+    /// (blist)から、ソート対象及びそれに連なる計器回路(<see cref="GetFloorElementsOfCt"/> の和集合=flist)を
+    /// 除いたものを昇順で返す。最小新並列追番は flist の <c>new.heino</c> の最小値(該当なしは 0x7FFF)。
+    /// </summary>
+    public static (List<int> Elements, int MinimumParallelNumber) GetFloorElementsNotForSort(
+        WorkData[] sd, IReadOnlyList<MainCircuitResult> mains, IReadOnlyList<int> sortedIndexes)
+    {
+        ArgumentNullException.ThrowIfNull(sd);
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(sortedIndexes);
+
+        if (sortedIndexes.Count == 0)
+        {
+            return (new List<int>(), 0x7FFF);
+        }
+
+        // blist: 親データ追番が先頭ソート要素に一致するもの。
+        // 【C原典の忠実バグ】階層番号条件(kaisono==kaisono)は常に真のため階層では絞り込まない。
+        int baseParent = EquipmentParameterFormatter.Stoi(mains[sortedIndexes[0]].Data.ParentSequenceNumber, 3);
+        var blist = new List<int>();
+        for (int i = 0; i < sd.Length; i++)
+        {
+            if (EquipmentParameterFormatter.Stoi(mains[i].Data.ParentSequenceNumber, 3) == baseParent)
+            {
+                blist.Add(i);
+            }
+        }
+
+        // flist: ソート対象及びそれに連なるパターン入力計器回路(CT)の和集合。
+        var flist = new HashSet<int>();
+        foreach (int idx in sortedIndexes)
+        {
+            foreach (int c in GetFloorElementsOfCt(sd, idx))
+            {
+                flist.Add(c);
+            }
+        }
+
+        // flist より最小の新並列追番。
+        int minParallel = 0x7FFF;
+        foreach (int f in flist)
+        {
+            if (sd[f].New.ParallelNumber < minParallel)
+            {
+                minParallel = sd[f].New.ParallelNumber;
+            }
+        }
+
+        // blist にあって flist にない要素(昇順)。
+        var result = new List<int>();
+        foreach (int b in blist)
+        {
+            if (!flist.Contains(b))
+            {
+                result.Add(b);
+            }
+        }
+
+        return (result, minParallel);
+    }
 }
