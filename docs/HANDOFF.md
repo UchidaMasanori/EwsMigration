@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1459 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1463 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -245,6 +245,15 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`CollectF800Index33`**(=PropGetF800Index33 29): t/ta/tb/tf は CollectF800Index と同義、加えて Count3P(極数3P機器数)を計上。
 - **共通ヘルパ**: `IsBranchSender`(行種B/BO/O・kiryoso'1'・LeadingEquipmentFlag'1')・`IsMc3PParentAlreadySet`(oyatno-1で親index、範囲ガード付き=原典は maina[oyano] UB)。★親nyusenoの15桁strncmpは既存 SeriesKey+StrncmpAix を再利用。
 - **テスト**: `PhaseAssignerTests.cs` +7件。テストは 1452 → **1459**（+7）。
+
+### 2026-08-06 セッション 追加分（Fyss3D 使用相決定 段階移植(5) 改訂32 3P4W連携使用相変更）
+
+`PhaseAssigner` へ 改訂32 の 2 関数を追加移植。
+
+- **`ChangeSiyousouFor3P4W`**(=PropChgSiyousou): 予約語"P"の1相三線(kpaph'1'&kpawr'3')電源を走査し、`IsConnectedTo3P4W`が1(連携有)の場合→自分より後方に同一行種番号(LineTypeNumber)のP電源があればパス→無ければ電源のUsedPhase="RNS "・同系統番号(SystemNumber)が続く間の下流機器のUsedPhaseをX→R/Y→Sへ変換。
+- **`IsConnectedTo3P4W`**(=PropConnect3P4W): 1P3W電源が同一行種番号の3P4W電源(gyocd"P "&kpaph'3'&kpawr'4')と繋がるか判定(0:無/1:有)。行種番号 Stoi==0 は連携無し。
+- **フィールド**: gyono→`LineTypeNumber`(2ch)・gyocd→`LineTypeCode`(3ch)・kno→`SystemNumber`(3ch)。
+- **テスト**: `PhaseAssignerTests.cs` +4件(PowerRowヘルパ追加)。テストは 1459 → **1463**（+4）。★★Fyss3D残りは統括本体 Fyss3D_PH_Kettei(~1000行) のみ。
 
 
 

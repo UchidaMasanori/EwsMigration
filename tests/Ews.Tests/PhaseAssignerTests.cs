@@ -614,4 +614,71 @@ public sealed class PhaseAssignerTests
         Assert.Equal(new[] { 0 }, res.Ta.ToArray());
         Assert.Equal(new[] { 1 }, res.Tb.ToArray());
     }
+
+    // ── ChangeSiyousouFor3P4W (PropChgSiyousou / PropConnect3P4W) ──────────────
+
+    private static MainCircuitResult PowerRow(
+        string yoyaku, string gyocd, string gyono, char kpaph, char kpawr,
+        string kno, string siyouso = "    ", string oyatno = "000")
+    {
+        var r = Row(yoyaku: yoyaku, gyocd: gyocd, oyatno: oyatno, siyouso: siyouso);
+        r.Data.LineTypeNumber = gyono;
+        r.Data.CircuitPhaseCount = kpaph;
+        r.Data.CircuitWireType = kpawr;
+        r.Data.SystemNumber = kno;
+        return r;
+    }
+
+    [Fact]
+    public void 使用相変更_3P4W連携の1P3W電源と下流をRNSへ変更する()
+    {
+        var mains = new[]
+        {
+            PowerRow("P       ", "P  ", "01", '3', '4', "001"),                        // 3P4W電源
+            PowerRow("P       ", "P  ", "01", '1', '3', "002", siyouso: "XNY "),       // 1P3W電源(対象)
+            PowerRow("MCB     ", "B  ", "  ", '1', '3', "002", siyouso: "XNY "),       // 下流
+        };
+        PhaseAssigner.ChangeSiyousouFor3P4W(mains);
+        Assert.Equal("RNS ", mains[1].Data.UsedPhase);
+        Assert.Equal("RNS ", mains[2].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 使用相変更_後続に同一行種番号の電源があればパスする()
+    {
+        var mains = new[]
+        {
+            PowerRow("P       ", "P  ", "01", '1', '3', "001", siyouso: "XNY "),       // 1P3W電源
+            PowerRow("MCB     ", "B  ", "  ", '1', '3', "001", siyouso: "XN  "),       // 下流
+            PowerRow("P       ", "P  ", "01", '3', '4', "003"),                        // 後続の同一行種電源(3P4W)
+        };
+        PhaseAssigner.ChangeSiyousouFor3P4W(mains);
+        Assert.Equal("XNY ", mains[0].Data.UsedPhase);
+        Assert.Equal("XN  ", mains[1].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 使用相変更_3P4W連携が無ければ変更しない()
+    {
+        var mains = new[]
+        {
+            PowerRow("P       ", "P  ", "01", '1', '3', "001", siyouso: "XNY "),
+            PowerRow("MCB     ", "B  ", "  ", '1', '3', "001", siyouso: "XN  "),
+        };
+        PhaseAssigner.ChangeSiyousouFor3P4W(mains);
+        Assert.Equal("XNY ", mains[0].Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 使用相変更_行種番号が0なら連携無しとして変更しない()
+    {
+        var mains = new[]
+        {
+            PowerRow("P       ", "P  ", "00", '1', '3', "001", siyouso: "XNY "),
+            PowerRow("P       ", "P  ", "00", '3', '4', "002"),
+        };
+        PhaseAssigner.ChangeSiyousouFor3P4W(mains);
+        Assert.Equal("XNY ", mains[0].Data.UsedPhase);
+    }
 }
+

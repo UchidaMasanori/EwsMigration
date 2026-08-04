@@ -603,3 +603,5 @@ union,fyrt811/key_tbl,Ews.Domain.Analysis.RatingValues,toku/include/sekkei/fyrt8
 関数,PropGetF800Index34,PhaseAssigner.CollectF800Index34,toku/sekkei/src/Fyss3D.c,3相4線対応の同一親追番機器index収集。ヒューズ識別・MC3P親判定なし。t=主回路/ta=分岐送り/tb=その他(改訂11)
 関数,PropGetF800Index34P,PhaseAssigner.CollectF800Index34P,toku/sekkei/src/Fyss3D.c,3相4線対応の極数別index収集。t=その他/ta=2P分岐送り/tb=3P分岐送り(改訂18)
 関数,PropGetF800Index33,PhaseAssigner.CollectF800Index33,toku/sekkei/src/Fyss3D.c,同一親追番の機器index収集(t/ta/tb/tf)に加え極数3P機器数Count3Pを計上(改訂29)
+関数,PropChgSiyousou,PhaseAssigner.ChangeSiyousouFor3P4W,toku/sekkei/src/Fyss3D.c,3P4Wと繋がる1相3線電源の使用相XNYをRNSに変更。後続に同一行種番号の電源があればパス・同系統の下流機器もX→R/Y→Sへ変換(改訂32)
+関数,PropConnect3P4W,PhaseAssigner.IsConnectedTo3P4W,toku/sekkei/src/Fyss3D.c,1相3線電源が同一行種番号の3相4線電源と繋がっているか判定(0:無し/1:有り)。行種番号0は連携無し(改訂32)

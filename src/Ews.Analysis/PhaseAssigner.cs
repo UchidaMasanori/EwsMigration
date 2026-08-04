@@ -1078,6 +1078,106 @@ public static class PhaseAssigner
                StrncmpAix(SeriesKey(oya), SeriesKey(d), 15) == -1;
     }
 
+    // 3P4W と繋がっている 1P3W の使用相 XNY を RNS に変更する。【C原典】PropChgSiyousou(改訂32)。
+    public static void ChangeSiyousouFor3P4W(IReadOnlyList<MainCircuitResult> mains)
+    {
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitData di = mains[i].Data;
+            if (!Matches(di.ReservedWord, "P       ", 8))
+            {
+                continue;
+            }
+
+            if (di.CircuitPhaseCount != '1' || di.CircuitWireType != '3')
+            {
+                continue; // 電源が1相3線のみ対象
+            }
+
+            if (IsConnectedTo3P4W(mains, i) != 1)
+            {
+                continue; // 3P4Wとの繋がり無し
+            }
+
+            // 処理中電源以降に同じ行種番号を持つ電源があればパスする。
+            bool laterSameLine = false;
+            for (int j = i + 1; j < mains.Count; j++)
+            {
+                MainCircuitData dj = mains[j].Data;
+                if (Matches(dj.ReservedWord, "P       ", 8) &&
+                    Matches(dj.LineTypeNumber, di.LineTypeNumber, 2))
+                {
+                    laterSameLine = true;
+                    break;
+                }
+            }
+
+            if (laterSameLine)
+            {
+                continue;
+            }
+
+            di.UsedPhase = Fixed("RNS ", 4);
+
+            for (int j = i + 1; j < mains.Count; j++)
+            {
+                MainCircuitData dj = mains[j].Data;
+                if (!Matches(di.SystemNumber, dj.SystemNumber, 3))
+                {
+                    break; // 系統番号が変わったら終了
+                }
+
+                char[] arr = dj.UsedPhase.PadRight(4)[..4].ToCharArray();
+                for (int k = 0; k < 4; k++)
+                {
+                    if (arr[k] == 'X')
+                    {
+                        arr[k] = 'R';
+                    }
+                    else if (arr[k] == 'Y')
+                    {
+                        arr[k] = 'S';
+                    }
+                }
+
+                dj.UsedPhase = new string(arr);
+            }
+        }
+    }
+
+    // 3相4線と繋がりがある電源か判定する。【C原典】PropConnect3P4W(改訂32)。0:無し 1:有り。
+    private static int IsConnectedTo3P4W(IReadOnlyList<MainCircuitResult> mains, int pIdx)
+    {
+        MainCircuitData p = mains[pIdx].Data;
+        if (p.CircuitPhaseCount != '1' || p.CircuitWireType != '3')
+        {
+            return 0;
+        }
+
+        if (EquipmentParameterFormatter.Stoi(p.LineTypeNumber, 2) == 0)
+        {
+            return 0; // 行種番号がない場合は繋がりなし
+        }
+
+        for (int m = 0; m < mains.Count; m++)
+        {
+            if (m == pIdx)
+            {
+                continue;
+            }
+
+            MainCircuitData dm = mains[m].Data;
+            if (Matches(dm.LineTypeCode, "P  ", 3) &&
+                Matches(dm.LineTypeNumber, p.LineTypeNumber, 2) &&
+                dm.CircuitPhaseCount == '3' && dm.CircuitWireType == '4')
+            {
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
     private static CircuitParseError MakeError(string code, MainCircuitData d) =>
         new(code, EquipmentParameterFormatter.Stoi(d.DescriptionRow, 3),
             EquipmentParameterFormatter.Stoi(d.DescriptionColumn, 3), "FYMEE90");
