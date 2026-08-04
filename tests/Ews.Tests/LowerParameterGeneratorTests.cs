@@ -17,7 +17,12 @@ public sealed class LowerParameterGeneratorTests
         string oyatno = "000",
         string ep0P = "000",
         string siyouso = "    ",
-        char ksyubetu = '1')
+        char ksyubetu = '1',
+        char kiryoso = ' ',
+        char kaetyp = ' ',
+        string doukkno = "  ",
+        string denryu = "00000000",
+        char ahassei = ' ')
     {
         var r = new MainCircuitResult
         {
@@ -28,6 +33,11 @@ public sealed class LowerParameterGeneratorTests
                 ParentSequenceNumber = oyatno,
                 UsedPhase = siyouso,
                 SystemKind = ksyubetu,
+                CircuitElement = kiryoso,
+                SwitchType = kaetyp,
+                IdentityNumber = doukkno,
+                EnergizingCurrent = denryu,
+                LoadSourceKind = ahassei,
             },
         };
         r.Data.ElectricalParameterSlots[0].P = ep0P;
@@ -82,5 +92,65 @@ public sealed class LowerParameterGeneratorTests
         var mcb = Row("001", yoyaku: "MCB     ", oyatno: "001", ep0P: "001", siyouso: "X   ", ksyubetu: '0');
         LowerParameterGenerator.AdjustMcb1PhaseForNt([mcb], 'N');
         Assert.Equal("X   ", mcb.Data.UsedPhase);
+    }
+
+    [Fact]
+    public void 型MCDTは同一機器認識番号ペアの通電電流小さい方に上流積み上げ区分をセットする()
+    {
+        var a = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00010.00");
+        var b = Row("002", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00005.00");
+        LowerParameterGenerator.Process12McdtCsdt([a, b]);
+        Assert.Equal('1', b.Data.StackKind); // 小さい方(5A)
+        Assert.Equal(' ', a.Data.StackKind);
+    }
+
+    [Fact]
+    public void 型CSDTも同様に処理される()
+    {
+        var a = Row("001", yoyaku: "CSDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00005.00");
+        var b = Row("002", yoyaku: "CSDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00010.00");
+        LowerParameterGenerator.Process12McdtCsdt([a, b]);
+        Assert.Equal('1', a.Data.StackKind); // 小さい方(5A)
+        Assert.Equal(' ', b.Data.StackKind);
+    }
+
+    [Fact]
+    public void 切り換えタイプ1以外のMCDTは対象外()
+    {
+        var a = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00010.00");
+        var b = Row("002", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '2',
+            doukkno: "01", denryu: "00005.00");
+        LowerParameterGenerator.Process12McdtCsdt([a, b]);
+        Assert.Equal(' ', a.Data.StackKind);
+        Assert.Equal(' ', b.Data.StackKind);
+    }
+
+    [Fact]
+    public void 型MCDTの下流機器の通電電流値と積算エリアをクリアする()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00010.00");
+        var child = Row("002", yoyaku: "LOAD    ", oyatno: "001", kiryoso: '1',
+            doukkno: "02", denryu: "00003.00");
+        child.Work.AccumulationSlots[0].A = 5.0;
+        LowerParameterGenerator.Process12McdtCsdt([mcdt, child]);
+        Assert.Equal("00000.00", child.Data.EnergizingCurrent);
+        Assert.Equal(0.0, child.Work.AccumulationSlots[0].A);
+    }
+
+    [Fact]
+    public void 下流に負荷発生元があるとそこで打ち切りクリアしない()
+    {
+        var mcdt = Row("001", yoyaku: "MCDT    ", oyatno: "000", kiryoso: '1', kaetyp: '1',
+            doukkno: "01", denryu: "00010.00");
+        var child = Row("002", yoyaku: "LOAD    ", oyatno: "001", kiryoso: '1',
+            doukkno: "02", denryu: "00003.00", ahassei: '1');
+        LowerParameterGenerator.Process12McdtCsdt([mcdt, child]);
+        Assert.Equal("00003.00", child.Data.EnergizingCurrent);
     }
 }

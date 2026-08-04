@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1522 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1527 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -326,6 +326,13 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 
 - **`LowerParameterGenerator.AdjustMcb1PhaseForNt(mains, phase)`**(=Fyss15_MCB1P_NT, 950531): ＮＴに直接つながる MCB1P/RMCB1P の使用相へ N 相を追加。予約語 MCB/RMCB(8ch)かつ ep[0].P=="001" の機器を走査し、DownstreamSelector.SelectDownstream(=Fyss35_Select_Karyu_Sub)で下流抽出、null(ret≠0)は continue、下流0件なら使用相2文字目を phase('N')に差替。MCB/RMCB は別 if で忠実再現。
 - **テスト**: `LowerParameterGeneratorTests.cs` 新規6件(MCB下流なしN追加・下流ありは不変・RMCB下流なしN追加・極数001以外対象外・予約語MCB以外対象外・下流抽出エラー不変)。テストは 1516 → **1522**（+6）。
+
+### 段階16: Fyss3E_12_MCDT_CSDT 移植(1-2型MCDT/CSDT処理)
+
+`Fyss15_Make_LowerParm` が呼ぶ 1-2 型 MCDT/CSDT 処理を `LowerParameterGenerator` に追加。
+
+- **`LowerParameterGenerator.Process12McdtCsdt(mains)`**(=Fyss3E_12_MCDT_CSDT, 940727): 回路要素'1'・予約語MCDT/CSDT・切換タイプ'1'(1-2型)を走査し `TerminalCurrentIntegrator.IntegrateCurrent`(=Fyss37_I_Set_Sub)で通電電流を積算。同一機器認識番号(doukkno)ペアで通電電流値の小さい方に上流積み上げ区分(StackKind='1')をセット。対象要素と下流(`DownstreamSelector.SelectDownstream`=Fyss35で抽出、負荷発生元'1'で打切り)の通電電流値を"00000.00"・積算エリアをクリア。datano/noflag は MAX_NO=100 固定長で C原典の noflag[j](j==num 未使用領域)への書込 UB も忠実再現。積算クリアは新規 private `ClearAccumulation`。
+- **テスト**: `LowerParameterGeneratorTests.cs` +5件(MCDT同一機器認識番号ペアで小電流側に区分・CSDT同様・切換タイプ1以外対象外・下流機器の電流と積算エリアをクリア・負荷発生元で打切りクリアしない)。テストは 1522 → **1527**（+5）。次はFyss15呼出順の残り(Fyss3I/3H/Pre_CT_Make等)。
 
 
 
