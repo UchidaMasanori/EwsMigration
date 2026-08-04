@@ -126,7 +126,7 @@ EwsMigration/
 
 ## 5. 移植の進捗（2026-08-03 時点）
 
-回路解析（`toku/sekkei` 系）を先行移植中。**全 1604 テスト成功 / 0 スキップ / 0 失敗**。
+回路解析（`toku/sekkei` 系）を先行移植中。**全 1606 テスト成功 / 0 スキップ / 0 失敗**。
 `libfysek.a`（76 ソース / 約 109,800 行）の全体像とフェーズ別計画は
 [docs/MIGRATION_PLAN.md](MIGRATION_PLAN.md) を参照（総量比 ~12〜15% 移植済）。
 なお完全な設計出力には**制御設計 `libfysgy.a`（別ライブラリ, `toku/seigyo/src`, 52 ソース/約 67,000 行）**の
@@ -399,6 +399,16 @@ Ews.Analysis の `NtSpecialProcessor`（新規静的クラス）に全移植。
 - **`GetFloorElementsNotForSort`**(=GetFloorElementsNotForSort): 親追番一致 blist から CT 和集合 flist を除いた昇順要素と flist の最小新並列追番(該当なし 0x7FFF)を返す。**忠実バグ**: 階層条件 `kaisono==kaisono` は常に真。
 - **テスト**: `BranchArraySorterTests.cs` +3。テストは 1601 → **1604**。
   ★残るは構成機器依存部: SortIndex 本体(KEY1 kikirui/KEY9 typetjg/KouseiGetElement)・並べ替え本体(SortGroupElements/SortUnderGroupElements/SetGroupAllElements)・オーケストレータ Fyss3C_Bunki_Sort 本体。**構成機器 FYDF811 のドメインクラス新設が次の大きな前提**。
+
+### 段階24: 構成機器 FYDF811 ドメインクラス新設
+
+SortIndex/KouseiGetElement が構成機器を参照するための土台となるドメインクラスを新設(Fyss3C が実際に使うフィールドに限定した最小サブセット)。
+
+- **`ComponentEquipment`**(=struct FYDF811, `src/Ews.Domain/Analysis/ComponentEquipment.cs`): データ追番 `DataNumber`(key.datano[3])と機器マスターキー `MachineKey`(dt.km_key)。
+- **`MachineMasterKey`**(=struct p805_key): 予約語 `ReservedWord`(yoyaku[8])・メーカーコード `MakerCode`(mkcd[3])・パラメータタイプ `ParameterTypes`[7](ptype[7][7])・定格キー `RatingKey`(teikkey[80]、予約語別に union fyrt701 として解釈)。
+- **`FindComponentByDataNumber`**(=SortIndex 内の構成機器スキャン): 主回路のデータ追番(FYRT800.datano=MainCircuitResult.SequenceNumber)に一致する構成機器のインデックス(memcmp datano 3桁、該当なし -1)。
+- **テスト**: `BranchArraySorterTests.cs` +2。テストは 1604 → **1606**。
+  次は段階25(KouseiGetElement: teikkey を fyrt701 union として予約語別に af/at 抽出→KEY6/7)、段階26(SortIndex 本体 KEY1/KEY9 と構成機器/YOYAKU_TBL 注入)、段階27(並べ替え本体)、段階28(オーケストレータ)。
 
 
 

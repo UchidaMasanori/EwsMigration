@@ -418,4 +418,24 @@ public class BranchArraySorterTests
         Assert.Empty(elements);
         Assert.Equal(0x7FFF, minParallel);
     }
+
+    [Fact]
+    public void FindComponentByDataNumberはデータ追番一致インデックスを返す()
+    {
+        var components = new[]
+        {
+            new ComponentEquipment { DataNumber = "001" },
+            new ComponentEquipment { DataNumber = "005" },
+            new ComponentEquipment { DataNumber = "007" },
+        };
+
+        Assert.Equal(1, BranchArraySorter.FindComponentByDataNumber(components, "005"));
+    }
+
+    [Fact]
+    public void FindComponentByDataNumberは該当なしでマイナス1を返す()
+    {
+        var components = new[] { new ComponentEquipment { DataNumber = "001" } };
+        Assert.Equal(-1, BranchArraySorter.FindComponentByDataNumber(components, "999"));
+    }
 }

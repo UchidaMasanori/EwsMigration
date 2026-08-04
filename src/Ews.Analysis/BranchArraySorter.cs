@@ -800,4 +800,24 @@ public static class BranchArraySorter
 
         return (result, minParallel);
     }
+
+    /// <summary>
+    /// 主回路機器のデータ追番に一致する構成機器のインデックスを得る(該当なしは -1)。
+    /// 【C原典】<c>SortIndex</c>内の構成機器スキャン(Fyss3C.c)。データ追番(datano、3 桁)の
+    /// 先頭 3 バイトを <c>memcmp</c> で突き合わせる。
+    /// </summary>
+    public static int FindComponentByDataNumber(IReadOnlyList<ComponentEquipment> components, string dataNumber)
+    {
+        ArgumentNullException.ThrowIfNull(components);
+        string key = (dataNumber ?? string.Empty).PadRight(3)[..3];
+        for (int j = 0; j < components.Count; j++)
+        {
+            if ((components[j].DataNumber ?? string.Empty).PadRight(3)[..3] == key)
+            {
+                return j;
+            }
+        }
+
+        return -1;
+    }
 }
