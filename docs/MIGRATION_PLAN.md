@@ -60,7 +60,7 @@
 | テスト成功数 | **1665** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **665** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `HASH_PLACEHOLDER` | Fyss14 SetParam_ep2 に list+index オーバーロードを新設し記録列依存の DCPW/ELR を追加(DCPW=親V2→V1複写+W入力からA2算出+V2区分D・ELR=直前ZCT判定+同一ysnoへVC伝播)、対象外は単一レコード版へ委譲 |
+| 直近コミット | `db60fd0` | Fyss14 SetParam_ep2 に list+index オーバーロードを新設し記録列依存の DCPW/ELR を追加(DCPW=親V2→V1複写+W入力からA2算出+V2区分D・ELR=直前ZCT判定+同一ysnoへVC伝播)、対象外は単一レコード版へ委譲 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
