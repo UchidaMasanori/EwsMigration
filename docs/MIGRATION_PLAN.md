@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1791** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **696** | — |
+| テスト成功数 | **1800** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **697** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `fc6fb48` | Fyss40 の電気パラメータ展開段 Fyss40_Compo_DenryuuParm を CompositeElectricalParameterExpander として移植。各機器で ep[2]→ep[1] 再セット（Ele_Area2_Copy）後、ep[0] の非ゼロフィールド約 40 項目を ep[1]・ep[2] へ複写する。極数 epap は改訂 1 で MC かつ ep[2]=001 かつ TakeTest 成立なら ep[0] を "000" にし、それ以外は ep[2] へ複写。トリップ電流 99999.999／エレメント数 9 のリセット、接点数の個別・一括複写（941130）、系統種別 1 時の ep[1] クリア（Ele_Area1_Clear）を含む。テスト+10 |
+| 直近コミット | `FINDKAIROHASH` | Fyss14 の生成回路番号採番 Find_Kairo_Bangou を CircuitNumberGenerator として移植。C 原典の静的グローバル struct BANGOU（Mno1/Bno1/Ono1/Nno1/Bno3/Ono3/Nno3/Sno）と PM_flg をインスタンス化し、1 系統 1 インスタンスで用いる（Main_Rank_Set 冒頭のクリア相当）。並び替え区分 narakbn=3/4 で回路分類別カウンタを進め、それ以外は現在値を返す。回路分類 M は相非区別（Mno1）、行種 PM は Mno1 を戻し PM_flg で次の M と同番号化、制御電源 F は採番後に戻す（96.01.18）。Main_Rank_Set 移植の前段依存。テスト+9 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
