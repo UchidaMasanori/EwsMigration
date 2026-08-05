@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1815** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **699** | — |
+| テスト成功数 | **1820** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **700** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `e7df44d` | Fyss14 の計器回路要素リセット KeikiKairo_Bangou_Reset を MeterCircuitElementResetter として移植。回路要素 kiryoso='3' を起点に同一(階層 kaisono・並列 heino)を持つ直上要素を遡り、WH 構成なら '3' を波及し親 F で打ち切る(950907)。WH 非構成では M(改訂27)を除き '3' を波及し、遡り終端が親データ追番と一致する直列 001 の F なら '3' にする(950208)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+5 |
+| 直近コミット | `MCFUKARESETHASH` | Fyss14 の MC 負荷容量リセット PropMcFukaReset を McLoadCapacityResetter として移植。予約語 MC の各要素について親データ追番 oyatno と行種グループ番号 gyoglno が一致する要素を全件から探し、その予約語が MCB / ELB を含むなら当該 MC の負荷種類 fpalw1・負荷容量 fpalw2 を空白 / ゼロへ初期化する(改訂31)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+5 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
