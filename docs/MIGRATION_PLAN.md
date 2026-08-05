@@ -60,7 +60,7 @@
 | テスト成功数 | **1766** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **693** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `KEIKIHASH` | Fyss14 の周辺設定段のうち計器回路の並びチェック Keiki_Kairo_Check を MeterCircuitOrderChecker として移植。行種コード PM の計器回路機器につき予約語妥当性(FY-648E、改訂<35>で実質 CR かつ tokkbn 空)を検証し、CT(kiryoso=2)/WH(kiryoso=1)は同一機器認識番号の相手へ行種を相互複写、AS は kiryoso=2 以外/VS は kiryoso=3・4 以外で FY-645E、SC(PM)は自身を親とする後続機器があれば FY-656E。異常時 CircuitParseError(return(2)相当)/正常時 null。テスト+10 |
+| 直近コミット | `c62995a` | Fyss14 の周辺設定段のうち計器回路の並びチェック Keiki_Kairo_Check を MeterCircuitOrderChecker として移植。行種コード PM の計器回路機器につき予約語妥当性(FY-648E、改訂<35>で実質 CR かつ tokkbn 空)を検証し、CT(kiryoso=2)/WH(kiryoso=1)は同一機器認識番号の相手へ行種を相互複写、AS は kiryoso=2 以外/VS は kiryoso=3・4 以外で FY-645E、SC(PM)は自身を親とする後続機器があれば FY-656E。異常時 CircuitParseError(return(2)相当)/正常時 null。テスト+10 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
