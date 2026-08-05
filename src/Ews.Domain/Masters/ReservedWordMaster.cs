@@ -39,6 +39,12 @@ public sealed class ReservedWordMaster : IIsamRecord
     public IReadOnlyList<char> SelectionElementKinds { get; set; } = [];
 
     /// <summary>
+    /// 同一機器指定可能区分。【C原典】data->douskkbn → YO_TABLE.douskkbn。
+    /// Kiki_Equal_Bangou_Set で '1' の場合のみ予約語番号一致による同一機器認識番号付与の対象となる。
+    /// </summary>
+    public char SameEquipmentAssignableKind { get; set; } = ' ';
+
+    /// <summary>
     /// 機器大分類。【C原典】data->kikirui → YO_TABLE.kikirui。
     /// SortIndex の KEY1 で使用('1'→機器種別'1' / それ以外→'2')。
     /// </summary>
@@ -73,6 +79,8 @@ public sealed class ReservedWordMaster : IIsamRecord
     //   tg 終端 = 1445 + 1915*7 = 14850、以降 hyonm[16]/hyohou(1)/kikimkbn..douskkbn(12)。
     //   14850 + 16 + 1 + 12 = 14879 → 直前の kikirui は 14878。
     private const int OffsetKikirui = 14878;
+    // douskkbn(同一機器指定可能区分) は kikirui の直前 1 バイト。
+    private const int OffsetDouskkbn = 14877;
 
     /// <summary>
     /// 固定長 Shift-JIS レコードからドメインモデルを生成する。
@@ -94,6 +102,7 @@ public sealed class ReservedWordMaster : IIsamRecord
         {
             ReservedWord = FixedFieldCodec.ReadText(record, OffsetReservedWord, 8),
             SelectionElementKinds = kinds,
+            SameEquipmentAssignableKind = (char)record[OffsetDouskkbn],
             Kikirui = (char)record[OffsetKikirui],
             TypeSlots = slots,
         };
