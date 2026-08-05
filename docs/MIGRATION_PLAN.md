@@ -60,7 +60,7 @@
 | テスト成功数 | **1747** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **690** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `UPARMHASH` | Fyss14 の NT/VT/PLTR 自動生成の結線(Fyss14_Make_UpperParm の生成段)を Fyss14AutoGenerator.GenerateAutoCircuits として移植。既移植 6 メソッド(Pre_/Mainfile_ ×NT/VT/PLTR)を結線し 1 崡分の生成スイープを行う。Pre_NT_Make(非空で f++ し挿入)→Pre_VT_Make(r==2 で f++ さらに非 0 で f++ し挿入・950515)→Pre_PLTR_Make(非空で f++ し挿入)の順で各段出力を次段入力へ渡す。戻り値 record AutoGenerationSweep(Records, Generated=f!=0)。周辺設定段(Parm_Set_27/Main_Rank_Set 等)と外側 for ループ本体は未移植関数依存で後続。テスト+3 |
+| 直近コミット | `8aaf80b` | Fyss14 の NT/VT/PLTR 自動生成の結線(Fyss14_Make_UpperParm の生成段)を Fyss14AutoGenerator.GenerateAutoCircuits として移植。既移植 6 メソッド(Pre_/Mainfile_ ×NT/VT/PLTR)を結線し 1 崡分の生成スイープを行う。Pre_NT_Make(非空で f++ し挿入)→Pre_VT_Make(r==2 で f++ さらに非 0 で f++ し挿入・950515)→Pre_PLTR_Make(非空で f++ し挿入)の順で各段出力を次段入力へ渡す。戻り値 record AutoGenerationSweep(Records, Generated=f!=0)。周辺設定段(Parm_Set_27/Main_Rank_Set 等)と外側 for ループ本体は未移植関数依存で後続。テスト+3 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
