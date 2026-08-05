@@ -60,7 +60,7 @@
 | テスト成功数 | **1866** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **707** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `SMARTHASH` | FyssU0 のスマートユニット AM/VM タイプ設定 PropSetAMprm / PropSetVMprm を SmartUnitTypeSetter として段階移植。制御対象機器/制御電源のデータ追番をもとに、同一電源系統・階層の AM(電流計)へ 3 倍公称(datatype[0]="3BK")・透明色(datatype[5]="G")、VM(電圧計)へ透明色(datatype[4]="G")を設定する。河村製でない(fpamk!="K ")場合は FY-574E。統括 FyssU0_Smart_Type は制御回路設計(FYRT802)未移植のため追番を引数注入する段階移植。テスト+8 |
+| 直近コミット | `5edf49f` | FyssU0 のスマートユニット AM/VM タイプ設定 PropSetAMprm / PropSetVMprm を SmartUnitTypeSetter として段階移植。制御対象機器/制御電源のデータ追番をもとに、同一電源系統・階層の AM(電流計)へ 3 倍公称(datatype[0]="3BK")・透明色(datatype[5]="G")、VM(電圧計)へ透明色(datatype[4]="G")を設定する。河村製でない(fpamk!="K ")場合は FY-574E。統括 FyssU0_Smart_Type は制御回路設計(FYRT802)未移植のため追番を引数注入する段階移植。テスト+8 |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
