@@ -60,7 +60,7 @@
 | テスト成功数 | **1791** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **696** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `FYSS40HASH` | Fyss40 の電気パラメータ展開段 Fyss40_Compo_DenryuuParm を CompositeElectricalParameterExpander として移植。各機器で ep[2]→ep[1] 再セット（Ele_Area2_Copy）後、ep[0] の非ゼロフィールド約 40 項目を ep[1]・ep[2] へ複写する。極数 epap は改訂 1 で MC かつ ep[2]=001 かつ TakeTest 成立なら ep[0] を "000" にし、それ以外は ep[2] へ複写。トリップ電流 99999.999／エレメント数 9 のリセット、接点数の個別・一括複写（941130）、系統種別 1 時の ep[1] クリア（Ele_Area1_Clear）を含む。テスト+10 |
+| 直近コミット | `fc6fb48` | Fyss40 の電気パラメータ展開段 Fyss40_Compo_DenryuuParm を CompositeElectricalParameterExpander として移植。各機器で ep[2]→ep[1] 再セット（Ele_Area2_Copy）後、ep[0] の非ゼロフィールド約 40 項目を ep[1]・ep[2] へ複写する。極数 epap は改訂 1 で MC かつ ep[2]=001 かつ TakeTest 成立なら ep[0] を "000" にし、それ以外は ep[2] へ複写。トリップ電流 99999.999／エレメント数 9 のリセット、接点数の個別・一括複写（941130）、系統種別 1 時の ep[1] クリア（Ele_Area1_Clear）を含む。テスト+10 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
