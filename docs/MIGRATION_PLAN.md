@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1711** | 0 失敗 / 0 スキップを維持 |
+| テスト成功数 | **1714** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **683** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `e3e0b38` | Fyss14 SetParam_ep2(list版) に TR(トランス) case を追加。これにより例外対象 4 種[TR/RTR/WH/VT]の回路情報+ep[2]生成が全て移植完了。ep[0].epav2 の定格電圧と epaph2[1] の 1/2 電源判別で回路相数・線式・電圧・極数・周波数を自身に設定(親 maina[oyatno-1] 参照)し、ep[2] は PH1/WR1=親相線式・V1=親回路電圧・PH2/WR2=自相線式(2 電源は前後スロット)・V2=SetParam_ep2_TR_V2。Hz(系統周波数 HZ1=50/HZ2=60)を systemFrequency 引数で注入。引数 pprmp/newpprmp 未使用 |
-| 最終更新 | 2026-08-06 | — |
+| 直近コミット | `ORCHASH` | Fyss14 統括ループ Make_UpperParm(UpperParameterBuilder.GenerateUpperParameters) をリスト版ディスパッチャ SecondaryParameterSetter.SetParam_ep2(maina,index,製作仕様区分,系統周波数) に配線。非入線の ApplyExceptionCircuitParameters+単一レコード版の 2 呼びを例外要素(TR/RTR/WH/VT)の kpa* 再設定と ep[2] 生成を兼ねる単一呼びへ統合。SetParam_ep2 の戻り値 2(LGR K 数不正等) を FY-632E として CircuitParseError 一覧へ収集し戻す。製作仕様区分(sshiykbn)と周波数(Helutzu)を引数注入。ゴールデン kpa* 突合回帰なし |
+| 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 

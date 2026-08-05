@@ -32,22 +32,31 @@ public static class UpperParameterBuilder
     /// ＋自機器の変換(<see cref="CircuitParameterResolver.SetCircuitParameter"/>)で主回路パラメータを求め、
     /// 回路電気値(<c>dt.kpa*</c>)へ書き出す(<see cref="SetCircuitInfo"/>)。
     ///
-    /// 本増分では kpa* 生成の中核(Kairo_Init_Take / Find_Parent / Kairo_Parm_Set / Kairo_End_Set)を
-    /// 配線する。以下は後続増分(TODO):
-    ///   ・PropFukaDenFromChild(改訂&lt;21&gt; 子の負荷電圧200V反映)
-    ///   ・SetParam_ep2(ep[2]生成 + 例外要素の回路情報再設定)
-    ///   ・SetParam_Kubun(回路電圧からの負荷種類確定)
-    ///   ・末尾の MC 共用ループ(SetParam_ep2)
+    /// 本統括では kpa* 生成の中核(Kairo_Init_Take / Find_Parent / Kairo_Parm_Set / Kairo_End_Set)に加え、
+    /// ep[2]生成 + 例外要素(TR/RTR/WH/VT)の回路情報再設定を担うディスパッチャ
+    /// (<see cref="SecondaryParameterSetter.SetParam_ep2(IReadOnlyList{MainCircuitResult}, int, string?, int)"/>)を配線する。
+    /// 以下は後続増分(TODO):
+    ///   ・SetParam_Kubun 戻り値 2(不整合)の FY-898 エラー報告
+    ///   ・NT/VT/PLTR の自動生成ループ(Pre_*_Make / Mainfile_*_Make)
     /// </summary>
-    /// <param name="records">主回路レコード列(FYRT800 配列相当)。破壊的に kpa* を更新する。</param>
+    /// <param name="records">主回路レコード列(FYRT800 配列相当)。破壊的に kpa*・ep[2] を更新する。</param>
     /// <param name="frequency">回路周波数(Hz)。【C原典】Helutzu(HZ1=50/HZ2=60)。</param>
-    public static void GenerateUpperParameters(IReadOnlyList<MainCircuitResult> records, int frequency)
+    /// <param name="manufacturingSpecKind">
+    /// 製作仕様区分。【C原典】bukken1-&gt;com.kyo.sshiykbn。表示灯(WL/GL/RL/OL/BL)の径サイズ判定に
+    /// ディスパッチャへ引数注入する。null 時は該当ケースで未使用。
+    /// </param>
+    /// <returns>
+    /// SetParam_ep2 が返した設計エラー(【C原典】ret==2 → FY-632E)の一覧。エラーが無ければ空。
+    /// </returns>
+    public static IReadOnlyList<CircuitParseError> GenerateUpperParameters(
+        IReadOnlyList<MainCircuitResult> records, int frequency, string? manufacturingSpecKind = null)
     {
         ArgumentNullException.ThrowIfNull(records);
 
         // 【C原典】pprmp=&pprma; newpprmp=&newpprma; いずれもループ間で再利用される単一領域。
         var parentParam = new MainCircuitParameter();
         var ownParam = new MainCircuitParameter();
+        var errors = new List<CircuitParseError>();
 
         for (int i = 0; i < records.Count; i++)
         {
@@ -77,16 +86,17 @@ public static class UpperParameterBuilder
                     (short)frequency, parentParam, ownParam, records, i, records.Count - i);
                 SetCircuitInfo(data, ownParam, frequency);
 
-                // 【C原典】SetParam_ep2: 例外要素(RTR/WL 系)の回路電気値(kpa*)を再設定し、
-                //   続いて ep[2](システム側生成値)を予約語別に生成する。C では 1 関数だが本移行では
-                //   kpa* 再設定部(ApplyExceptionCircuitParameters)と ep[2] 生成部
-                //   (SecondaryParameterSetter.SetParam_ep2)に分割している。
+                // 【C原典】SetParam_ep2: 例外要素(TR/RTR/WH/VT)の回路電気値(kpa*)を再設定し、
+                //   続いて ep[2](システム側生成値)を予約語別に生成する。戻り値 2(設計エラー)は
+                //   FY-632E としてエラー一覧へ収集する(C は Error_Proc へ渡す)。
                 //   ※ep[2].epap/epae は回路極数 kpap からの暗定値だが、最終 FYDF806 の ep[2] は
-                //     後段の機器選定(eparm_set 相当)が選定機器の実極数・実エレメントで上書きする
-                //     (105V単相2線では SetParam_ep2 は epae='1' だが実機は 2 極のため ep[2].E='2')。
-                //     電圧 V2 は回路電圧そのもので上書きされず実 FYDF806 と一致する。
-                ApplyExceptionCircuitParameters(records, i);
-                SecondaryParameterSetter.SetParam_ep2(data);
+                //     後段の機器選定(eparm_set 相当)が選定機器の実極数・実エレメントで上書きする。
+                CircuitParseError? ep2Error =
+                    SecondaryParameterSetter.SetParam_ep2(records, i, manufacturingSpecKind, frequency);
+                if (ep2Error is not null)
+                {
+                    errors.Add(ep2Error);
+                }
 
                 // 【C原典】SetParam_Kubun: 回路電気値から負荷種別(fp.fpalw1)を確定・検証する。
                 //   戻り値 2(不整合)の FY-898 エラー報告はエラー基盤の導入時に配線(TODO)。
@@ -94,16 +104,22 @@ public static class UpperParameterBuilder
             }
         }
 
-        // 【C原典】末尾の MC 共用ループ: MC が共用する時に極数を設定するため SetParam_ep2 を再実行する。
-        //   MC の ep[2] 生成(2次側検出)は記録列依存でディスパッチャ未収録のため現状は実質 no-op(TODO)。
+        // 【C原典】末尾の MC 共用ループ: MC が共用する時に極数を設定するため SetParam_ep2 を再実行する
+        //   (C は dmyHelutzu/dmypprmp のダミー引数で呼ぶ。MC は Hz/製作仕様を参照しない)。
         for (int i = 0; i < records.Count; i++)
         {
             MainCircuitData data = records[i].Data;
             if (data.SystemKind == '1' && data.ReservedWord == "MC")
             {
-                SecondaryParameterSetter.SetParam_ep2(data);
+                CircuitParseError? mcError = SecondaryParameterSetter.SetParam_ep2(records, i);
+                if (mcError is not null)
+                {
+                    errors.Add(mcError);
+                }
             }
         }
+
+        return errors;
     }
 
     /// <summary>

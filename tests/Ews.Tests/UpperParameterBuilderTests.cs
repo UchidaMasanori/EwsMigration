@@ -278,6 +278,61 @@ public sealed class UpperParameterBuilderTests
         Assert.Equal("000", rtr.CircuitVoltage[2]);
     }
 
+    // ---- 統括: エラー収集・製作仕様区分の引数注入 --------------------------
+
+    [Fact]
+    public void GenerateUpperParameters_正常時はエラーを返さない()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "MCB", MakeEp("3", "3", "003", 'A', 0, 0, 0)),
+        };
+
+        var errors = UpperParameterBuilder.GenerateUpperParameters(records, UpperParameterBuilder.Hz1);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void GenerateUpperParameters_LGRのK数不正はFY632Eを収集する()
+    {
+        // 【C原典】SetParam_ep2→SetLgr: 直前が ZCT でなく ZCT+LGR ペアが無い(K数=0)と ret==2。
+        //   統括はこれを FY-632E としてエラー一覧へ収集する。
+        var records = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "LGR", MakeEp("1", "2", "002", 'A', 105, 0, 0)),
+        };
+
+        var errors = UpperParameterBuilder.GenerateUpperParameters(records, UpperParameterBuilder.Hz1);
+
+        CircuitParseError e = Assert.Single(errors);
+        Assert.Equal("FY-632E", e.ErrorCode);
+        Assert.Equal("FYMEE80", e.MessageId);
+    }
+
+    [Fact]
+    public void GenerateUpperParameters_製作仕様区分を表示灯の径サイズへ引数注入する()
+    {
+        // 【C原典】改訂<13>: sshiykbn "01"/"02" は径サイズ 025.0、他は 030.0。
+        var std = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "WL", MakeEp("1", "2", "002", 'A', 105, 0, 0)),
+        };
+        UpperParameterBuilder.GenerateUpperParameters(std, UpperParameterBuilder.Hz1, "01");
+        Assert.Equal("025.0", std[1].Data.ElectricalParameterSlots[2].Ksize);
+
+        var other = new List<MainCircuitResult>
+        {
+            MakeRec("001", "000", "P", MakeEp("1", "3", "003", 'A', 210, 105, 0)),
+            MakeRec("002", "001", "WL", MakeEp("1", "2", "002", 'A', 105, 0, 0)),
+        };
+        UpperParameterBuilder.GenerateUpperParameters(other, UpperParameterBuilder.Hz1, "99");
+        Assert.Equal("030.0", other[1].Data.ElectricalParameterSlots[2].Ksize);
+    }
+
     [Fact]
     public void ApplyExceptionCircuitParameters_親不明のRTRは再設定しない()
     {
