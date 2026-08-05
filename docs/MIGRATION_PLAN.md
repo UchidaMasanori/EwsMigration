@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1851** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **704** | — |
+| テスト成功数 | **1858** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **705** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `664ffe8` | Fyss14 の主回路上流パラメータ生成の統括 Fyss14_Make_UpperParm を Fyss14UpperParameterPipeline として移植。memset 後 for(f=r=0;;) ループで周辺設定段(Parm_Set_27→Main_Rank_Set→Main_Rank_Update→Kiki_Equal_Bangou_Set→Keiki_Kairo_Check→Parm_Set_MGSH→Make_UpperParm→Fyss40_Compo_DenryuuParm)を実行し、NT/VT/PLTR 自動生成が起きればもう 1 巡だけ再実行して抜ける(最大 2 巡)。ループ後に OptimZahyo→CS_MCDT_12_21_SET→Type_Set→KeikiKairo_Bangou_Reset→PropMcFukaReset を実行。全 14 段を既移植クラスへ委譲し、致命エラー(Keiki_Kairo_Check / CS_MCDT_12_21_SET)は早期 return する。テスト+6 |
+| 直近コミット | `LACSLHASH` | Fyss1p の LACSL リモコンシステム機器タイプ設定 Fyss1p_LACSL_RryType / PropSetRRYprm / PropCheckOyaTrip を LacslRemoteTypeSetter として移植。予約語 RTR が "LA" タイプなら同一電源系統(kno)の全 RRY を LACSL リモコンとして datatype[1] に "LA" を設定する。設定前に RRY の親器のトリップ電流(ep[0].epaat)が 30.0 以上なら FY-800E(AT 値入力誤り)を収集し当該系統を中断する。Fysk10_Main の while(1) 内で Fyss14_Make_UpperParm 直後に呼ばれる。テスト+7 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
