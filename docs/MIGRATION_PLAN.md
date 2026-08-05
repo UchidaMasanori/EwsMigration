@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1820** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **700** | — |
+| テスト成功数 | **1827** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **701** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `d034aaf` | Fyss14 の MC 負荷容量リセット PropMcFukaReset を McLoadCapacityResetter として移植。予約語 MC の各要素について親データ追番 oyatno と行種グループ番号 gyoglno が一致する要素を全件から探し、その予約語が MCB / ELB を含むなら当該 MC の負荷種類 fpalw1・負荷容量 fpalw2 を空白 / ゼロへ初期化する(改訂31)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+5 |
+| 直近コミット | `OPTIMZAHYOHASH` | Fyss14 の座標最適化 OptimZahyo / HeiretuCheck / EditZahyo を CoordinateOptimizer として移植。並列関係を持たない座標(階層 kaisono の直列 001)を検出し、同一入線 nyuseno 内で基準階層以下の階層を 1 つ上げ、基準階層の要素は直列 chokuno・並列 heino・上流並列 joheino・グループ親 goyano を再構成して直列関係へ最適化する(941226、LA 機器は対象外 改訂19)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+7 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
