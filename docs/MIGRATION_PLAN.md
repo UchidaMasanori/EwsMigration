@@ -60,7 +60,7 @@
 | テスト成功数 | **1741** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **688** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `PLTRHASH` | Fyss14 の PLTR 自動生成判定部 Pre_PLTR_Make(PltrCircuitGenerator.PreparePltrInsertions) を移植。表示灯(GL/RL/OL/BL/FL/WL)へタイプ TR/DI を割り付け(回路電圧・AC/DC・ep[2]盤種類・直前 F 等で分岐)、直前 PLTR/回路要素≠3/非 AC/タイプ TR/回路電圧<100/盤種類対象外を除外、直前 F(TR)なら回路電圧を 005V に落として PLTR を付けず、条件次第で直前 F を TR 化する。残った DI 表示灯につき同一系列に既存 PLTR が無ければ自身の直前を挿入位置(datano_PLTR)に登録し昇順で整列する。製作仕様区分・工場グループは引数注入。挿入本体 Mainfile_PLTR_Make は後続。テスト+8 |
+| 直近コミット | `3145a26` | Fyss14 の PLTR 自動生成判定部 Pre_PLTR_Make(PltrCircuitGenerator.PreparePltrInsertions) を移植。表示灯(GL/RL/OL/BL/FL/WL)へタイプ TR/DI を割り付け(回路電圧・AC/DC・ep[2]盤種類・直前 F 等で分岐)、直前 PLTR/回路要素≠3/非 AC/タイプ TR/回路電圧<100/盤種類対象外を除外、直前 F(TR)なら回路電圧を 005V に落として PLTR を付けず、条件次第で直前 F を TR 化する。残った DI 表示灯につき同一系列に既存 PLTR が無ければ自身の直前を挿入位置(datano_PLTR)に登録し昇順で整列する。製作仕様区分・工場グループは引数注入。挿入本体 Mainfile_PLTR_Make は後続。テスト+8 |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
