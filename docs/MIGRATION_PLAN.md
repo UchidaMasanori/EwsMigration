@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1845** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **703** | — |
+| テスト成功数 | **1851** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **704** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `b7b5a45` | Fyss14 の機器タイプ設定 Type_Set / PropGetSenSou / PropSearch2PBrk を EquipmentTypeSetter として移植。予約語 F のタイプ0未設定に製作仕様区分 sshiykbn が "01"/"02" なら GT・他は ST を設定。予約語 ELB/MCB のタイプ1未設定に既定 NT を設定し、系統の相数/線数が 1P3W か 3P4W・P 系統・行種 M/TM/SM/S・極数 3P(または未入力)を満たし、直下～下流に 1P/2P ブレーカの子があり AT が 600A 以下なら欠相保護付きブレーカ TLA を設定する(941121 改訂3/18/32/38)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+11 |
+| 直近コミット | `PIPELINEHASH` | Fyss14 の主回路上流パラメータ生成の統括 Fyss14_Make_UpperParm を Fyss14UpperParameterPipeline として移植。memset 後 for(f=r=0;;) ループで周辺設定段(Parm_Set_27→Main_Rank_Set→Main_Rank_Update→Kiki_Equal_Bangou_Set→Keiki_Kairo_Check→Parm_Set_MGSH→Make_UpperParm→Fyss40_Compo_DenryuuParm)を実行し、NT/VT/PLTR 自動生成が起きればもう 1 巡だけ再実行して抜ける(最大 2 巡)。ループ後に OptimZahyo→CS_MCDT_12_21_SET→Type_Set→KeikiKairo_Bangou_Reset→PropMcFukaReset を実行。全 14 段を既移植クラスへ委譲し、致命エラー(Keiki_Kairo_Check / CS_MCDT_12_21_SET)は早期 return する。テスト+6 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
