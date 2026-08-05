@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1733** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **687** | — |
+| テスト成功数 | **1741** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **688** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `af7d3a1` | Fyss14 の VT 自動生成挿入本体 Mainfile_VT_Make(VtCircuitGenerator.InsertVtRecords) を移植。旧主回路を新リストへ複写しつつ挿入位置(datano_VT)の直前へ VT 要素を挿入し datano/oyatno/goyano を新採番へ付け替える。VT は発生元(挿入位置の要素)から各フィールドを複写し yoyaku='VT'/kiryoso='4'/ep[0].epaqty='1' を設定、発生元 narakbn を 1 戻す(950601)。同一行種に F があれば datatype[0]='FN' 無ければ 'FU'(950512)、VT に連なる kiryoso='3' は '4' へ格下げ、挿入後 960404 の直後同階層同並列 narakbn 戻しを行う。テスト+3(挿入と複写/親追番付替/FNタイプ) |
+| 直近コミット | `PLTRHASH` | Fyss14 の PLTR 自動生成判定部 Pre_PLTR_Make(PltrCircuitGenerator.PreparePltrInsertions) を移植。表示灯(GL/RL/OL/BL/FL/WL)へタイプ TR/DI を割り付け(回路電圧・AC/DC・ep[2]盤種類・直前 F 等で分岐)、直前 PLTR/回路要素≠3/非 AC/タイプ TR/回路電圧<100/盤種類対象外を除外、直前 F(TR)なら回路電圧を 005V に落として PLTR を付けず、条件次第で直前 F を TR 化する。残った DI 表示灯につき同一系列に既存 PLTR が無ければ自身の直前を挿入位置(datano_PLTR)に登録し昇順で整列する。製作仕様区分・工場グループは引数注入。挿入本体 Mainfile_PLTR_Make は後続。テスト+8 |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
