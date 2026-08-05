@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1730** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **686** | — |
+| テスト成功数 | **1733** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **687** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `0cf2969` | Fyss14 の VT 自動生成判定部 Pre_VT_Make(VtCircuitGenerator.PrepareVtInsertions) を移植。予約語 WH/VM かつ回路要素 kiryoso='3' かつ回路電圧 kpav[0]>"220" の要素を対象とし、同一行種(gyocd)・同一行種グループ(gyoglno)内に VT 既存なら発生させずその直後の kiryoso='3' を '4' へ格下げ(950515)、それ以外は kiryoso='3' 連続の先頭(F で区切)の直前を挿入位置 datano_VT とする。datano_VT 昇順で整列し VtInsertion 一覧とステータス(0/1/2)を返す。挿入本体 Mainfile_VT_Make は後続 |
+| 直近コミット | `VTMHASH` | Fyss14 の VT 自動生成挿入本体 Mainfile_VT_Make(VtCircuitGenerator.InsertVtRecords) を移植。旧主回路を新リストへ複写しつつ挿入位置(datano_VT)の直前へ VT 要素を挿入し datano/oyatno/goyano を新採番へ付け替える。VT は発生元(挿入位置の要素)から各フィールドを複写し yoyaku='VT'/kiryoso='4'/ep[0].epaqty='1' を設定、発生元 narakbn を 1 戻す(950601)。同一行種に F があれば datatype[0]='FN' 無ければ 'FU'(950512)、VT に連なる kiryoso='3' は '4' へ格下げ、挿入後 960404 の直後同階層同並列 narakbn 戻しを行う。テスト+3(挿入と複写/親追番付替/FNタイプ) |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Ews.Domain.Analysis;
 
 namespace Ews.Analysis;
@@ -13,6 +14,12 @@ namespace Ews.Analysis;
 /// </summary>
 public static class VtCircuitGenerator
 {
+    /// <summary>データ追番等の固定長フィールド幅(datano/oyatno/goyano/kaisono[3])。</summary>
+    private const int SequenceWidth = 3;
+
+    /// <summary>自動生成 VT の予約語。【C原典】"VT      "(本移植ではトリム済みで保持)。</summary>
+    private const string VtWord = "VT";
+
     /// <summary>
     /// ＶＴを自動生成すべき箇所を判定して一覧とステータスを返す。【C原典】Pre_VT_Make(Fyss14.c:4694)。
     ///
@@ -141,6 +148,196 @@ public static class VtCircuitGenerator
 
         return new VtPreparation(sorted, status);
     }
+
+    /// <summary>
+    /// VTINF を元に主回路データブロックへ VT を挿入しデータ追番を再採番する。
+    /// 【C原典】<c>Mainfile_VT_Make</c>(Fyss14.c:4824)。
+    ///
+    /// 旧主回路を新リストへ複写しつつ、挿入位置(datano_VT)の直前へ VT 要素を挿入し、
+    /// データ追番・親データ追番(oyatno)・グループ親データ追番(goyano)を新採番へ付け替える。
+    /// VT 要素の各フィールドは挿入位置の要素(発生元)から複写し、発生元の並び替え機器区分は
+    /// 1 戻す(950601)。VT に連なる回路要素 '3' は '4' へ格下げする。挿入後、自動生成 VT の
+    /// 直後で同一階層・同一並列の要素の並び替え機器区分を 1 戻す(960404)。
+    /// 【C原典】と同じく旧リストの要素は再利用され、重ならないように追番が書き換わる。
+    /// </summary>
+    /// <param name="mains">旧主回路エリア。要素は再利用され採番等が書き換わる。【C原典】*Pmaina(件数 *Pmainc)。</param>
+    /// <param name="plan"><see cref="PrepareVtInsertions"/> が返す VT 挿入情報(datano_VT 昇順)。【C原典】p_VT(件数 i_VT)。</param>
+    /// <returns>VT 挿入後の新主回路エリア。【C原典】*Pmaina(件数 *Pmainc=mainc+i_VT)。</returns>
+    public static IReadOnlyList<MainCircuitResult> InsertVtRecords(
+        IReadOnlyList<MainCircuitResult> mains, IReadOnlyList<VtInsertion> plan)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var newList = new List<MainCircuitResult>(mains.Count + plan.Count);
+        int j = 0;        // 処理対象 VTINF の位置。
+        bool f = false;   // 自動生成 VT に連なる回路要素('3')フラグ。
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            // 【C原典】現在位置(datano_VT の直前)に VT を挿入する必要がある場合。
+            if (j < plan.Count && plan[j].InsertBeforeSequenceNumber == i + 1)
+            {
+                f = true;
+
+                MainCircuitData src = mains[i].Data;   // 【C原典】maina[datano_VT-1](=挿入位置の要素=発生元)。
+                var vt = new MainCircuitResult();      // Main_Area_Clear 相当(既定初期値)。
+                MainCircuitData d = vt.Data;
+
+                vt.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, SequenceWidth);
+                d.SystemNumber = src.SystemNumber;
+                d.SystemKind = src.SystemKind;
+                d.HierarchyNumber = src.HierarchyNumber;
+                d.ParallelNumber = src.ParallelNumber;
+                d.SortKind = src.SortKind;
+                src.SortKind = (char)(src.SortKind - 1);   // 【C原典】950601: 発生元の並び替え機器区分を 1 戻す。
+                d.AutoGenerationKind = '1';
+                d.ReservedWord = VtWord;
+                d.LineTypeCode = src.LineTypeCode;
+                d.LineTypeNumber = src.LineTypeNumber;     // 【C原典】1994/11/23 亀田。
+                d.LineTypeGroupNumber = src.LineTypeGroupNumber;
+                d.AttachedParameter.DimensionGroupNumber = src.AttachedParameter.DimensionGroupNumber;
+                d.AttachedParameter.CommentGroupNumber = src.AttachedParameter.CommentGroupNumber;
+                d.ElectricalParameterSlots[0].Bn = src.ElectricalParameterSlots[0].Bn;
+                d.ElectricalParameterSlots[0].Qty = '1';
+                d.IncomingNumber = src.IncomingNumber;
+                d.CircuitClass = src.CircuitClass;
+                d.CircuitNumberSuffix = src.CircuitNumberSuffix;
+                d.CircuitElement = '4';
+
+                // 【C原典】950512: 同一行種・同一行種グループに予約語 F があればタイプ "FN"、無ければ "FU"。
+                //   (C原典は maina[k] を参照するが意図は生成 VT 自身の行種=発生元と同一。)
+                string dataType = "FU     ";
+                for (int l = 0; l < mains.Count; l++)
+                {
+                    MainCircuitData cand = mains[l].Data;
+                    if (d.LineTypeCode == cand.LineTypeCode
+                        && d.LineTypeGroupNumber == cand.LineTypeGroupNumber
+                        && cand.ReservedWord == "F")
+                    {
+                        dataType = "FN     ";
+                        break;
+                    }
+                }
+
+                d.DataType[0] = dataType;
+
+                newList.Add(vt);
+                j++;
+            }
+
+            // 【C原典】旧データの複写とデータ追番・親/グループ親データ追番の付け替え。
+            MainCircuitResult cur = mains[i];
+            cur.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, SequenceWidth);
+            int n = EquipmentParameterFormatter.Stoi(cur.Data.ParentSequenceNumber, SequenceWidth);
+            if (n != 0)
+            {
+                cur.Data.ParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            n = EquipmentParameterFormatter.Stoi(cur.Data.GroupParentSequenceNumber, SequenceWidth);
+            if (n != 0)
+            {
+                cur.Data.GroupParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            // 【C原典】回路要素が '3' でなければフラグを落とし、フラグ中('3' が連なる)なら '4' へ格下げ。
+            if (cur.Data.CircuitElement != '3')
+            {
+                f = false;
+            }
+
+            if (f)
+            {
+                cur.Data.CircuitElement = '4';
+            }
+
+            newList.Add(cur);
+        }
+
+        // 【C原典】960404: 自動生成 VT('4')直後で同一階層・同一並列の要素の並び替え機器区分を 1 戻す。
+        for (int i = 0; i < newList.Count; i++)
+        {
+            MainCircuitData e = newList[i].Data;
+            if (e.ReservedWord != VtWord || e.AutoGenerationKind != '1' || e.CircuitElement != '4')
+            {
+                continue;
+            }
+
+            char kiryoso = e.CircuitElement;   // '4'
+            int k = EquipmentParameterFormatter.Stoi(e.HierarchyNumber, SequenceWidth);
+            int h = EquipmentParameterFormatter.Stoi(e.ParallelNumber, SequenceWidth);
+
+            // 【C原典】直前が回路要素 '1' かつ atoi(kaisono)+1 が階層と一致しない場合のみ調整。
+            //   atoi は kaisono→heino→chokuno→yoyakkbn の物理隣接を数字が続く限り越境読取する。
+            if (i > 0 && newList[i - 1].Data.CircuitElement == '1'
+                && 1 + AtoiAcrossHierarchy(newList[i - 1].Data) != k)
+            {
+                bool endFlg = false;
+                for (int m = i + 1; m < newList.Count; m++)
+                {
+                    MainCircuitData nd = newList[m].Data;
+                    if (kiryoso != nd.CircuitElement)
+                    {
+                        break;
+                    }
+
+                    int kn = EquipmentParameterFormatter.Stoi(nd.HierarchyNumber, SequenceWidth);
+                    int hn = EquipmentParameterFormatter.Stoi(nd.ParallelNumber, SequenceWidth);
+                    if (k == kn && h == hn && !endFlg)
+                    {
+                        if (nd.SortKind is '4' or '2')
+                        {
+                            nd.SortKind = (char)(nd.SortKind - 1);
+                        }
+                    }
+                    else if (k < kn || h < hn)
+                    {
+                        endFlg = true;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return newList;
+    }
+
+    /// <summary>
+    /// 階層番号(kaisono)から始まる物理隣接フィールドを数字が続く限り atoi する。
+    /// 【C原典】<c>atoi(newmaina[i-1].dt.kaisono)</c>。kaisono[3]→heino[3]→chokuno[3]→yoyakkbn の
+    /// 順に連なる数字を 1 つの整数として読む(fydf806.h の並び)。桁溢れ回避のため long で保持する。
+    /// </summary>
+    private static long AtoiAcrossHierarchy(MainCircuitData d)
+    {
+        string s = Fix3(d.HierarchyNumber) + Fix3(d.ParallelNumber) + Fix3(d.SeriesNumber) + d.AutoGenerationKind;
+
+        int i = 0;
+        while (i < s.Length && (s[i] == ' ' || s[i] == '\t'))
+        {
+            i++;
+        }
+
+        int start = i;
+        if (i < s.Length && (s[i] == '+' || s[i] == '-'))
+        {
+            i++;
+        }
+
+        while (i < s.Length && s[i] >= '0' && s[i] <= '9')
+        {
+            i++;
+        }
+
+        string num = s[start..i];
+        return long.TryParse(num, NumberStyles.Integer, CultureInfo.InvariantCulture, out long v) ? v : 0L;
+    }
+
+    /// <summary>3 バイト固定長フィールドの物理表現(0 詰め左寄せ 3 桁)を得る。</summary>
+    private static string Fix3(string s) => s.Length >= 3 ? s[..3] : s.PadLeft(3, '0');
 }
 
 /// <summary>

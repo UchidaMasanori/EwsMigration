@@ -131,4 +131,97 @@ public sealed class VtCircuitGeneratorTests
         Assert.Equal(2, e.InsertBeforeSequenceNumber);
         Assert.Equal(2, e.WhVmSequenceNumber); // 最初の WH のみ登録。
     }
+
+    [Fact]
+    public void InsertVtRecords_VT要素を挿入位置の直前へ挿入し発生元を複写する()
+    {
+        var wh = Rec(2, "WH", kiryoso: '3', gyocd: "AAA", gyoglno: "005");
+        MainCircuitData wd = wh.Data;
+        wd.SystemNumber = "007";
+        wd.SystemKind = '1';
+        wd.HierarchyNumber = "002";
+        wd.ParallelNumber = "003";
+        wd.SortKind = '3';
+        wd.LineTypeNumber = "01";
+        wd.IncomingNumber = "009";
+        wd.CircuitClass = 'M';
+        wd.CircuitNumberSuffix = "SFX";
+        wd.ElectricalParameterSlots[0].Bn = '2';
+
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "MCB", kiryoso: '1'),
+            wh,
+            Rec(3, "SB", kiryoso: '1'),   // 非 '3' → 格下げ終了。
+        };
+
+        var plan = new[] { new VtInsertion(WhVmSequenceNumber: 2, InsertBeforeSequenceNumber: 2) };
+
+        IReadOnlyList<MainCircuitResult> result = VtCircuitGenerator.InsertVtRecords(records, plan);
+
+        Assert.Equal(4, result.Count);
+
+        MainCircuitData vt = result[1].Data;
+        Assert.Equal("002", result[1].SequenceNumber);
+        Assert.Equal("VT", vt.ReservedWord);
+        Assert.Equal('1', vt.AutoGenerationKind);
+        Assert.Equal('4', vt.CircuitElement);
+        Assert.Equal('3', vt.SortKind);                       // 発生元の元 narakbn。
+        Assert.Equal('1', vt.ElectricalParameterSlots[0].Qty);
+        Assert.Equal("007", vt.SystemNumber);
+        Assert.Equal('1', vt.SystemKind);
+        Assert.Equal("002", vt.HierarchyNumber);
+        Assert.Equal("003", vt.ParallelNumber);
+        Assert.Equal("AAA", vt.LineTypeCode);
+        Assert.Equal("01", vt.LineTypeNumber);
+        Assert.Equal("005", vt.LineTypeGroupNumber);
+        Assert.Equal("009", vt.IncomingNumber);
+        Assert.Equal('M', vt.CircuitClass);
+        Assert.Equal("SFX", vt.CircuitNumberSuffix);
+        Assert.Equal('2', vt.ElectricalParameterSlots[0].Bn);
+        Assert.Equal("FU     ", vt.DataType[0]);              // 同一行種に F 無し → FU。
+
+        // 発生元 WH は VT の直後へ移り回路要素が '4' へ格下げ、narakbn は 3→2(発生時)→1(直後調整)。
+        Assert.Equal("003", result[2].SequenceNumber);
+        Assert.Equal('4', result[2].Data.CircuitElement);
+        Assert.Equal('1', result[2].Data.SortKind);
+    }
+
+    [Fact]
+    public void InsertVtRecords_挿入で後続要素の親追番が新採番へ付け替わる()
+    {
+        var sb = Rec(3, "SB", kiryoso: '1');
+        sb.Data.ParentSequenceNumber = "002";   // 親 = 発生元 WH(datano=2)。
+
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "MCB", kiryoso: '1'),
+            Rec(2, "WH", kiryoso: '3', gyocd: "AAA"),
+            sb,
+        };
+
+        var plan = new[] { new VtInsertion(WhVmSequenceNumber: 2, InsertBeforeSequenceNumber: 2) };
+
+        IReadOnlyList<MainCircuitResult> result = VtCircuitGenerator.InsertVtRecords(records, plan);
+
+        Assert.Equal(4, result.Count);
+        Assert.Equal("004", result[3].SequenceNumber);
+        Assert.Equal("003", result[3].Data.ParentSequenceNumber);  // WH の新採番 003 へ付け替え。
+    }
+
+    [Fact]
+    public void InsertVtRecords_同一行種にFがあればタイプFNを付与する()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "F", kiryoso: '1', gyocd: "AAA", gyoglno: "005"),   // 同一行種の F。
+            Rec(2, "WH", kiryoso: '3', gyocd: "AAA", gyoglno: "005"),  // 発生元。
+        };
+
+        var plan = new[] { new VtInsertion(WhVmSequenceNumber: 2, InsertBeforeSequenceNumber: 2) };
+
+        IReadOnlyList<MainCircuitResult> result = VtCircuitGenerator.InsertVtRecords(records, plan);
+
+        Assert.Equal("FN     ", result[1].Data.DataType[0]);
+    }
 }
