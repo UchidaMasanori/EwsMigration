@@ -60,7 +60,7 @@
 | テスト成功数 | **1815** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **699** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `KEIKIRESETHASH` | Fyss14 の計器回路要素リセット KeikiKairo_Bangou_Reset を MeterCircuitElementResetter として移植。回路要素 kiryoso='3' を起点に同一(階層 kaisono・並列 heino)を持つ直上要素を遡り、WH 構成なら '3' を波及し親 F で打ち切る(950907)。WH 非構成では M(改訂27)を除き '3' を波及し、遡り終端が親データ追番と一致する直列 001 の F なら '3' にする(950208)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+5 |
+| 直近コミット | `e7df44d` | Fyss14 の計器回路要素リセット KeikiKairo_Bangou_Reset を MeterCircuitElementResetter として移植。回路要素 kiryoso='3' を起点に同一(階層 kaisono・並列 heino)を持つ直上要素を遡り、WH 構成なら '3' を波及し親 F で打ち切る(950907)。WH 非構成では M(改訂27)を除き '3' を波及し、遡り終端が親データ追番と一致する直列 001 の F なら '3' にする(950208)。Fyss14_Make_UpperParm のループ後処理群のうちの 1 つ。テスト+5 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
