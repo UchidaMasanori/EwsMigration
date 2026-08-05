@@ -60,7 +60,7 @@
 | テスト成功数 | **1744** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **689** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `PLTRMHASH` | Fyss14 の PLTR 挿入本体 Mainfile_PLTR_Make(PltrCircuitGenerator.InsertPltrRecords) を移植。旧主回路を新リストへ複写しつつ datano_PLTR の直前へ PLTR 要素を挿入し datano/oyatno/goyano を新採番へ付け替える。PLTR は発生元(挿入位置の表示灯)から kno/ksyubetu/kaisono/heino/gyocd/gyono/gyoglno/fpasglno/fpacglno/fpamk(メーカ)/ep[0].epabn/nyuseno/narakbn/kairobun/kairsfx を複写し yoyakkbn=1/yoyaku=PLTR/ep[0].epaqty=1/kiryoso=3 を設定する。VT と異なり発生元 narakbn は減算せず kiryoso は 3、F 格下げ処理も無い。挿入後 PLTR(kiryoso=3)の直後で同一階層同一並列の narakbn=4/2 を 1 戻す(VT の 960404 と異なり i-1 ガード無しで常時実行)。テスト+3 |
+| 直近コミット | `d0f5ba6` | Fyss14 の PLTR 挿入本体 Mainfile_PLTR_Make(PltrCircuitGenerator.InsertPltrRecords) を移植。旧主回路を新リストへ複写しつつ datano_PLTR の直前へ PLTR 要素を挿入し datano/oyatno/goyano を新採番へ付け替える。PLTR は発生元(挿入位置の表示灯)から kno/ksyubetu/kaisono/heino/gyocd/gyono/gyoglno/fpasglno/fpacglno/fpamk(メーカ)/ep[0].epabn/nyuseno/narakbn/kairobun/kairsfx を複写し yoyakkbn=1/yoyaku=PLTR/ep[0].epaqty=1/kiryoso=3 を設定する。VT と異なり発生元 narakbn は減算せず kiryoso は 3、F 格下げ処理も無い。挿入後 PLTR(kiryoso=3)の直後で同一階層同一並列の narakbn=4/2 を 1 戻す(VT の 960404 と異なり i-1 ガード無しで常時実行)。テスト+3 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
