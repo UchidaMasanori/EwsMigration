@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1756** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **692** | — |
+| テスト成功数 | **1766** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **693** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `9489517` | Fyss14 の周辺設定段のうち特殊予約語区分(tokkbn)設定 Parm_Set_MGSH(改訂<33>) / Parm_Set_27(改訂<35>) を SpecialReservedKindSetter として移植。MGSH は MG、27A/27B/27C は CR に書換済のため予約語で判断できず、回路内容記述(FYDF805)の自由文字からキーワードを拾って区分を設定する(MGSH:3P→1/2P→2/他→1、CR:27A→3/27B→4/27C→5)。自由文字取得は CircuitDescriptionArea(=Fysk11_FYDF805_KkGet)へ境界注入。テスト+9 |
+| 直近コミット | `KEIKIHASH` | Fyss14 の周辺設定段のうち計器回路の並びチェック Keiki_Kairo_Check を MeterCircuitOrderChecker として移植。行種コード PM の計器回路機器につき予約語妥当性(FY-648E、改訂<35>で実質 CR かつ tokkbn 空)を検証し、CT(kiryoso=2)/WH(kiryoso=1)は同一機器認識番号の相手へ行種を相互複写、AS は kiryoso=2 以外/VS は kiryoso=3・4 以外で FY-645E、SC(PM)は自身を親とする後続機器があれば FY-656E。異常時 CircuitParseError(return(2)相当)/正常時 null。テスト+10 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
