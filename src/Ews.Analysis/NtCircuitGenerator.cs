@@ -8,13 +8,15 @@ namespace Ews.Analysis;
 ///
 /// Fyss14_Make_UpperParm の f/r ループが、上流パラメータ生成後の主回路に対して
 /// ＮＴを挿入すべき箇所を判定する(Pre_NT_Make)→挿入する(Mainfile_NT_Make)。
-/// 本クラスは判定部(Pre_NT_Make)を移植し、挿入すべき箇所の一覧(<see cref="NtInsertion"/>)を返す。
-/// 実際の主回路への挿入(Mainfile_NT_Make)は後続増分で移植する。
+/// 本クラスは判定部(Pre_NT_Make)と挿入部(Mainfile_NT_Make)を移植する。
 /// </summary>
 public static class NtCircuitGenerator
 {
     /// <summary>データ追番フィールド幅(datano/oyatno/goyano/kaisono[3])。</summary>
     private const int SequenceWidth = 3;
+
+    /// <summary>自動生成 NT の予約語。【C原典】"NT      "(本移植ではトリム済みで保持)。</summary>
+    private const string NtWord = "NT";
 
     /// <summary>
     /// ＮＴを自動生成すべき箇所を判定して一覧を返す。【C原典】Pre_NT_Make(Fyss14.c:4257)。
@@ -128,6 +130,80 @@ public static class NtCircuitGenerator
             .OrderBy(x => x.InsertAfterSequenceNumber)
             .ThenByDescending(x => x.Hierarchy)
             .ToList();
+    }
+
+    /// <summary>
+    /// NTINF を元に主回路データブロックへ NT を挿入しデータ追番を再採番する。
+    /// 【C原典】<c>Mainfile_NT_Make</c>(Fyss14.c:4392)。
+    ///
+    /// 旧主回路を新リストへ複写しつつ、挿入位置(datano_NT)の直後へ NT 要素を挿入し、
+    /// データ追番・親データ追番(oyatno)・グループ親データ追番(goyano)を新採番へ付け替える。
+    /// NT 要素の各フィールドは発生原因の MCB(datano_MCB)から複写する。
+    /// 【C原典】と同じく旧リストの要素は再利用され、重さならないように追番が書き換わる。
+    /// </summary>
+    /// <param name="mains">旧主回路エリア。要素は再利用され採番等が書き換わる。【C原典】*Pmaina(件数 *Pmainc)。</param>
+    /// <param name="plan"><see cref="PrepareNtInsertions"/> が返す NT 挿入情報(datano_NT 昇順)。【C原典】p_NT(件数 i_NT)。</param>
+    /// <returns>NT 挿入後の新主回路エリア。【C原典】*Pmaina(件数 *Pmainc=mainc+i_NT)。</returns>
+    public static IReadOnlyList<MainCircuitResult> InsertNtRecords(
+        IReadOnlyList<MainCircuitResult> mains, IReadOnlyList<NtInsertion> plan)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var newList = new List<MainCircuitResult>(mains.Count + plan.Count);
+        int j = 0;   // 処理対象 NTINF の位置。
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            MainCircuitResult cur = mains[i];
+
+            // 【C原典】データ追番・親データ追番・グループ親データ追番を新採番へ付け替える。
+            //   maina[i].datano を in-place で書き換えるのと同値に、cur(=mains[i])の追番を更新する。
+            cur.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, SequenceWidth);
+            int n = EquipmentParameterFormatter.Stoi(cur.Data.ParentSequenceNumber, SequenceWidth);
+            if (n != 0)
+            {
+                cur.Data.ParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            n = EquipmentParameterFormatter.Stoi(cur.Data.GroupParentSequenceNumber, SequenceWidth);
+            if (n != 0)
+            {
+                cur.Data.GroupParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            newList.Add(cur);
+
+            // 【C原典】現データ(旧 datano=i+1)の直後に NT を挿入する必要がある間繰り返す。
+            while (j < plan.Count && plan[j].InsertAfterSequenceNumber == i + 1)
+            {
+                // 【C原典】datano_MCB は旧配列の元 index+1。追番以外のフィールドは不変なのでそのまま参照する。
+                MainCircuitData mcb = mains[plan[j].McbSequenceNumber - 1].Data;
+
+                var nt = new MainCircuitResult();   // Main_Area_Clear 相当(既定初期値)。
+                MainCircuitData d = nt.Data;
+
+                nt.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, SequenceWidth);
+                d.AutoGenerationKind = '1';
+                d.ReservedWord = NtWord;
+                d.LineTypeCode = mcb.LineTypeCode;
+                d.ElectricalParameterSlots[0].Bn = mcb.ElectricalParameterSlots[0].Bn;
+                d.CircuitElement = mcb.CircuitElement;
+                d.ElectricalParameterSlots[0].Qty = '1';
+                d.SystemNumber = mcb.SystemNumber;
+                d.SystemKind = mcb.SystemKind;
+                d.CircuitClass = mcb.CircuitClass;
+                d.CircuitNumberSuffix = mcb.CircuitNumberSuffix;
+                d.IncomingNumber = mcb.IncomingNumber;
+                d.HierarchyNumber = mcb.HierarchyNumber;
+                d.SortKind = '4';
+
+                newList.Add(nt);
+                j++;
+            }
+        }
+
+        return newList;
     }
 }
 

@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1720** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **684** | — |
+| テスト成功数 | **1723** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **685** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `e4733b6` | Fyss14 の NT 自動生成判定部 Pre_NT_Make(NtCircuitGenerator.PrepareNtInsertions) を移植。予約語 MCB/RMCB かつ ep[2] 極数 epap[2]='1' かつグループ親 goyano≠"000" の要素を対象(1 相 2 線 210V は除外)とし、同一 goyano の既出要素は対象 MCB を差替えてスキップ、下流(DownstreamSelector=Fyss35)に同一階層の NT が既存ならスキップ。datano_NT 昇順・kaisou 降順で整列した NtInsertion 一覧を返す。挿入本体 Mainfile_NT_Make は後続 |
+| 直近コミット | `NTMHASH` | Fyss14 の NT 自動生成挿入本体 Mainfile_NT_Make(NtCircuitGenerator.InsertNtRecords) を移植。旧主回路を新リストへ複写しつつ datano_NT の直後へ NT 要素を挿入し、datano/oyatno/goyano を新採番へ付け替える(CtAutoGenerator と同様に入力要素を再利用し in-place 再採番=C の maina[i].datano 書換と同値で深い clone 不要)。NT は Main_Area_Clear 相当の新規に yoyakkbn/yoyaku/narakbn/epaqty を設定し gyocd/epabn/kiryoso/kno/ksyubetu/kairobun/kairsfx/nyuseno/kaisono を発生原因 MCB から複写 |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

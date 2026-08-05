@@ -116,4 +116,93 @@ public sealed class NtCircuitGeneratorTests
 
         Assert.Empty(NtCircuitGenerator.PrepareNtInsertions(records));
     }
+
+    [Fact]
+    public void InsertNtRecords_NT要素を挿入位置の直後へ挿入しMCBのフィールドを複写する()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "000", "P"),
+            Rec(2, "001", "MCB", goyano: "001", kaisono: "001", epap: "001"),
+            Rec(3, "002", "SB", goyano: "001", kaisono: "001"),
+        };
+
+        // 発生原因 MCB(records[1])へ複写確認用の識別値を仕込む。
+        MainCircuitData mcb = records[1].Data;
+        mcb.SystemNumber = "007";
+        mcb.CircuitElement = '5';
+        mcb.LineTypeCode = "ABC";
+        mcb.CircuitClass = 'M';
+        mcb.CircuitNumberSuffix = "SFX";
+        mcb.IncomingNumber = "009";
+        mcb.ElectricalParameterSlots[0].Bn = '2';
+
+        IReadOnlyList<NtInsertion> plan = NtCircuitGenerator.PrepareNtInsertions(records);
+        IReadOnlyList<MainCircuitResult> result = NtCircuitGenerator.InsertNtRecords(records, plan);
+
+        Assert.Equal(4, result.Count);
+
+        MainCircuitResult ntRec = result[3];   // datano_NT=3 の直後に挿入。
+        Assert.Equal("004", ntRec.SequenceNumber);
+        MainCircuitData nt = ntRec.Data;
+        Assert.Equal("NT", nt.ReservedWord);
+        Assert.Equal('1', nt.AutoGenerationKind);
+        Assert.Equal('4', nt.SortKind);
+        Assert.Equal('1', nt.ElectricalParameterSlots[0].Qty);
+        // MCB からの複写フィールド。
+        Assert.Equal("007", nt.SystemNumber);
+        Assert.Equal('1', nt.SystemKind);
+        Assert.Equal('5', nt.CircuitElement);
+        Assert.Equal("ABC", nt.LineTypeCode);
+        Assert.Equal('M', nt.CircuitClass);
+        Assert.Equal("SFX", nt.CircuitNumberSuffix);
+        Assert.Equal("009", nt.IncomingNumber);
+        Assert.Equal("001", nt.HierarchyNumber);
+        Assert.Equal('2', nt.ElectricalParameterSlots[0].Bn);
+    }
+
+    [Fact]
+    public void InsertNtRecords_挿入で後続要素の親追番が新採番へ付け替わる()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "000", "P"),
+            Rec(2, "001", "MCB", goyano: "001", kaisono: "001", epap: "001"),
+            Rec(3, "002", "SB", goyano: "001", kaisono: "001"),
+            Rec(4, "000", "P"),                    // グループの下流を止める別 P。
+            Rec(5, "004", "SB"),                   // 旧 #4(P)の子。goyano=000 で NT 非対象。
+        };
+
+        IReadOnlyList<NtInsertion> plan = NtCircuitGenerator.PrepareNtInsertions(records);
+        Assert.Equal(3, Assert.Single(plan).InsertAfterSequenceNumber);
+
+        IReadOnlyList<MainCircuitResult> result = NtCircuitGenerator.InsertNtRecords(records, plan);
+
+        Assert.Equal(6, result.Count);
+        Assert.Equal("NT", result[3].Data.ReservedWord);   // datano_NT=3 の直後。
+
+        MainCircuitResult child = result[5];               // 旧 #5(oyatno=004)。
+        Assert.Equal("006", child.SequenceNumber);
+        Assert.Equal("005", child.Data.ParentSequenceNumber); // 旧 004 → NT 挿入で 005 へ繰り上げ。
+    }
+
+    [Fact]
+    public void InsertNtRecords_挿入不要ならデータ追番を再採番して同数を返す()
+    {
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "000", "P"),
+            Rec(2, "001", "SB"),
+        };
+
+        IReadOnlyList<NtInsertion> plan = NtCircuitGenerator.PrepareNtInsertions(records);
+        Assert.Empty(plan);
+
+        IReadOnlyList<MainCircuitResult> result = NtCircuitGenerator.InsertNtRecords(records, plan);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("001", result[0].SequenceNumber);
+        Assert.Equal("002", result[1].SequenceNumber);
+        Assert.Equal("001", result[1].Data.ParentSequenceNumber);
+    }
 }
