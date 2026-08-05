@@ -60,7 +60,7 @@
 | テスト成功数 | **1714** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **683** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `ORCHASH` | Fyss14 統括ループ Make_UpperParm(UpperParameterBuilder.GenerateUpperParameters) をリスト版ディスパッチャ SecondaryParameterSetter.SetParam_ep2(maina,index,製作仕様区分,系統周波数) に配線。非入線の ApplyExceptionCircuitParameters+単一レコード版の 2 呼びを例外要素(TR/RTR/WH/VT)の kpa* 再設定と ep[2] 生成を兼ねる単一呼びへ統合。SetParam_ep2 の戻り値 2(LGR K 数不正等) を FY-632E として CircuitParseError 一覧へ収集し戻す。製作仕様区分(sshiykbn)と周波数(Helutzu)を引数注入。ゴールデン kpa* 突合回帰なし |
+| 直近コミット | `0d5e2b2` | Fyss14 統括ループ Make_UpperParm(UpperParameterBuilder.GenerateUpperParameters) をリスト版ディスパッチャ SecondaryParameterSetter.SetParam_ep2(maina,index,製作仕様区分,系統周波数) に配線。非入線の ApplyExceptionCircuitParameters+単一レコード版の 2 呼びを例外要素(TR/RTR/WH/VT)の kpa* 再設定と ep[2] 生成を兼ねる単一呼びへ統合。SetParam_ep2 の戻り値 2(LGR K 数不正等) を FY-632E として CircuitParseError 一覧へ収集し戻す。製作仕様区分(sshiykbn)と周波数(Helutzu)を引数注入。ゴールデン kpa* 突合回帰なし |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
