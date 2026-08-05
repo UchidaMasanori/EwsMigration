@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1708** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **680** | — |
+| テスト成功数 | **1711** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **683** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `09617ad` | Fyss14 SetParam_ep2(list版) に VT(計器用変圧器) case を追加。回路電圧 kpav[0] を公称電圧に変換(Right_Volt+Volt_Conv)し 0 でない最小値を計器 1 次電圧 kpakv1 に据え、以降の連続する回路要素 kiryoso=4 へ伝播。ep[2] は V1[0]=計器 1 次電圧・V2[0]="000110.0" 固定・epav2kbn=kpavkbn。引数 Helutzu/pprmp/newpprmp 未使用(物件非依存) |
+| 直近コミット | `TRHASH` | Fyss14 SetParam_ep2(list版) に TR(トランス) case を追加。これにより例外対象 4 種[TR/RTR/WH/VT]の回路情報+ep[2]生成が全て移植完了。ep[0].epav2 の定格電圧と epaph2[1] の 1/2 電源判別で回路相数・線式・電圧・極数・周波数を自身に設定(親 maina[oyatno-1] 参照)し、ep[2] は PH1/WR1=親相線式・V1=親回路電圧・PH2/WR2=自相線式(2 電源は前後スロット)・V2=SetParam_ep2_TR_V2。Hz(系統周波数 HZ1=50/HZ2=60)を systemFrequency 引数で注入。引数 pprmp/newpprmp 未使用 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

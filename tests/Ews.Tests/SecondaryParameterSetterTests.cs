@@ -1580,5 +1580,107 @@ public sealed class SecondaryParameterSetterTests
         // kiryoso!='4' には伝播しない(既定 "000")
         Assert.Equal("000", other.MeterPrimaryVoltage);
     }
+
+    // ---- Parm_Set_TR --------------------------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_TRは1電源で回路情報を設定しPH1V1V2を親から決める()
+    {
+        MainCircuitData parent = RtrParent(); // 回路電圧 210/000/000, 3P3W
+
+        MainCircuitData tr = NewData();
+        tr.ReservedWord = "TR";
+        tr.ParentSequenceNumber = "001";
+        tr.ElectricalParameterSlots[0].V2 = ["000210.0", "000105.0", "000000.0"];
+        // ep[0].epaph2 既定 ["0","0"] → 相線式は親由来、epaph2[1]="0" → 1 電源。
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", tr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1, null, 50);
+
+        ElectricalParameters ep2 = tr.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        // 回路情報(親由来の相線式・kvs 由来の電圧・周波数)
+        Assert.Equal('3', tr.CircuitPhaseCount);
+        Assert.Equal('3', tr.CircuitWireType);
+        Assert.Equal('3', tr.CircuitPoleCount);
+        Assert.Equal("210", tr.CircuitVoltage[0]);
+        Assert.Equal("105", tr.CircuitVoltage[1]);
+        Assert.Equal("50", tr.CircuitFrequency);
+        // ep[2]: PH1/WR1/V1=親、PH2/WR2=自身(1電源は0スロット)、V2=1電源3スロット
+        Assert.Equal("3", ep2.Ph1);
+        Assert.Equal("3", ep2.Wr1);
+        Assert.Equal("000210.0", ep2.V1[0]);
+        Assert.Equal("000000.0", ep2.V1[1]);
+        Assert.Equal("3", ep2.Ph2[0]);
+        Assert.Equal("3", ep2.Wr2[0]);
+        Assert.Equal("000210.0", ep2.V2[0]);
+        Assert.Equal("000105.0", ep2.V2[1]);
+        Assert.Equal("000000.0", ep2.V2[2]);
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TRは1P2Wで親が105_000なら極数を1にする()
+    {
+        MainCircuitData parent = NewData();
+        parent.ReservedWord = "MCB";
+        parent.CircuitPhaseCount = '1';
+        parent.CircuitWireType = '2';
+        parent.CircuitVoltage = ["105", "000", "000"];
+        parent.CircuitVoltageKind = 'A';
+
+        MainCircuitData tr = NewData();
+        tr.ReservedWord = "TR";
+        tr.ParentSequenceNumber = "001";
+        tr.ElectricalParameterSlots[0].Ph2[0] = "1"; // 相数直接指定
+        tr.ElectricalParameterSlots[0].Wr2[0] = "2"; // 線式直接指定
+        tr.ElectricalParameterSlots[0].V2 = ["000105.0", "000000.0", "000000.0"];
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", tr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1, null, 60);
+
+        Assert.Null(error);
+        Assert.Equal('1', tr.CircuitPhaseCount);
+        Assert.Equal('2', tr.CircuitWireType);
+        Assert.Equal('1', tr.CircuitPoleCount); // 親 105/000 → 1 極
+        Assert.Equal("60", tr.CircuitFrequency);
+    }
+
+    [Fact]
+    public void SetParam_ep2_TRは2電源で同一TRが無ければ相線式電圧を0スロットに設定する()
+    {
+        MainCircuitData parent = NewData();
+        parent.ReservedWord = "MCB";
+        parent.CircuitPhaseCount = '3';
+        parent.CircuitWireType = '3';
+        parent.CircuitVoltage = ["420", "000", "000"];
+        parent.CircuitVoltageKind = 'A';
+
+        MainCircuitData tr = NewData();
+        tr.ReservedWord = "TR";
+        tr.ParentSequenceNumber = "001";
+        tr.ElectricalParameterSlots[0].Ph2 = ["3", "2"]; // epaph2[1]!="0" → 2 電源
+        tr.ElectricalParameterSlots[0].Wr2 = ["3", "0"];
+        tr.ElectricalParameterSlots[0].V2 = ["000420.0", "000000.0", "000000.0"];
+
+        MainCircuitResult[] maina = [Res("001", parent), Res("002", tr)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 1, null, 60);
+
+        ElectricalParameters ep2 = tr.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        // 同一 TR 無 → k=0(後方扱い) → 相線式は epaph2[0]/epawr2[0]、電圧は kvs[0]
+        Assert.Equal('3', tr.CircuitPhaseCount);
+        Assert.Equal('3', tr.CircuitWireType);
+        Assert.Equal("420", tr.CircuitVoltage[0]);
+        Assert.Equal("3", ep2.Ph2[0]);
+        Assert.Equal("3", ep2.Wr2[0]);
+        Assert.Equal("000420.0", ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V2[1]);
+        // V1 = 親回路電圧
+        Assert.Equal("000420.0", ep2.V1[0]);
+    }
 }
 

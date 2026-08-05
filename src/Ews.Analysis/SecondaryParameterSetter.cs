@@ -619,7 +619,12 @@ public static class SecondaryParameterSetter
     /// 先頭 2 文字 "01"/"02" なら "025.0"、それ以外は "030.0" とする。物件情報を引数注入する。
     /// null または該当ケース以外では未使用。
     /// </param>
-    public static CircuitParseError? SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index, string? manufacturingSpecKind = null)
+    /// <param name="systemFrequency">
+    /// 系統周波数(Hz)。【C原典】Make_UpperParm の Helutzu(bukken1-&gt;com.kyo.hzkbn=='2' なら 60、他は 50)。
+    /// TR の回路周波数(kpahz)を "%.2d" で設定する際に使用する。物件情報を引数注入する。
+    /// TR 以外のケースでは未使用(既定 0 は kpahz="00")。
+    /// </param>
+    public static CircuitParseError? SetParam_ep2(IReadOnlyList<MainCircuitResult> maina, int index, string? manufacturingSpecKind = null, int systemFrequency = 0)
     {
         ArgumentNullException.ThrowIfNull(maina);
         MainCircuitData data = maina[index].Data;
@@ -643,6 +648,10 @@ public static class SecondaryParameterSetter
 
             case "RTR":
                 SetRtr(maina, index);
+                return null;
+
+            case "TR":
+                SetTr(maina, index, systemFrequency);
                 return null;
 
             case "MC":
@@ -985,6 +994,217 @@ public static class SecondaryParameterSetter
         }
 
         ep2.V2Kbn = data.CircuitVoltageKind;
+    }
+
+    /// <summary>
+    /// TR(トランス)の ep[2] 設定。【C原典】Parm_Set_TR(引数 pprmp/newpprmp は未使用、Hz は回路周波数に使用)。
+    /// ep[0].epav2 から定格電圧 kvs を取り出し、ep[0].epaph2[1] で 1/2 電源トランスを判別して
+    /// 回路相数・線式・電圧・極数・周波数を自身に設定する(親 p=maina[oyatno-1] を参照)。
+    /// ep[2] は PH1/WR1=親相線式、V1=親回路電圧、PH2/WR2=自回路相線式(2 電源は前後スロット)、
+    /// V2 は <see cref="SetTrV2"/> で決定する。
+    /// </summary>
+    private static void SetTr(IReadOnlyList<MainCircuitResult> maina, int index, int systemFrequency)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+        ElectricalParameters ep0 = data.ElectricalParameterSlots[0];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】電圧 V2: ep[0].epav2[k] の先頭 6 文字を atoi し 3 桁で kvs に整形。
+        string[] kvs =
+        [
+            Format3(AtoiC(ep0.V2[0].Length >= 6 ? ep0.V2[0][..6] : ep0.V2[0])),
+            Format3(AtoiC(ep0.V2[1].Length >= 6 ? ep0.V2[1][..6] : ep0.V2[1])),
+            Format3(AtoiC(ep0.V2[2].Length >= 6 ? ep0.V2[2][..6] : ep0.V2[2])),
+        ];
+
+        // 【C原典】親データ p=&maina[atoi(oyatno)-1]。
+        int pIdx = AtoiC(data.ParentSequenceNumber) - 1;
+        MainCircuitData? p = pIdx >= 0 && pIdx < maina.Count ? maina[pIdx].Data : null;
+
+        // 【C原典】t=epav2idx-'1'(タップ電圧使用インデックス)。
+        int t = ep0.V2Idx.Length > 0 ? ep0.V2Idx[0] - '1' : -1;
+
+        // 【C原典】m: ep[0].epaph2[1]=='0' で 1 電源、他は 2 電源トランス。
+        int m = ep0.Ph2[1] == "0" ? 1 : 2;
+
+        string hz2 = Format2(systemFrequency);
+
+        if (m == 1)
+        {
+            // 【C原典】回路相数: epaph2[0]!='0' → epaph2[0]、epaph1!='0' → epaph1、他は親。
+            if (ep0.Ph2[0] != "0")
+            {
+                data.CircuitPhaseCount = ep0.Ph2[0][0];
+            }
+            else if (ep0.Ph1 != "0")
+            {
+                data.CircuitPhaseCount = ep0.Ph1[0];
+            }
+            else if (p is not null)
+            {
+                data.CircuitPhaseCount = p.CircuitPhaseCount;
+            }
+
+            // 【C原典】回路線式: epawr2[0]!='0' → epawr2[0]、epawr1!='0' → epawr1、他は親。
+            if (ep0.Wr2[0] != "0")
+            {
+                data.CircuitWireType = ep0.Wr2[0][0];
+            }
+            else if (ep0.Wr1 != "0")
+            {
+                data.CircuitWireType = ep0.Wr1[0];
+            }
+            else if (p is not null)
+            {
+                data.CircuitWireType = p.CircuitWireType;
+            }
+
+            // 【C原典】回路電圧: epav2idx=='0' は kvs 3 スロット、他はタップ t の 1 スロット。
+            if (ep0.V2Idx == "0")
+            {
+                data.CircuitVoltage[0] = kvs[0];
+                data.CircuitVoltage[1] = kvs[1];
+                data.CircuitVoltage[2] = kvs[2];
+            }
+            else
+            {
+                data.CircuitVoltage[0] = t >= 0 && t < 3 ? kvs[t] : "000";
+                data.CircuitVoltage[1] = "000";
+                data.CircuitVoltage[2] = "000";
+            }
+
+            data.CircuitVoltageKind = 'A';
+            SetTrPole(data, ep0, p);
+            data.CircuitFrequency = hz2;
+        }
+        else
+        {
+            // 【C原典】同一 TR(予約語/入線番号/同一機器認識番号一致)を探す。
+            int i = 0;
+            for (; i < maina.Count; i++)
+            {
+                if (i == index)
+                {
+                    continue;
+                }
+
+                MainCircuitData c = maina[i].Data;
+                if (c.ReservedWord == data.ReservedWord
+                    && c.IncomingNumber == data.IncomingNumber
+                    && c.IdentityNumber == data.IdentityNumber)
+                {
+                    break;
+                }
+            }
+
+            // 【C原典】同一 TR が自分より後方(未検出含む)なら k=0、前方なら k=1。
+            int k = i > index ? 0 : 1;
+
+            // 【C原典】回路相数・線式は前後スロット epaph2[k]/epawr2[k]。
+            data.CircuitPhaseCount = k == 0 ? ep0.Ph2[0][0] : ep0.Ph2[1][0];
+            data.CircuitWireType = k == 0 ? ep0.Wr2[0][0] : ep0.Wr2[1][0];
+
+            // 【C原典】回路電圧: k==0 は kvs[0]、k==1 は kvs[1]/kvs[2]。
+            data.CircuitVoltage[1] = "000";
+            data.CircuitVoltage[2] = "000";
+            if (k == 0)
+            {
+                data.CircuitVoltage[0] = kvs[0];
+            }
+            else
+            {
+                data.CircuitVoltage[0] = kvs[1];
+                data.CircuitVoltage[1] = kvs[2];
+            }
+
+            data.CircuitVoltageKind = 'A';
+            SetTrPole(data, ep0, p);
+            data.CircuitFrequency = hz2;
+        }
+
+        // 【C原典】パラメータ情報。PH1/WR1=親相線式、V1=親回路電圧(オフセット3)。
+        if (p is not null)
+        {
+            ep2.Ph1 = p.CircuitPhaseCount.ToString();
+            ep2.Wr1 = p.CircuitWireType.ToString();
+            ep2.V1[0] = ReplaceSegment("000000.0", 3, p.CircuitVoltage[0]);
+            ep2.V1[1] = ReplaceSegment("000000.0", 3, p.CircuitVoltage[1]);
+            ep2.V1[2] = ReplaceSegment("000000.0", 3, p.CircuitVoltage[2]);
+        }
+
+        ep2.V2Kbn = data.CircuitVoltageKind;
+
+        // 【C原典】PH2/WR2: "00" 初期化後、2 電源は k スロット、1 電源は 0 スロットへ。
+        ep2.Ph2[0] = "0";
+        ep2.Ph2[1] = "0";
+        ep2.Wr2[0] = "0";
+        ep2.Wr2[1] = "0";
+        int slot = 0;
+        if (m == 2)
+        {
+            // 2 電源時の k を再計算(上と同じ探索)。
+            int i = 0;
+            for (; i < maina.Count; i++)
+            {
+                if (i == index)
+                {
+                    continue;
+                }
+
+                MainCircuitData c = maina[i].Data;
+                if (c.ReservedWord == data.ReservedWord
+                    && c.IncomingNumber == data.IncomingNumber
+                    && c.IdentityNumber == data.IdentityNumber)
+                {
+                    break;
+                }
+            }
+
+            slot = i > index ? 0 : 1;
+        }
+
+        ep2.Ph2[slot] = data.CircuitPhaseCount.ToString();
+        ep2.Wr2[slot] = data.CircuitWireType.ToString();
+
+        // 【C原典】V2 は SetParam_ep2_TR_V2。
+        SetTrV2(maina, index);
+    }
+
+    /// <summary>
+    /// TR の回路極数(kpap)を回路相線式と親回路電圧から決める。【C原典】Parm_Set_TR の極数分岐(950109)。
+    /// 1P2W は親が 105/000 または(210/105 かつ ep[0].epav1[0]&lt;="00000105")なら 1 極、他は 2 極。
+    /// 1P3W/3P3W は 3 極。
+    /// </summary>
+    private static void SetTrPole(MainCircuitData data, ElectricalParameters ep0, MainCircuitData? p)
+    {
+        if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '2')
+        {
+            bool cond1 = p is not null
+                && p.CircuitVoltage[0] == "105" && p.CircuitVoltage[1] == "000";
+            bool cond2 = p is not null
+                && p.CircuitVoltage[0] == "210" && p.CircuitVoltage[1] == "105"
+                && string.CompareOrdinal(ep0.V1[0], "00000105") <= 0;
+            data.CircuitPoleCount = cond1 || cond2 ? '1' : '2';
+        }
+        if (data.CircuitPhaseCount == '1' && data.CircuitWireType == '3')
+        {
+            data.CircuitPoleCount = '3';
+        }
+        if (data.CircuitPhaseCount == '3' && data.CircuitWireType == '3')
+        {
+            data.CircuitPoleCount = '3';
+        }
+    }
+
+    /// <summary>C の <c>sprintf(buf,"%.2d",v); memcpy(dst,buf,2)</c> を再現し、先頭 2 文字を返す。</summary>
+    private static string Format2(int value)
+    {
+        string s = value.ToString("D2", CultureInfo.InvariantCulture);
+        return s.Length > 2 ? s[..2] : s;
     }
     /// 行種コードが TM/SM/M 系なら epap2P(2P自動選定)→未設定時 SetMcbPole(系統種別で極数)→
     /// 子機エレメント修正 PropMcChildElement、それ以外は 2 次側機器の有無で分岐する。
