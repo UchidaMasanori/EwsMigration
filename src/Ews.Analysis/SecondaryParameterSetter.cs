@@ -657,6 +657,10 @@ public static class SecondaryParameterSetter
                 SetWh(maina, index);
                 return null;
 
+            case "VT":
+                SetVt(maina, index);
+                return null;
+
             case "WL":
             case "GL":
             case "RL":
@@ -1601,6 +1605,52 @@ public static class SecondaryParameterSetter
 
         ep2.V2Kbn = data.CircuitVoltageKind;
         ep2.Hz = data.CircuitFrequency;
+    }
+
+    /// <summary>
+    /// VT(計器用変圧器)の ep[2] 設定。【C原典】Parm_Set_VT(引数 Helutzu/pprmp/newpprmp は未使用)。
+    /// 自身の回路電圧(kpav[0])を公称電圧に変換して 0 でない最小値を計器 1 次電圧(kpakv1)に据え、
+    /// 区分を回路電圧区分(kpavkbn)から設定する。これを以降の連続する回路要素(kiryoso)=='4' の要素へ伝播し、
+    /// ep[2] は V1[0]=計器 1 次電圧・V2[0]="000110.0" 固定・V2 区分=回路電圧区分とする。
+    /// </summary>
+    private static void SetVt(IReadOnlyList<MainCircuitResult> maina, int index)
+    {
+        MainCircuitData data = maina[index].Data;
+        ElectricalParameters ep2 = data.ElectricalParameterSlots[2];
+
+        // 【C原典】ディスパッチャ先頭の部分初期化。
+        ep2.P = "000";
+        ep2.V2[0] = "000000.0";
+
+        // 【C原典】計器回路一次電圧: kv[0..2] は全て kpav(=回路電圧[0])の atoi。
+        //   VT 回路電圧を公称電圧に変換し 0 でない最小の kv を求める。
+        short kv0 = (short)AtoiC(data.CircuitVoltage[0]);
+        short[] kv = [kv0, kv0, kv0];
+        VoltageInheritance.RightAlignVoltage(kv);
+        VoltageInheritance.ConvertVoltage(kv, kv);
+        int n = kv[0] < kv[1] && kv[0] != 0 ? 0 : 1;
+        n = kv[n] < kv[1] && kv[n] != 0 ? n : 2;
+        string kpakv1 = Format3(kv[n]);
+
+        // 【C原典】計器 1 次電圧(kpakv1)・区分(kpakv1kb)を設定。
+        data.MeterPrimaryVoltage = kpakv1;
+        data.MeterPrimaryVoltageKind = data.CircuitVoltageKind;
+
+        // 【C原典】以降の連続する回路要素(kiryoso)=='4' の要素全てに同じ計器 1 次電圧を伝播する。
+        for (int i = index + 1; i < maina.Count && maina[i].Data.CircuitElement == '4'; i++)
+        {
+            maina[i].Data.MeterPrimaryVoltage = kpakv1;
+            maina[i].Data.MeterPrimaryVoltageKind = data.MeterPrimaryVoltageKind;
+        }
+
+        // 【C原典】パラメータ情報: epav1[0] はレコード初期化の "000000.0" 前提で 4 桁目へ kpakv1 を複写。
+        ep2.V1[0] = ReplaceSegment("000000.0", 3, kpakv1);
+        ep2.V1[1] = "000000.0";
+        ep2.V1[2] = "000000.0";
+        ep2.V2[0] = "000110.0";
+        ep2.V2[1] = "000000.0";
+        ep2.V2[2] = "000000.0";
+        ep2.V2Kbn = data.CircuitVoltageKind;
     }
 
     /// <summary>回路電圧 3 スロット(各 3 桁)を atoi して short 配列にする。【C原典】v[i]=atoi(kpav[i])。</summary>

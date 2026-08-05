@@ -1523,5 +1523,62 @@ public sealed class SecondaryParameterSetterTests
         Assert.Equal("000000.0", ep2.V2[1]);
         Assert.Equal("000000.0", ep2.V2[2]);
     }
+
+    // ---- Parm_Set_VT --------------------------------------------------------
+
+    [Fact]
+    public void SetParam_ep2_VT‚ÍŒvŠí1Ÿ“dˆ³‚ğV1‚Éİ’è‚µV2‚Í110ŒÅ’è‚É‚·‚é()
+    {
+        MainCircuitData vt = NewData();
+        vt.ReservedWord = "VT";
+        vt.CircuitVoltage[0] = "210";
+        vt.CircuitVoltageKind = 'A';
+        vt.CircuitElement = '3';
+
+        MainCircuitResult[] maina = [Res("001", vt)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        ElectricalParameters ep2 = vt.ElectricalParameterSlots[2];
+        Assert.Null(error);
+        // ŒvŠí1Ÿ“dˆ³(kpakv1) = ‰ñ˜H“dˆ³[0] ‚ğŒöÌ•ÏŠ·(210 ‚Íƒe[ƒuƒ‹”ñŠY“–‚Å•s•Ï) ¨ "210"
+        Assert.Equal("210", vt.MeterPrimaryVoltage);
+        Assert.Equal('A', vt.MeterPrimaryVoltageKind);
+        // V1[0] = ŒvŠí1Ÿ“dˆ³AV2[0] = 110 ŒÅ’è
+        Assert.Equal("000210.0", ep2.V1[0]);
+        Assert.Equal("000000.0", ep2.V1[1]);
+        Assert.Equal("000110.0", ep2.V2[0]);
+        Assert.Equal("000000.0", ep2.V2[1]);
+        Assert.Equal('A', ep2.V2Kbn);
+    }
+
+    [Fact]
+    public void SetParam_ep2_VT‚ÍˆÈ~‚Ì˜A‘±‚·‚é‰ñ˜H—v‘f4‚ÉŒvŠí1Ÿ“dˆ³‚ğ“`”d‚·‚é()
+    {
+        MainCircuitData vt = NewData();
+        vt.ReservedWord = "VT";
+        vt.CircuitVoltage[0] = "210";
+        vt.CircuitVoltageKind = 'A';
+
+        MainCircuitData follower = NewData(); // ’¼Œã‚Ì kiryoso=='4'
+        follower.ReservedWord = "VM";
+        follower.CircuitElement = '4';
+
+        MainCircuitData other = NewData(); // kiryoso!='4' ‚Å“`”d‘Å‚¿Ø‚è
+        other.ReservedWord = "VM";
+        other.CircuitElement = '3';
+
+        MainCircuitResult[] maina =
+            [Res("001", vt), Res("002", follower), Res("003", other)];
+
+        CircuitParseError? error = SecondaryParameterSetter.SetParam_ep2(maina, 0);
+
+        Assert.Null(error);
+        // ’¼Œã‚Ì kiryoso=='4' ‚ÉŒvŠí1Ÿ“dˆ³‚ª“`”d‚·‚é
+        Assert.Equal("210", follower.MeterPrimaryVoltage);
+        Assert.Equal('A', follower.MeterPrimaryVoltageKind);
+        // kiryoso!='4' ‚É‚Í“`”d‚µ‚È‚¢(Šù’è "000")
+        Assert.Equal("000", other.MeterPrimaryVoltage);
+    }
 }
 
