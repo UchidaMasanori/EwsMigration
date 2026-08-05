@@ -24,6 +24,9 @@ public static class PltrCircuitGenerator
     /// <summary>表示灯タイプ DI(直入)。【C原典】"DI     "(7 桁右詰め)。</summary>
     private const string LampTypeDi = "DI     ";
 
+    /// <summary>自動生成 PLTR の予約語。【C原典】"PLTR    "(本移植ではトリム済みで保持)。</summary>
+    private const string PltrWord = "PLTR";
+
     /// <summary>
     /// ＰＬＴＲを自動生成すべき箇所を判定して一覧を返す。【C原典】Pre_PLTR_Make(Fyss14.c:5075)。
     ///
@@ -227,6 +230,125 @@ public static class PltrCircuitGenerator
         return plan
             .OrderBy(x => x.InsertBeforeSequenceNumber)
             .ToList();
+    }
+
+    /// <summary>
+    /// PLTRINF を元に主回路データブロックへ PLTR を挿入しデータ追番を再採番する。
+    /// 【C原典】<c>Mainfile_PLTR_Make</c>(Fyss14.c:5311)。
+    ///
+    /// 旧主回路を新リストへ複写しつつ、挿入位置(datano_PLTR)の直前へ PLTR 要素を挿入し、
+    /// データ追番・親データ追番(oyatno)・グループ親データ追番(goyano)を新採番へ付け替える。
+    /// PLTR 要素の各フィールドは発生元(挿入位置の表示灯)から複写する(VT と異なり発生元 narakbn は
+    /// 変更しない)。挿入後、自動生成 PLTR('3')の直後で同一階層・同一並列の要素の並び替え機器区分を 1 戻す。
+    /// 【C原典】と同じく旧リストの要素は再利用され採番等が書き換わる。
+    /// </summary>
+    /// <param name="mains">旧主回路エリア。要素は再利用され採番等が書き換わる。【C原典】*Pmaina(件数 *Pmainc)。</param>
+    /// <param name="plan"><see cref="PreparePltrInsertions"/> が返す PLTR 挿入情報(datano_PLTR 昇順)。【C原典】p_PLTR(件数 i_PLTR)。</param>
+    /// <returns>PLTR 挿入後の新主回路エリア。【C原典】*Pmaina(件数 *Pmainc=mainc+i_PLTR)。</returns>
+    public static IReadOnlyList<MainCircuitResult> InsertPltrRecords(
+        IReadOnlyList<MainCircuitResult> mains, IReadOnlyList<PltrInsertion> plan)
+    {
+        ArgumentNullException.ThrowIfNull(mains);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var newList = new List<MainCircuitResult>(mains.Count + plan.Count);
+        int j = 0;   // 処理対象 PLTRINF の位置。
+
+        for (int i = 0; i < mains.Count; i++)
+        {
+            // 【C原典】現在位置(datano_PLTR の直前)に PLTR を挿入する必要がある場合。
+            if (j < plan.Count && plan[j].InsertBeforeSequenceNumber == i + 1)
+            {
+                MainCircuitData src = mains[i].Data;   // 【C原典】maina[datano_PLTR-1](=挿入位置の表示灯)。
+                var pltr = new MainCircuitResult();    // Main_Area_Clear 相当(既定初期値)。
+                MainCircuitData d = pltr.Data;
+
+                pltr.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, FieldWidth);
+                d.SystemNumber = src.SystemNumber;
+                d.SystemKind = src.SystemKind;
+                d.HierarchyNumber = src.HierarchyNumber;
+                d.ParallelNumber = src.ParallelNumber;
+                d.AutoGenerationKind = '1';
+                d.ReservedWord = PltrWord;
+                d.LineTypeCode = src.LineTypeCode;
+                d.LineTypeNumber = src.LineTypeNumber;
+                d.LineTypeGroupNumber = src.LineTypeGroupNumber;
+                d.AttachedParameter.DimensionGroupNumber = src.AttachedParameter.DimensionGroupNumber;
+                d.AttachedParameter.CommentGroupNumber = src.AttachedParameter.CommentGroupNumber;
+                d.AttachedParameter.MakerCode = src.AttachedParameter.MakerCode;   // 【C原典】改訂<24>。
+                d.ElectricalParameterSlots[0].Bn = src.ElectricalParameterSlots[0].Bn;
+                d.ElectricalParameterSlots[0].Qty = '1';
+                d.IncomingNumber = src.IncomingNumber;
+                d.SortKind = src.SortKind;              // 【C原典】VT と異なり発生元 narakbn は減算しない。
+                d.CircuitClass = src.CircuitClass;
+                d.CircuitNumberSuffix = src.CircuitNumberSuffix;
+                d.CircuitElement = '3';
+
+                newList.Add(pltr);
+                j++;
+            }
+
+            // 【C原典】旧データの複写とデータ追番・親/グループ親データ追番の付け替え。
+            MainCircuitResult cur = mains[i];
+            cur.SequenceNumber = BranchArraySorter.FormatFixedWidth(newList.Count + 1, FieldWidth);
+            int n = EquipmentParameterFormatter.Stoi(cur.Data.ParentSequenceNumber, FieldWidth);
+            if (n != 0)
+            {
+                cur.Data.ParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            n = EquipmentParameterFormatter.Stoi(cur.Data.GroupParentSequenceNumber, FieldWidth);
+            if (n != 0)
+            {
+                cur.Data.GroupParentSequenceNumber = mains[n - 1].SequenceNumber;
+            }
+
+            newList.Add(cur);
+        }
+
+        // 【C原典】自動生成 PLTR('3')の直後で同一階層・同一並列の要素の並び替え機器区分を 1 戻す。
+        for (int i = 0; i < newList.Count; i++)
+        {
+            MainCircuitData e = newList[i].Data;
+            if (e.ReservedWord != PltrWord || e.CircuitElement != '3')
+            {
+                continue;
+            }
+
+            char kiryoso = e.CircuitElement;   // '3'
+            int k = EquipmentParameterFormatter.Stoi(e.HierarchyNumber, FieldWidth);
+            int t = EquipmentParameterFormatter.Stoi(e.ParallelNumber, FieldWidth);
+            bool endFlg = false;
+
+            for (int m = i + 1; m < newList.Count; m++)
+            {
+                MainCircuitData nd = newList[m].Data;
+                if (kiryoso != nd.CircuitElement)
+                {
+                    break;
+                }
+
+                int kn = EquipmentParameterFormatter.Stoi(nd.HierarchyNumber, FieldWidth);
+                int tn = EquipmentParameterFormatter.Stoi(nd.ParallelNumber, FieldWidth);
+                if (k == kn && t == tn && !endFlg)
+                {
+                    if (nd.SortKind is '4' or '2')
+                    {
+                        nd.SortKind = (char)(nd.SortKind - 1);
+                    }
+                }
+                else if (k < kn || t < tn)
+                {
+                    endFlg = true;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        return newList;
     }
 
     /// <summary>表示灯の回路電圧を 005V(単相)に落とし ep[2].V2[0] を 000005.5 にする。【C原典】941126。</summary>

@@ -150,4 +150,102 @@ public sealed class PltrCircuitGeneratorTests
         Assert.Equal("TR     ", records[0].Data.DataType[0]);   // 直前 F が TR 化。
         Assert.Equal("005", records[1].Data.CircuitVoltage[0]);
     }
+
+    [Fact]
+    public void InsertPltrRecords_PLTR要素を挿入位置の直前へ挿入し発生元を複写する()
+    {
+        var lamp = Rec(2, "GL", kpav0: "100", epabn: '1', gyocd: "AAA", gyoglno: "005");
+        MainCircuitData ld = lamp.Data;
+        ld.SystemNumber = "007";
+        ld.SystemKind = '1';
+        ld.HierarchyNumber = "002";
+        ld.ParallelNumber = "003";
+        ld.SortKind = '3';
+        ld.LineTypeNumber = "01";
+        ld.IncomingNumber = "009";
+        ld.CircuitClass = 'M';
+        ld.CircuitNumberSuffix = "SFX";
+        ld.AttachedParameter.MakerCode = "MK1";
+
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "MCB", kiryoso: '1'),
+            lamp,
+            Rec(3, "SB", kiryoso: '1'),
+        };
+
+        var plan = new[] { new PltrInsertion(CauseSequenceNumber: 2, InsertBeforeSequenceNumber: 2) };
+
+        IReadOnlyList<MainCircuitResult> result = PltrCircuitGenerator.InsertPltrRecords(records, plan);
+
+        Assert.Equal(4, result.Count);
+
+        MainCircuitData pltr = result[1].Data;
+        Assert.Equal("002", result[1].SequenceNumber);
+        Assert.Equal("PLTR", pltr.ReservedWord);
+        Assert.Equal('1', pltr.AutoGenerationKind);
+        Assert.Equal('3', pltr.CircuitElement);
+        Assert.Equal('3', pltr.SortKind);                     // 発生元の narakbn(減算なし)。
+        Assert.Equal('1', pltr.ElectricalParameterSlots[0].Qty);
+        Assert.Equal("007", pltr.SystemNumber);
+        Assert.Equal("002", pltr.HierarchyNumber);
+        Assert.Equal("003", pltr.ParallelNumber);
+        Assert.Equal("AAA", pltr.LineTypeCode);
+        Assert.Equal("01", pltr.LineTypeNumber);
+        Assert.Equal("005", pltr.LineTypeGroupNumber);
+        Assert.Equal("009", pltr.IncomingNumber);
+        Assert.Equal('M', pltr.CircuitClass);
+        Assert.Equal("SFX", pltr.CircuitNumberSuffix);
+        Assert.Equal("MK1", pltr.AttachedParameter.MakerCode);
+        Assert.Equal('1', pltr.ElectricalParameterSlots[0].Bn);
+
+        // 発生元 GL は PLTR の直後へ移り、narakbn は減算されない(直後同階層同並列調整の対象外)。
+        Assert.Equal("003", result[2].SequenceNumber);
+        Assert.Equal('3', result[2].Data.SortKind);
+    }
+
+    [Fact]
+    public void InsertPltrRecords_挿入で後続要素の親追番が新採番へ付け替わる()
+    {
+        var sb = Rec(3, "SB", kiryoso: '1');
+        sb.Data.ParentSequenceNumber = "002";   // 親 = 発生元 GL(datano=2)。
+
+        var records = new List<MainCircuitResult>
+        {
+            Rec(1, "MCB", kiryoso: '1'),
+            Rec(2, "GL", kpav0: "100", epabn: '1'),
+            sb,
+        };
+
+        var plan = new[] { new PltrInsertion(CauseSequenceNumber: 2, InsertBeforeSequenceNumber: 2) };
+
+        IReadOnlyList<MainCircuitResult> result = PltrCircuitGenerator.InsertPltrRecords(records, plan);
+
+        Assert.Equal(4, result.Count);
+        Assert.Equal("004", result[3].SequenceNumber);
+        Assert.Equal("003", result[3].Data.ParentSequenceNumber);  // GL の新採番 003 へ付け替え。
+    }
+
+    [Fact]
+    public void InsertPltrRecords_PLTR直後の同階層同並列の並び替え機器区分を1戻す()
+    {
+        var lamp = Rec(2, "GL", kpav0: "100", epabn: '1');
+        lamp.Data.HierarchyNumber = "002";
+        lamp.Data.ParallelNumber = "003";
+
+        var follow = Rec(3, "GL", kiryoso: '3', kpav0: "100", epabn: '1');
+        follow.Data.HierarchyNumber = "002";   // PLTR と同一階層。
+        follow.Data.ParallelNumber = "003";    // PLTR と同一並列。
+        follow.Data.SortKind = '4';
+
+        var records = new List<MainCircuitResult> { lamp, follow };
+
+        var plan = new[] { new PltrInsertion(CauseSequenceNumber: 1, InsertBeforeSequenceNumber: 1) };
+
+        IReadOnlyList<MainCircuitResult> result = PltrCircuitGenerator.InsertPltrRecords(records, plan);
+
+        // result[0]=PLTR '3', result[1]=元GL(発生元), result[2]=後続GL(narakbn 4→3)。
+        Assert.Equal("PLTR", result[0].Data.ReservedWord);
+        Assert.Equal('3', result[2].Data.SortKind);
+    }
 }
