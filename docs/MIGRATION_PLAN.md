@@ -60,7 +60,7 @@
 | テスト成功数 | **1720** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **684** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `NTHASH` | Fyss14 の NT 自動生成判定部 Pre_NT_Make(NtCircuitGenerator.PrepareNtInsertions) を移植。予約語 MCB/RMCB かつ ep[2] 極数 epap[2]='1' かつグループ親 goyano≠"000" の要素を対象(1 相 2 線 210V は除外)とし、同一 goyano の既出要素は対象 MCB を差替えてスキップ、下流(DownstreamSelector=Fyss35)に同一階層の NT が既存ならスキップ。datano_NT 昇順・kaisou 降順で整列した NtInsertion 一覧を返す。挿入本体 Mainfile_NT_Make は後続 |
+| 直近コミット | `e4733b6` | Fyss14 の NT 自動生成判定部 Pre_NT_Make(NtCircuitGenerator.PrepareNtInsertions) を移植。予約語 MCB/RMCB かつ ep[2] 極数 epap[2]='1' かつグループ親 goyano≠"000" の要素を対象(1 相 2 線 210V は除外)とし、同一 goyano の既出要素は対象 MCB を差替えてスキップ、下流(DownstreamSelector=Fyss35)に同一階層の NT が既存ならスキップ。datano_NT 昇順・kaisou 降順で整列した NtInsertion 一覧を返す。挿入本体 Mainfile_NT_Make は後続 |
 | 最終更新 | 2026-08-05 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
