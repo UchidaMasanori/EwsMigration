@@ -60,7 +60,7 @@
 | テスト成功数 | **1708** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **680** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `VTHASH` | Fyss14 SetParam_ep2(list版) に VT(計器用変圧器) case を追加。回路電圧 kpav[0] を公称電圧に変換(Right_Volt+Volt_Conv)し 0 でない最小値を計器 1 次電圧 kpakv1 に据え、以降の連続する回路要素 kiryoso=4 へ伝播。ep[2] は V1[0]=計器 1 次電圧・V2[0]="000110.0" 固定・epav2kbn=kpavkbn。引数 Helutzu/pprmp/newpprmp 未使用(物件非依存) |
+| 直近コミット | `09617ad` | Fyss14 SetParam_ep2(list版) に VT(計器用変圧器) case を追加。回路電圧 kpav[0] を公称電圧に変換(Right_Volt+Volt_Conv)し 0 でない最小値を計器 1 次電圧 kpakv1 に据え、以降の連続する回路要素 kiryoso=4 へ伝播。ep[2] は V1[0]=計器 1 次電圧・V2[0]="000110.0" 固定・epav2kbn=kpavkbn。引数 Helutzu/pprmp/newpprmp 未使用(物件非依存) |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
