@@ -730,3 +730,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),GetSeivdno,ControlPowerSystemLocator.GetControlPowerData,toku/sekkei/src/Fyss1k.c,主回路エリアから制御電源番号(fpac)=行種番号(gyono)一致行を探しちょうど1件ならデータ追番/盤種類を返す。fpac=00複数かつ自gyono=00は同一系統限定。0件時は別系統検索/MP行特例/6Aリレーのみ特例(seivdno=999)で救済。0=成功/-1=0件又は複数件。
 関数(移植),CheckRmKiki,ControlEquipmentScanner.CountRemoteControlEquipment,toku/sekkei/src/Fyss1k.c,制御機器データテーブル(Sgkk)の予約語にRSW/TU/CU/PTのいずれかを部分一致で含むリモコン制御機器の件数を数える。SGKK構造体未移植のため予約語列を入力とする純粋関数として移植。
 関数(移植),CheckTenmetu,ControlEquipmentScanner.CountAutoFlashEquipment,toku/sekkei/src/Fyss1k.c,制御機器データテーブル(Sgkk)の予約語にTSU/SSWUのいずれかを部分一致で含む自動点滅タイマー・増幅機の件数を数える。純粋関数として移植。
+構造体(追加),SGKK,ControlEquipmentEntry,toku/sekkei/src/Fyss1k.c,制御機器テーブル(Sgkk[50])の1行。予約語yoyaku=ReservedWord/内部機器個数nkosu=InternalCount/外部機器個数gkosu=ExternalCount。FySgCheckSgkkSet内部作業テーブル。
+関数(移植),PropIsGNdiff,ControlEquipmentDuplicateChecker.IsDifferentData,toku/sekkei/src/Fyss1k.c,SGKK2エントリの重複可能判定。予約語比較ret≠0で別データ(1)。予約語一致時は両方内部機器(nkosu>0)又は両方外部機器(gkosu>0)なら別データ(1)、それ以外は重複データ(0)。SgCheckRonriKMの予約語グループ畳込みで使用。

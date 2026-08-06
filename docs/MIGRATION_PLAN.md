@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2002** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **732** | — |
+| テスト成功数 | **2009** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **734** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `7c02912` | Fyss1k の制御機器データテーブル(SGKK)走査リーフ CheckRmKiki/CheckTenmetu を ControlEquipmentScanner.CountRemoteControlEquipment/CountAutoFlashEquipment として移植。各エントリの予約語(Sgkk[i].yoyaku)に、リモコン制御機器キーワード(RSW/TU/CU/PT)又は自動点滅タイマー・増幅機キーワード(TSU/SSWU)のいずれかを strstr(部分一致)で含むエントリ数を数える。SGKK 構造体は未移植のため予約語列(IReadOnlyList&lt;string?&gt;)を入力とする純粋関数として先行移植。テスト+8 |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御機器テーブル(SGKK)重複可能判定 PropIsGNdiff を ControlEquipmentDuplicateChecker.IsDifferentData として移植。SGKK 2 エントリの予約語比較結果 ret≠0 で別データ(1)、予約語一致時は両方内部機器(nkosu>0)又は両方外部機器(gkosu>0)なら別データ(1)、それ以外は重複データ(0)。合わせて SGKK 最小 Domain モデル ControlEquipmentEntry(yoyaku/nkosu/gkosu = ReservedWord/InternalCount/ExternalCount) を新規導入。テスト+7 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

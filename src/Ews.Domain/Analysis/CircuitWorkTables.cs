@@ -405,6 +405,23 @@ public sealed class ControlSpecEntry
 }
 
 /// <summary>
+/// 制御機器テーブル(1 行=1 予約語グループ)。
+/// 【C原典】Fyss1k.c の <c>typedef struct { CHAR yoyaku[16]; short nkosu; short gkosu; } SGKK;</c>
+/// (グローバル <c>Sgkk[50]</c>)。制御仕様テーブル作成(FySgCheckSgkkSet)の内部作業テーブル。
+/// </summary>
+public sealed class ControlEquipmentEntry
+{
+    /// <summary>予約語。【C原典】yoyaku[SGSTR=16]。</summary>
+    public string ReservedWord { get; set; } = string.Empty;
+
+    /// <summary>内部機器個数。【C原典】nkosu。</summary>
+    public short InternalCount { get; set; }
+
+    /// <summary>外部機器個数。【C原典】gkosu。</summary>
+    public short ExternalCount { get; set; }
+}
+
+/// <summary>
 /// 回路文字列解析で検出したエラー。
 /// 【C原典】Error_Proc(errcode, gyono, colm, msgid, Perrc, erra) → struct FYRT805。
 /// </summary>
