@@ -60,7 +60,7 @@
 | テスト成功数 | **1935** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **719** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の予約語分類・インターロック判定関数群 CheckYoyakugoMG / CheckYoyakugoRM / CheckSgtkiki / GetSidouYouto / ChkInterp を ControlReservedWordClassifier として移植。制御回路サブシステム(FySgCheckSgkkSet 配下)の構造体非依存の純粋文字列分類リーフ。予約語(MG機器/リモコン機器/制御対象機器)判定は strcmp 慣習で 0:該当・1:非該当、始動回路用途は MG 有無で MC 系を MG 系へ振替、インターロック判定は <THR/<AL 以外の '<' で NG。テスト+47 |
+| 直近コミット | `83d0340` | Fyss1k の予約語分類・インターロック判定関数群 CheckYoyakugoMG / CheckYoyakugoRM / CheckSgtkiki / GetSidouYouto / ChkInterp を ControlReservedWordClassifier として移植。制御回路サブシステム(FySgCheckSgkkSet 配下)の構造体非依存の純粋文字列分類リーフ。予約語(MG機器/リモコン機器/制御対象機器)判定は strcmp 慣習で 0:該当・1:非該当、始動回路用途は MG 有無で MC 系を MG 系へ振替、インターロック判定は <THR/<AL 以外の '<' で NG。テスト+47 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
