@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2022** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **736** | — |
+| テスト成功数 | **2027** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **738** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `5925753` | Fyss1k の SHORT 昇順ソート比較子 sgkkcmp を ControlTargetSequenceComparer(IComparer&lt;short&gt;) として移植。<c>*dat1 - *dat2</c> の差をそのまま返す(qsort と同じく符号のみ有意)。制御回路エリア生成 CreatControla で seikdno(制御対象機器データ追番)配列の qsort 昇順整列に使用。テスト+6 |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の予約語番号テーブル(YKNO)ソート比較子 sortcmp3 を ReservedNumberComparer(IComparer&lt;ReservedNumberEntry&gt;) として移植。予約語+予約語番号(ReservedKey)を memcmp 16 バイト昇順のみで比較し -1/0/1 を返す(16 バイト固定幅・'\0' 埋めで CompareOrdinal)。合わせて YKNO 最小 Domain モデル ReservedNumberEntry(yoyaku/dno = ReservedKey/DataNumber) を新規導入。SetCkikiDkkno の ykno[] qsort に使用。テスト+5 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

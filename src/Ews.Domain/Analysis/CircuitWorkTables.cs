@@ -422,6 +422,20 @@ public sealed class ControlEquipmentEntry
 }
 
 /// <summary>
+/// 予約語番号テーブル(1 行=1 機器)。
+/// 【C原典】Fyss1k.c の <c>typedef struct { CHAR yoyaku[16]; short dno; } YKNO;</c>。
+/// 同一機器認識番号設定(SetCkikiDkkno)で制御機器テーブルから作業用に構築される。
+/// </summary>
+public sealed class ReservedNumberEntry
+{
+    /// <summary>予約語+予約語番号(連結キー)。【C原典】yoyaku[16](= Ckk.yoyaku + Ckk.ysno)。</summary>
+    public string ReservedKey { get; set; } = string.Empty;
+
+    /// <summary>機器データ No(制御機器テーブルの元インデックス)。【C原典】dno。</summary>
+    public short DataNumber { get; set; }
+}
+
+/// <summary>
 /// 回路文字列解析で検出したエラー。
 /// 【C原典】Error_Proc(errcode, gyono, colm, msgid, Perrc, erra) → struct FYRT805。
 /// </summary>

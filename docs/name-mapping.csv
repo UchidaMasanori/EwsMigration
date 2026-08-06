@@ -734,3 +734,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),PropIsGNdiff,ControlEquipmentDuplicateChecker.IsDifferentData,toku/sekkei/src/Fyss1k.c,SGKK2エントリの重複可能判定。予約語比較ret≠0で別データ(1)。予約語一致時は両方内部機器(nkosu>0)又は両方外部機器(gkosu>0)なら別データ(1)、それ以外は重複データ(0)。SgCheckRonriKMの予約語グループ畳込みで使用。
 関数(移植),sortcmp2,ControlEquipmentComparer.Compare,toku/sekkei/src/Fyss1k.c,SGKKのqsort比較子。予約語をmemcmp16バイト昇順→内部機器個数(nkosu)昇順→外部機器個数(gkosu)昇順で比較し-1/0/1を返す。SgCheckRonriKMでSgkk[]ソートに使用。IComparerとして移植。
 関数(移植),sgkkcmp,ControlTargetSequenceComparer.Compare,toku/sekkei/src/Fyss1k.c,SHORT昇順比較子(*dat1-*dat2)。制御回路エリア生成CreatControlaでseikdno(制御対象機器データ追番)配列をqsort昇順整列に使用。IComparer<short>として移植。
+構造体(追加),YKNO,ReservedNumberEntry,toku/sekkei/src/Fyss1k.c,予約語番号テーブルの1行。予約語+予約語番号yoyaku[16]=ReservedKey/機器データNo dno=DataNumber。SetCkikiDkknoで制御機器テーブルから作業用に構築。
+関数(移植),sortcmp3,ReservedNumberComparer.Compare,toku/sekkei/src/Fyss1k.c,YKNOのqsort比較子。予約語(ReservedKey)をmemcmp16バイト昇順で比較し-1/0/1を返す。SetCkikiDkknoでykno[]ソートに使用。IComparerとして移植。
