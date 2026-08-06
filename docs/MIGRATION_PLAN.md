@@ -60,7 +60,7 @@
 | テスト成功数 | **1979** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **727** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御電源データ上位検索 GetSeivdnoUp を ControlPowerSystemLocator.GetUpstreamControlPowerData として移植。制御文の記述行(kgyo)を "%03d" 相当で 3 桁整形し、主回路エリア(FYRT800)を末尾から遡って記述行 > 主回路行 gyo(memcmp>0)となる直近上位の主回路行を特定。そこからさらに遡り、行種コードが "UP " の行のデータ追番(datano)を制御電源データ、盤種類(ep[0].epabn)を bn として取得(0=成功、-1=直上主回路行が無い/UP 行が無い)。既存 ControlSpecEntry.DescriptionRow・MainCircuitResult(DescriptionRow/LineTypeCode/SequenceNumber/ElectricalParameterSlots[0].Bn)を使用。テスト+7 |
+| 直近コミット | `c85d424` | Fyss1k の制御電源データ上位検索 GetSeivdnoUp を ControlPowerSystemLocator.GetUpstreamControlPowerData として移植。制御文の記述行(kgyo)を "%03d" 相当で 3 桁整形し、主回路エリア(FYRT800)を末尾から遡って記述行 > 主回路行 gyo(memcmp>0)となる直近上位の主回路行を特定。そこからさらに遡り、行種コードが "UP " の行のデータ追番(datano)を制御電源データ、盤種類(ep[0].epabn)を bn として取得(0=成功、-1=直上主回路行が無い/UP 行が無い)。既存 ControlSpecEntry.DescriptionRow・MainCircuitResult(DescriptionRow/LineTypeCode/SequenceNumber/ElectricalParameterSlots[0].Bn)を使用。テスト+7 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
