@@ -385,4 +385,145 @@ public sealed class ControlPowerSystemLocatorTests
         Assert.Equal("815", seivdno);
         Assert.Equal('5', bn);
     }
+
+    // ---- GetControlPowerData(【C原典】GetSeivdno, Fyss1k.c:2933) ----
+
+    private static MainCircuitResult Row(
+        string fpac = "", string kno = "000", string datano = "000", char bn = '0',
+        string gyocd = "", string yoyaku = "", string dtype1 = "")
+    {
+        var r = new MainCircuitResult();
+        r.Data.AttachedParameter.ControlPowerNumber = fpac;
+        r.Data.SystemNumber = kno;
+        r.SequenceNumber = datano;
+        r.Data.ElectricalParameterSlots[0].Bn = bn;
+        r.Data.LineTypeCode = gyocd;
+        r.Data.ReservedWord = yoyaku;
+        r.Data.DataType[1] = dtype1;
+        return r;
+    }
+
+    [Fact]
+    public void 制御電源番号がgyonoと一致する1件を取得する()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(fpac: "01", kno: "005", datano: "077", bn: '4', gyocd: "MC"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("077", seivdno);
+        Assert.Equal('4', bn);
+    }
+
+    [Fact]
+    public void 一致が無く救済も無ければ負1()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(fpac: "01", kno: "005", datano: "077", bn: '4', gyocd: "MC"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "09"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void 一致が複数なら負1()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(fpac: "01", kno: "005", datano: "A01", bn: '1', gyocd: "MC"),
+            Row(fpac: "01", kno: "006", datano: "B02", bn: '2', gyocd: "MC"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void MP行の同一系統は制御電源不要でOK()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(fpac: "01", kno: "005", datano: "077", bn: '4', gyocd: "MC"),
+            Row(kno: "005", datano: "300", bn: '2', gyocd: "MP", yoyaku: "MPX"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "09"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("300", seivdno);
+        Assert.Equal('2', bn);
+    }
+
+    [Fact]
+    public void 予約語がMP単独のMP行は特例対象外で負1()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(kno: "005", datano: "300", bn: '2', gyocd: "MP", yoyaku: "MP"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "09"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void RRYが全て6Aリレーなら999で制御電源不要()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(kno: "005", datano: "300", gyocd: "MC", yoyaku: "RRY", dtype1: "6A4K"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "09"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("999", seivdno);
+    }
+
+    [Fact]
+    public void RRYに非6Aが混在すれば特例対象外で負1()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            Row(kno: "005", datano: "300", gyocd: "MC", yoyaku: "RRY", dtype1: "6A4K"),
+            Row(kno: "005", datano: "301", gyocd: "MC", yoyaku: "RRY", dtype1: "STD"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "09"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void fpacが00複数かつ自gyonoが00は同一系統に限定する()
+    {
+        // 別系統(kno=010)の fpac="00" 行はサーチ対象外。同一系統(kno=005)のみ一致。
+        var mains = new List<MainCircuitResult>
+        {
+            Row(fpac: "00", kno: "005", datano: "055", bn: '5', gyocd: "MC"),
+            Row(fpac: "00", kno: "010", datano: "099", bn: '9', gyocd: "MC"),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerData(
+            SpecKno(5, "00"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("055", seivdno);
+        Assert.Equal('5', bn);
+    }
 }

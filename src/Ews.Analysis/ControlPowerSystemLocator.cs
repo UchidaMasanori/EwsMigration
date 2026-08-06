@@ -211,6 +211,117 @@ public static class ControlPowerSystemLocator
         return knoOther == -1 ? -1 : 0;
     }
 
+    /// <summary>
+    /// 主回路エリアから制御電源データ追番をサーチする。制御電源番号(fpac)が行種番号(gyono)と
+    /// 一致する行を探し、ちょうど 1 件ならそのデータ追番(datano)/盤種類(ep[0].epabn)を返す。
+    /// 見つからない場合は別系統検索・MP 行特例・6A リレーのみ特例で救済する。
+    /// 【C原典】GetSeivdno(Fyss1k.c:2933)。
+    /// </summary>
+    /// <param name="controlSpec">制御仕様テーブルエントリ。【C原典】P_SgsTable(FYRT820)。kno/gyono を参照。</param>
+    /// <param name="mainCircuits">主回路エリア。【C原典】maina(件数 mainc)。</param>
+    /// <param name="controlPowerNumber">取得したデータ追番(datano)。6A リレーのみ特例は "999"。【C原典】seivdno。</param>
+    /// <param name="panelType">取得した盤種類(ep[0].epabn)。【C原典】bn。</param>
+    /// <returns>0:正常終了、-1:サーチ結果が 0 件または複数件。【C原典】0/-1。</returns>
+    public static int GetControlPowerData(
+        ControlSpecEntry controlSpec,
+        IReadOnlyList<MainCircuitResult> mainCircuits,
+        out string controlPowerNumber,
+        out char panelType)
+    {
+        ArgumentNullException.ThrowIfNull(controlSpec);
+        ArgumentNullException.ThrowIfNull(mainCircuits);
+
+        controlPowerNumber = string.Empty;
+        panelType = '\0';
+
+        string ownKno = FormatRow3(controlSpec.SystemNumber);       // 【C原典】sprintf(kno,"%03d",kno)。
+        string gyono = Normalize2(controlSpec.LineTypeNumber);      // 【C原典】P_SgsTable.gyono[2]。
+        bool gyonoIsZero = string.Equals(gyono, "00", StringComparison.Ordinal);
+
+        // 【C原典】改訂<8>: 制御電源番号(fpac)が "00"(行種番号 space)の行数を数える。
+        int spCount = 0;
+        foreach (MainCircuitResult r in mainCircuits)
+        {
+            if (string.Equals(Normalize2(r.Data.AttachedParameter.ControlPowerNumber), "00", StringComparison.Ordinal))
+            {
+                spCount++;
+            }
+        }
+
+        // 【C原典】制御電源番号(fpac)==gyono の行を探す。fpac="00" が複数かつ自 gyono="00" は同一系統に限定。
+        int cnt = 0;
+        foreach (MainCircuitResult r in mainCircuits)
+        {
+            MainCircuitData d = r.Data;
+            if (spCount > 1 && gyonoIsZero
+                && !string.Equals(Truncate3(d.SystemNumber), ownKno, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            if (string.Equals(Normalize2(d.AttachedParameter.ControlPowerNumber), gyono, StringComparison.Ordinal))
+            {
+                controlPowerNumber = Truncate3(r.SequenceNumber);
+                panelType = d.ElectricalParameterSlots[0].Bn;
+                cnt++;
+            }
+        }
+
+        // 【C原典】改訂<15>: 自 gyono="00" で同一系統に無ければ別系統を探す。
+        if (gyonoIsZero && cnt == 0
+            && GetControlPowerDataFromOtherSystem(controlSpec, mainCircuits, out string otherNo, out char otherBn) == 0)
+        {
+            controlPowerNumber = otherNo;
+            panelType = otherBn;
+            cnt++;
+        }
+
+        // 【C原典】1 件でない場合の救済。
+        if (cnt != 1)
+        {
+            // 【C原典】同一系統で行種="MP"(予約語は "MP" 単独でない)なら制御電源不要で OK。
+            foreach (MainCircuitResult r in mainCircuits)
+            {
+                MainCircuitData d = r.Data;
+                if (string.Equals(Truncate3(d.SystemNumber), ownKno, StringComparison.Ordinal)
+                    && string.Equals(Truncate3(d.LineTypeCode), "MP ", StringComparison.Ordinal)
+                    && !string.Equals(Fixed(d.ReservedWord, 8), "MP      ", StringComparison.Ordinal))
+                {
+                    controlPowerNumber = Truncate3(r.SequenceNumber);
+                    panelType = d.ElectricalParameterSlots[0].Bn;
+                    return 0;
+                }
+            }
+
+            // 【C原典】改訂<26>: RRY が全て 6A リレー(6A4K/6A1K/6ALT)なら制御電源不要("999")。
+            int rry6aCount = 0;
+            int rryCount = 0;
+            foreach (MainCircuitResult r in mainCircuits)
+            {
+                if (string.Equals(Fixed(r.Data.ReservedWord, 8), "RRY     ", StringComparison.Ordinal))
+                {
+                    string type1 = Fixed(r.Data.DataType[1], 5);
+                    if (string.Equals(type1, "6A4K ", StringComparison.Ordinal)
+                        || string.Equals(type1, "6A1K ", StringComparison.Ordinal)
+                        || string.Equals(type1, "6ALT ", StringComparison.Ordinal))
+                    {
+                        rry6aCount++;
+                    }
+                    else
+                    {
+                        rryCount++;
+                    }
+                }
+            }
+            if (rry6aCount > 0 && rryCount == 0)
+            {
+                controlPowerNumber = "999";   // 【C原典】bn は直前値を保持(C も *bn 未更新)。
+                return 0;
+            }
+        }
+
+        return cnt == 1 ? 0 : -1;
+    }
+
     // 【C原典】fpac[2] 固定長比較。空白詰め 2 文字へ正規化する(既存 PadRight(2)[..2] 慣習)。
     private static string Normalize2(string? value)
     {
@@ -228,6 +339,12 @@ public static class ControlPowerSystemLocator
     private static string Truncate3(string? value)
     {
         return (value ?? string.Empty).PadRight(3)[..3];
+    }
+
+    // 【C原典】memcmp N バイト相当。固定長 N 文字へ切り詰め(不足は空白詰め)。
+    private static string Fixed(string? value, int length)
+    {
+        return (value ?? string.Empty).PadRight(length)[..length];
     }
 
     // 【C原典】kpav[3][3] の 9 バイト memcmp 相当。3 電圧スロットを各 3 文字に整形して連結。

@@ -727,3 +727,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),GetSeivdnoUp,ControlPowerSystemLocator.GetUpstreamControlPowerData,toku/sekkei/src/Fyss1k.c,制御文の記述行(kgyo)から直近上位の主回路行(gyo)を末尾から探し行種コード=UP行のデータ追番(datano)と盤種類(ep[0].epabn)を取得。0=成功/-1=直上無し又はUP行無し。
 関数(移植),GetSeivdnoOtherKeitou,ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem,toku/sekkei/src/Fyss1k.c,自系統のP行(相数/線式/電圧)と一致する別系統を探し制御電源番号(fpac)=行種番号(gyono)の行のデータ追番/盤種類を取得。複数時は自系統より小さい系統を優先・その中で近い系統を優先。0=成功/-1=該当なし。
 構造体フィールド(追加),FYRT820.gyono,ControlSpecEntry.LineTypeNumber,toku/include/sekkei/fyrt820.h,行種番号。制御電源番号(fpac)との突合キー。GetSeivdnoOtherKeitouで使用。
+関数(移植),GetSeivdno,ControlPowerSystemLocator.GetControlPowerData,toku/sekkei/src/Fyss1k.c,主回路エリアから制御電源番号(fpac)=行種番号(gyono)一致行を探しちょうど1件ならデータ追番/盤種類を返す。fpac=00複数かつ自gyono=00は同一系統限定。0件時は別系統検索/MP行特例/6Aリレーのみ特例(seivdno=999)で救済。0=成功/-1=0件又は複数件。
