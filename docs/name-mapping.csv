@@ -721,3 +721,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),PropChkKiKiPtn,ControlSpecPatternChecker.CheckEquipmentPattern,toku/sekkei/src/Fyss1k.c,制御機器テーブル(KIKITABLE)のG3用途パターン判定。行種グループ内の全機器が特定パターン(予約語+個数)一致なら-1(PTN番号を変更しない)・非該当は0。
 関数(移植),checkSameSgtkk,ControlSpecTableSearcher.HasSameControlTargetEquipment,toku/sekkei/src/Fyss1k.c,制御仕様テーブル(FYRT820)横断検索。自身(cnameno)以外のPcstrgのコロン前をカンマ分割し予約語一致機器があればtrue。strtok相当で空トークン除外・完全一致。
 構造体フィールド(追加),FYRT820.cnameno,ControlSpecEntry.SpecNameSequence,toku/include/sekkei/fyrt820.h,制御回路仕様名称追番。checkSameSgtkkの自身識別に使用。
+関数(移植),getCtlDenKno,ControlPowerSystemLocator.GetControlPowerSystemNumber,toku/sekkei/src/Fyss1k.c,主回路エリア(FYRT800)から制御電源番号(fpac)が検索キーと2バイト一致するレコードの系統番号(kno)を取得。0=成功/-1=該当なし。
