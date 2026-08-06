@@ -738,3 +738,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),sortcmp3,ReservedNumberComparer.Compare,toku/sekkei/src/Fyss1k.c,YKNOのqsort比較子。予約語(ReservedKey)をmemcmp16バイト昇順で比較し-1/0/1を返す。SetCkikiDkknoでykno[]ソートに使用。IComparerとして移植。
 フィールド(追加),KIKITABLE.DTYPE,EquipmentTableEntry.DType,toku/include/sekkei/struct.h,機器のタイプ文字列(7要素)。DType[1]="6A4K"は6AリレーRRYの判定に使用(SetCkikiDkkno改訂<26>)。
 関数(移植),SetCkikiDkkno,ControlEquipmentIdentityAssigner.AssignIdentityNumbers,toku/sekkei/src/Fyss1k.c,制御機器テーブルへ同一機器認識番号E_Noを設定。ysno>"00"の機器からYKNOを構築し予約語+番号昇順ソート後、同一予約語グループへ一意番号を採番。改訂<26>のRRY6A4K特例(接点分機器2個以上で採番)を含む。ykno[i+1]の範囲外参照は空文字番兵で忠実再現。
+構造体(追加),SGTCHK,ControlTargetCheckEntry,toku/sekkei/src/Fyss1k.c,制御対象機器重複チェックデータの1行。追番oiban=DataSequence/記述行K_Gyo=DescriptionRow/記述桁K_Ket=DescriptionColumn。SgtkkDoubleCheckで制御仕様テーブルから作業用に構築。
+関数(移植),sckcmp,ControlTargetCheckComparer.Compare,toku/sekkei/src/Fyss1k.c,SGTCHKのqsort比較子。追番oiban昇順→記述行K_Gyo昇順→記述桁K_Ket昇順で最初に相違した項目の差を返す。SgtkkDoubleCheckでsck[]ソートに使用。IComparerとして移植。

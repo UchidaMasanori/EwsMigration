@@ -443,6 +443,23 @@ public sealed class ReservedNumberEntry
 }
 
 /// <summary>
+/// 制御対象機器重複チェックデータ(1 行=1 制御対象機器)。
+/// 【C原典】Fyss1k.c の <c>typedef struct { SHORT oiban; SHORT K_Gyo; SHORT K_Ket; } SGTCHK;</c>。
+/// 制御対象機器重複チェック(SgtkkDoubleCheck)で制御仕様テーブルから作業用に構築される。
+/// </summary>
+public sealed class ControlTargetCheckEntry
+{
+    /// <summary>制御対象機器データ追番。【C原典】oiban(= FYRT820.seikdno[j])。</summary>
+    public short DataSequence { get; set; }
+
+    /// <summary>記述行。【C原典】K_Gyo(= FYRT820.kgyo)。</summary>
+    public short DescriptionRow { get; set; }
+
+    /// <summary>記述桁。【C原典】K_Ket(= FYRT820.keta)。</summary>
+    public short DescriptionColumn { get; set; }
+}
+
+/// <summary>
 /// 回路文字列解析で検出したエラー。
 /// 【C原典】Error_Proc(errcode, gyono, colm, msgid, Perrc, erra) → struct FYRT805。
 /// </summary>
