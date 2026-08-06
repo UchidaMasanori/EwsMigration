@@ -60,7 +60,7 @@
 | テスト成功数 | **1986** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **729** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の別系統制御電源データ検索 GetSeivdnoOtherKeitou を ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem として移植。自系統の P 行(gyocd="P")から回路相数(kpaph)/線式(kpawr)/電圧(kpav[3][3])を取得し、それらが一致する別系統の P 行を探索。一致系統内で制御電源番号(fp.fpac[2])が行種番号(FYRT820.gyono)と一致する行のデータ追番(datano)を制御電源データ、盤種類(ep[0].epabn)を bn として取得。複数一致時は「自系統番号より小さい系統を優先」「その中で自系統に近い系統を優先」の順で選択(0=成功、-1=該当なし)。既存 ControlSpecEntry に gyono=LineTypeNumber を追加、MainCircuitData(CircuitPhaseCount/CircuitWireType/CircuitVoltage/LineTypeCode/SystemNumber/AttachedParameter.ControlPowerNumber/ElectricalParameterSlots[0].Bn)を使用。テスト+7 |
+| 直近コミット | `6ddf87f` | Fyss1k の別系統制御電源データ検索 GetSeivdnoOtherKeitou を ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem として移植。自系統の P 行(gyocd="P")から回路相数(kpaph)/線式(kpawr)/電圧(kpav[3][3])を取得し、それらが一致する別系統の P 行を探索。一致系統内で制御電源番号(fp.fpac[2])が行種番号(FYRT820.gyono)と一致する行のデータ追番(datano)を制御電源データ、盤種類(ep[0].epabn)を bn として取得。複数一致時は「自系統番号より小さい系統を優先」「その中で自系統に近い系統を優先」の順で選択(0=成功、-1=該当なし)。既存 ControlSpecEntry に gyono=LineTypeNumber を追加、MainCircuitData(CircuitPhaseCount/CircuitWireType/CircuitVoltage/LineTypeCode/SystemNumber/AttachedParameter.ControlPowerNumber/ElectricalParameterSlots[0].Bn)を使用。テスト+7 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
