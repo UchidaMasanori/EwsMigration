@@ -60,7 +60,7 @@
 | テスト成功数 | **2043** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **742** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | SgtkkDoubleCheck 移植の忠実化リコンサイル。既存 ControlSpecDuplicateChecker.CheckDuplicateControlTargets のインライン(タプル+ラムダソート)を、前増分で新設した SGTCHK モデル ControlTargetCheckEntry と sckcmp 比較子 ControlTargetCheckComparer を使う形へ置換。C原典の SGTCHK[]+qsort(sckcmp) 構造に一致させ、比較子/モデルを実消費者へ接続。挙動不変(テスト2043 緑)。 |
+| 直近コミット | `081e5b9` | SgtkkDoubleCheck 移植の忠実化リコンサイル。既存 ControlSpecDuplicateChecker.CheckDuplicateControlTargets のインライン(タプル+ラムダソート)を、前増分で新設した SGTCHK モデル ControlTargetCheckEntry と sckcmp 比較子 ControlTargetCheckComparer を使う形へ置換。C原典の SGTCHK[]+qsort(sckcmp) 構造に一致させ、比較子/モデルを実消費者へ接続。挙動不変(テスト2043 緑)。 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
