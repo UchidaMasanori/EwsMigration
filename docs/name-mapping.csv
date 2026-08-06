@@ -712,3 +712,8 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),GetIntrData,ControlSpecTextParser.GetIntrData,toku/sekkei/src/Fyss1k.c,'<'位置から括弧入れ子(lk/rk計数)を追い括弧外(lk==rk)の','又は末尾までを取り出し入力から除去する(ref string)。インターロック記述の1項を切り出す。'<'無しは防御的に空を返す。strcspn相当CountUntilAnyで走査。
 関数(移植),GetSgkkYoyaku,ControlSpecTextParser.GetSgkkYoyaku,toku/sekkei/src/Fyss1k.c,制御機器記述から予約語部を取り出す。SetBtwnData("PT",")")が成功すればそれ(PT(...)形式)、無ければ先頭からASCII英字が途切れるまでを予約語とする。IsAlphaで判定。
 関数(移植),GetSgkkKosu,ControlSpecTextParser.GetSgkkKosu,toku/sekkei/src/Fyss1k.c,制御機器記述から個数を取り出す。'*'が無ければ1、有れば'*'以降をatoi相当(EquipmentParameterFormatter.Stoi)で数値化して返す。'*'直後が非数字なら0。
+関数(移植),CheckYoyakugoMG,ControlReservedWordClassifier.CheckMgReservedWord,toku/sekkei/src/Fyss1k.c,予約語がMG機器(THR/2ERY/3ERY/4ERY)か判定。該当0・非該当1(strcmp慣習)。NULL終端リストを先頭からstrcmp。
+関数(移植),CheckYoyakugoRM,ControlReservedWordClassifier.CheckRemoteReservedWord,toku/sekkei/src/Fyss1k.c,予約語がリモコン機器(PT/RRY/RELB/RMMCB/RMCB/RELMB)か判定。該当0・非該当1。
+関数(移植),CheckSgtkiki,ControlReservedWordClassifier.CheckControlTargetEquipment,toku/sekkei/src/Fyss1k.c,予約語が制御対象機器(MC/MG/MCDT/MCFR/MGFR/MCSD/MGSD/MGLD/INV/MCFRSD/MGFRSD)か判定。該当0・非該当1。
+関数(移植),GetSidouYouto,ControlReservedWordClassifier.GetStartCircuitUsage,toku/sekkei/src/Fyss1k.c,論理記述マスタの用途(始動回路用)を取得。MG有無(引数1)でMC系をMG系へ振替。該当なしは空文字。
+関数(移植),ChkInterp,ControlReservedWordClassifier.CheckInterlock,toku/sekkei/src/Fyss1k.c,インターロック記述の妥当性判定。'<'無し又は全て<THR/<ALで0・それ以外の'<'が現れたら1。
