@@ -60,7 +60,7 @@
 | テスト成功数 | **2043** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **742** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御対象機器重複チェックソート比較子 sckcmp を ControlTargetCheckComparer(IComparer&lt;ControlTargetCheckEntry&gt;) として移植。追番(oiban)昇順→記述行(K_Gyo)昇順→記述桁(K_Ket)昇順で最初に相違した項目の差を返す(符号のみ有意)。SgtkkDoubleCheck の sck[] qsort に使用。合わせて SGTCHK 最小 Domain モデル ControlTargetCheckEntry(oiban/K_Gyo/K_Ket = DataSequence/DescriptionRow/DescriptionColumn) を新規導入。テスト+6 |
+| 直近コミット | `81bf842` | Fyss1k の制御対象機器重複チェックソート比較子 sckcmp を ControlTargetCheckComparer(IComparer&lt;ControlTargetCheckEntry&gt;) として移植。追番(oiban)昇順→記述行(K_Gyo)昇順→記述桁(K_Ket)昇順で最初に相違した項目の差を返す(符号のみ有意)。SgtkkDoubleCheck の sck[] qsort に使用。合わせて SGTCHK 最小 Domain モデル ControlTargetCheckEntry(oiban/K_Gyo/K_Ket = DataSequence/DescriptionRow/DescriptionColumn) を新規導入。テスト+6 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
