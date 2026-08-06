@@ -60,7 +60,7 @@
 | テスト成功数 | **2037** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **740** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の同一機器認識番号設定 SetCkikiDkkno(改訂&lt;26&gt;) を ControlEquipmentIdentityAssigner.AssignIdentityNumbers として移植。ysno&gt;"00" の制御機器から YKNO を構築し sortcmp3 で予約語+番号昇順ソート後、同一予約語グループへ E_No を一意採番。RRY 6A4K(6A リレー)は制御仕様名称追番一致で接点分機器が 2 件以上ならあらかじめ採番する特例を含む。ykno[i+1] の範囲外参照は空文字番兵で忠実再現。併せて KIKITABLE.DTYPE を EquipmentTableEntry.DType(7 要素)として追加。テスト+10 |
+| 直近コミット | `c86c70f` | Fyss1k の同一機器認識番号設定 SetCkikiDkkno(改訂&lt;26&gt;) を ControlEquipmentIdentityAssigner.AssignIdentityNumbers として移植。ysno&gt;"00" の制御機器から YKNO を構築し sortcmp3 で予約語+番号昇順ソート後、同一予約語グループへ E_No を一意採番。RRY 6A4K(6A リレー)は制御仕様名称追番一致で接点分機器が 2 件以上ならあらかじめ採番する特例を含む。ykno[i+1] の範囲外参照は空文字番兵で忠実再現。併せて KIKITABLE.DTYPE を EquipmentTableEntry.DType(7 要素)として追加。テスト+10 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
