@@ -60,7 +60,7 @@
 | テスト成功数 | **1972** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **726** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御対象機器重複チェック SgtkkDoubleCheck を ControlSpecDuplicateChecker.CheckDuplicateControlTargets として移植。制御仕様テーブル(FYRT820)の制御対象機器データ追番(seikdno[200]・0 終端)を全エントリから収集し、追番→記述行(kgyo)→記述桁(keta)の昇順に整列後、隣接する追番が一致すれば FY-904E(mapid FYMEE80)を返す(重複なしは null=C return 0)。既存 ControlSpecEntry に seikdno/kgyo/keta を追加。テスト+7 |
+| 直近コミット | `aa3c548` | Fyss1k の制御対象機器重複チェック SgtkkDoubleCheck を ControlSpecDuplicateChecker.CheckDuplicateControlTargets として移植。制御仕様テーブル(FYRT820)の制御対象機器データ追番(seikdno[200]・0 終端)を全エントリから収集し、追番→記述行(kgyo)→記述桁(keta)の昇順に整列後、隣接する追番が一致すれば FY-904E(mapid FYMEE80)を返す(重複なしは null=C return 0)。既存 ControlSpecEntry に seikdno/kgyo/keta を追加。テスト+7 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
