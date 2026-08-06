@@ -388,6 +388,9 @@ public sealed class ControlSpecEntry
     /// <summary>制御回路仕様名称追番。【C原典】FYRT820.cnameno。</summary>
     public short SpecNameSequence { get; set; }
 
+    /// <summary>行種番号。【C原典】FYRT820.gyono。制御電源番号(fpac)との突合キー。</summary>
+    public string LineTypeNumber { get; set; } = string.Empty;
+
     /// <summary>記述行。【C原典】FYRT820.kgyo。</summary>
     public short DescriptionRow { get; set; }
 

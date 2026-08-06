@@ -101,6 +101,116 @@ public static class ControlPowerSystemLocator
         return -1;
     }
 
+    /// <summary>
+    /// ©Œn“‚Ì P s(‰ñ˜H‘Š”/ü®/“dˆ³)‚Æˆê’v‚·‚é•ÊŒn“‚ğ’T‚µA‚»‚ÌŒn““à‚Å§Œä“dŒ¹”Ô†(fpac)‚ª
+    /// sí”Ô†(gyono)‚Æˆê’v‚·‚és‚Ìƒf[ƒ^’Ç”Ô(datano)‚Æ”Õí—Ş(ep[0].epabn)‚ğæ“¾‚·‚éB
+    /// yCŒ´“TzGetSeivdnoOtherKeitou(Fyss1k.c:3051, ‰ü’ù&lt;15&gt;)B
+    /// •¡”ˆê’v‚Íu©Œn“”Ô†‚æ‚è¬‚³‚¢Œn“‚ğ—Dævu‚»‚Ì’†‚Å©Œn“‚É‹ß‚¢Œn“‚ğ—Dæv‚Å‘I‚ÔB
+    /// </summary>
+    /// <param name="controlSpec">§Œäd—lƒe[ƒuƒ‹ƒGƒ“ƒgƒŠByCŒ´“TzSgsTable(FYRT820*)Bkno/gyono ‚ğQÆB</param>
+    /// <param name="mainCircuits">å‰ñ˜HƒGƒŠƒAByCŒ´“Tzmaina(Œ” mainc)B</param>
+    /// <param name="controlPowerNumber">æ“¾‚µ‚½ƒf[ƒ^’Ç”Ô(datano)ByCŒ´“Tzo—Íˆø” seivdnoB</param>
+    /// <param name="panelType">æ“¾‚µ‚½”Õí—Ş(ep[0].epabn)ByCŒ´“Tzo—Íˆø” bnB</param>
+    /// <returns>0:æ“¾¬Œ÷A-1:ˆê’v‚·‚é•ÊŒn“‚ª–³‚¢ByCŒ´“Tz0/-1B</returns>
+    public static int GetControlPowerDataFromOtherSystem(
+        ControlSpecEntry controlSpec,
+        IReadOnlyList<MainCircuitResult> mainCircuits,
+        out string controlPowerNumber,
+        out char panelType)
+    {
+        ArgumentNullException.ThrowIfNull(controlSpec);
+        ArgumentNullException.ThrowIfNull(mainCircuits);
+
+        controlPowerNumber = string.Empty;
+        panelType = '\0';
+
+        // yCŒ´“Tzsprintf(kno,"%03d",P_SgsTable->kno)B©Œn“”Ô†‚ğ 3 Œ…‚Ö®Œ`B
+        string ownKno = FormatRow3(controlSpec.SystemNumber);
+        string lineTypeNumber = Normalize2(controlSpec.LineTypeNumber);   // gyono[2]
+
+        // yCŒ´“Tz©Œn“(gyocd="P ", kno ˆê’v)‚Ì P s‚©‚ç‰ñ˜H‘Š”/ü®/“dˆ³‚ğæ“¾B
+        char kpaph = '\0';
+        char kpawr = '\0';
+        string kpav = string.Empty;   // yCŒ´“Tz–¢æ“¾‚Í–¢‰Šú‰»(=ˆê’v‚µ“¾‚È‚¢ˆµ‚¢)B
+        foreach (MainCircuitResult record in mainCircuits)
+        {
+            MainCircuitData d = record.Data;
+            if (string.Equals(Truncate3(d.LineTypeCode), "P  ", StringComparison.Ordinal)
+                && string.Equals(Truncate3(d.SystemNumber), ownKno, StringComparison.Ordinal))
+            {
+                kpaph = d.CircuitPhaseCount;
+                kpawr = d.CircuitWireType;
+                kpav = JoinVoltage(d.CircuitVoltage);
+                break;
+            }
+        }
+
+        int mine = controlSpec.SystemNumber;   // yCŒ´“Tz(INT)P_SgsTable->knoB
+        int knoOther = -1;
+
+        // yCŒ´“Tz•ÊŒn“‚Å‰ñ˜H‘Š”/ü®/“dˆ³‚ªˆê’v‚·‚é P s‚ğ’T‚·B
+        for (int i = 0; i < mainCircuits.Count; i++)
+        {
+            MainCircuitData di = mainCircuits[i].Data;
+            if (!string.Equals(Truncate3(di.LineTypeCode), "P  ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            if (string.Equals(Truncate3(di.SystemNumber), ownKno, StringComparison.Ordinal))
+            {
+                continue;   // yCŒ´“Tz©Œn“‚ÍœŠOB
+            }
+            if (di.CircuitPhaseCount != kpaph
+                || di.CircuitWireType != kpawr
+                || !string.Equals(JoinVoltage(di.CircuitVoltage), kpav, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // yCŒ´“Tzˆê’v‚µ‚½Œn““à‚Å§Œä“dŒ¹”Ô†(fpac)==gyono ‚Ìs‚ğ’T‚·B
+            string systemI = Truncate3(di.SystemNumber);
+            for (int j = 0; j < mainCircuits.Count; j++)
+            {
+                MainCircuitResult rj = mainCircuits[j];
+                MainCircuitData dj = rj.Data;
+                if (!string.Equals(Truncate3(dj.SystemNumber), systemI, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (!string.Equals(Normalize2(dj.AttachedParameter.ControlPowerNumber), lineTypeNumber, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int knoW = AtoiKno(dj.SystemNumber);   // yCŒ´“Tzatoi(dt.kno)B
+
+                // yCŒ´“Tz—Dæ“x: (1)©Œn“‚æ‚è¬‚³‚¢Œn“‚ğ—Dæ (2)©Œn“‚É‹ß‚¢Œn“‚ğ—DæB
+                bool update;
+                if (knoOther == -1)
+                {
+                    update = true;
+                }
+                else if (knoW < mine)
+                {
+                    update = knoOther > mine || knoW > knoOther;
+                }
+                else
+                {
+                    update = knoOther > mine && knoW < knoOther;
+                }
+
+                if (update)
+                {
+                    controlPowerNumber = Truncate3(rj.SequenceNumber);
+                    panelType = dj.ElectricalParameterSlots[0].Bn;
+                    knoOther = knoW;
+                }
+            }
+        }
+
+        return knoOther == -1 ? -1 : 0;
+    }
+
     // yCŒ´“Tzfpac[2] ŒÅ’è’·”äŠrB‹ó”’‹l‚ß 2 •¶š‚Ö³‹K‰»‚·‚é(Šù‘¶ PadRight(2)[..2] ŠµK)B
     private static string Normalize2(string? value)
     {
@@ -118,5 +228,29 @@ public static class ControlPowerSystemLocator
     private static string Truncate3(string? value)
     {
         return (value ?? string.Empty).PadRight(3)[..3];
+    }
+
+    // yCŒ´“Tzkpav[3][3] ‚Ì 9 ƒoƒCƒg memcmp ‘Š“–B3 “dˆ³ƒXƒƒbƒg‚ğŠe 3 •¶š‚É®Œ`‚µ‚Ä˜AŒ‹B
+    private static string JoinVoltage(string[] voltage)
+    {
+        return Truncate3(voltage[0]) + Truncate3(voltage[1]) + Truncate3(voltage[2]);
+    }
+
+    // yCŒ´“Tzatoi(work)Bkno[3] ‚ğ”’l‰»(æ“ª‹ó”’–³‹A”ñ”š‚Å‘Å‚¿Ø‚è)B
+    private static int AtoiKno(string? kno)
+    {
+        string s = Truncate3(kno);
+        int i = 0;
+        while (i < s.Length && s[i] == ' ')
+        {
+            i++;
+        }
+        int value = 0;
+        while (i < s.Length && s[i] >= '0' && s[i] <= '9')
+        {
+            value = (value * 10) + (s[i] - '0');
+            i++;
+        }
+        return value;
     }
 }

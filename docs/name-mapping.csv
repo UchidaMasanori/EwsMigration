@@ -725,3 +725,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),SgtkkDoubleCheck,ControlSpecDuplicateChecker.CheckDuplicateControlTargets,toku/sekkei/src/Fyss1k.c,制御仕様テーブル(FYRT820)のseikdno(0終端)を収集し追番→記述行→記述桁昇順に整列。隣接追番が一致でFY-904Eエラー(return2相当)・重複なしはnull。
 構造体フィールド(追加),FYRT820.seikdno/kgyo/keta,ControlSpecEntry.ControlTargetSequenceNumbers/DescriptionRow/DescriptionColumn,toku/include/sekkei/fyrt820.h,制御対象機器データ追番(0終端200)/記述行/記述桁。SgtkkDoubleCheckで使用。
 関数(移植),GetSeivdnoUp,ControlPowerSystemLocator.GetUpstreamControlPowerData,toku/sekkei/src/Fyss1k.c,制御文の記述行(kgyo)から直近上位の主回路行(gyo)を末尾から探し行種コード=UP行のデータ追番(datano)と盤種類(ep[0].epabn)を取得。0=成功/-1=直上無し又はUP行無し。
+関数(移植),GetSeivdnoOtherKeitou,ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem,toku/sekkei/src/Fyss1k.c,自系統のP行(相数/線式/電圧)と一致する別系統を探し制御電源番号(fpac)=行種番号(gyono)の行のデータ追番/盤種類を取得。複数時は自系統より小さい系統を優先・その中で近い系統を優先。0=成功/-1=該当なし。
+構造体フィールド(追加),FYRT820.gyono,ControlSpecEntry.LineTypeNumber,toku/include/sekkei/fyrt820.h,行種番号。制御電源番号(fpac)との突合キー。GetSeivdnoOtherKeitouで使用。

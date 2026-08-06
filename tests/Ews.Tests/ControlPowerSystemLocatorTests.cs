@@ -224,4 +224,165 @@ public sealed class ControlPowerSystemLocatorTests
         Assert.Equal(string.Empty, seivdno);
         Assert.Equal('\0', bn);
     }
+
+    // ---- GetControlPowerDataFromOtherSystem(yCŒ´“TzGetSeivdnoOtherKeitou, Fyss1k.c:3051) ----
+
+    private static readonly string[] Volt200 = ["200", "000", "000"];
+
+    private static MainCircuitResult PRow(string kno, char kpaph, char kpawr, string[] kpav, string fpac, string datano, char bn)
+    {
+        var r = new MainCircuitResult();
+        r.Data.LineTypeCode = "P";
+        r.Data.SystemNumber = kno;
+        r.Data.CircuitPhaseCount = kpaph;
+        r.Data.CircuitWireType = kpawr;
+        r.Data.CircuitVoltage = kpav;
+        r.Data.AttachedParameter.ControlPowerNumber = fpac;
+        r.SequenceNumber = datano;
+        r.Data.ElectricalParameterSlots[0].Bn = bn;
+        return r;
+    }
+
+    private static MainCircuitResult TargetRow(string kno, string fpac, string datano, char bn)
+    {
+        var r = new MainCircuitResult();
+        r.Data.LineTypeCode = "MC";
+        r.Data.SystemNumber = kno;
+        r.Data.AttachedParameter.ControlPowerNumber = fpac;
+        r.SequenceNumber = datano;
+        r.Data.ElectricalParameterSlots[0].Bn = bn;
+        return r;
+    }
+
+    private static ControlSpecEntry SpecKno(short kno, string gyono)
+        => new() { SystemNumber = kno, LineTypeNumber = gyono };
+
+    [Fact]
+    public void •ÊŒn“‚Ìˆê’vPs‚©‚çƒf[ƒ^’Ç”Ô‚Æ”Õí—Ş‚ğæ“¾‚·‚é()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("005", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("010", '3', '3', Volt200, "XX", "050", '9'),
+            TargetRow("010", "01", "077", '4'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("077", seivdno);
+        Assert.Equal('4', bn);
+    }
+
+    [Fact]
+    public void ˆê’v‚·‚é•ÊŒn“‚ª–³‚¯‚ê‚Î•‰1()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("005", '3', '3', Volt200, string.Empty, "001", '0'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+        Assert.Equal(string.Empty, seivdno);
+        Assert.Equal('\0', bn);
+    }
+
+    [Fact]
+    public void ‰ñ˜H‘Š”ü®“dˆ³‚ª•sˆê’v‚Ì•ÊŒn“‚Í‘ÎÛŠO()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("005", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("010", '1', '2', ["100", "000", "000"], "XX", "050", '9'),
+            TargetRow("010", "01", "077", '4'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void sí”Ô†‚Æ•sˆê’v‚Ì§Œä“dŒ¹”Ô†‚Í‘ÎÛŠO()
+    {
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("005", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("010", '3', '3', Volt200, "XX", "050", '9'),
+            TargetRow("010", "09", "077", '4'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(5, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(-1, ret);
+    }
+
+    [Fact]
+    public void ©Œn“‚æ‚è¬‚³‚¢Œn“‚ğ—Dæ‚·‚é()
+    {
+        // ©Œn“=010B•ÊŒn“ 020(ã)‚Æ 005(‰º)‚ªŒó•âB‰º‘¤ 005 ‚ğ—DæB
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("010", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("020", '3', '3', Volt200, string.Empty, "050", '9'),
+            TargetRow("020", "01", "820", '2'),
+            PRow("005", '3', '3', Volt200, string.Empty, "060", '8'),
+            TargetRow("005", "01", "805", '7'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(10, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("805", seivdno);
+        Assert.Equal('7', bn);
+    }
+
+    [Fact]
+    public void ¬‚³‚¢Œn“‚ª•¡”‚È‚ç©Œn“‚É‹ß‚¢•û‚ğ—Dæ‚·‚é()
+    {
+        // ©Œn“=010B•ÊŒn“ 003 ‚Æ 007 ‚ªŒó•â(‚¢‚¸‚ê‚à‰º)B‹ß‚¢ 007 ‚ğ—DæB
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("010", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("003", '3', '3', Volt200, string.Empty, "050", '3'),
+            TargetRow("003", "01", "803", '3'),
+            PRow("007", '3', '3', Volt200, string.Empty, "060", '7'),
+            TargetRow("007", "01", "807", '7'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(10, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("807", seivdno);
+        Assert.Equal('7', bn);
+    }
+
+    [Fact]
+    public void ‘å‚«‚¢Œn“‚Ì‚İ‚È‚ç©Œn“‚É‹ß‚¢•û‚ğ—Dæ‚·‚é()
+    {
+        // ©Œn“=010B•ÊŒn“ 020 ‚Æ 015 ‚ªŒó•â(‚¢‚¸‚ê‚àã)B‹ß‚¢ 015 ‚ğ—DæB
+        var mains = new List<MainCircuitResult>
+        {
+            PRow("010", '3', '3', Volt200, string.Empty, "001", '0'),
+            PRow("020", '3', '3', Volt200, string.Empty, "050", '2'),
+            TargetRow("020", "01", "820", '2'),
+            PRow("015", '3', '3', Volt200, string.Empty, "060", '5'),
+            TargetRow("015", "01", "815", '5'),
+        };
+
+        int ret = ControlPowerSystemLocator.GetControlPowerDataFromOtherSystem(
+            SpecKno(10, "01"), mains, out string seivdno, out char bn);
+
+        Assert.Equal(0, ret);
+        Assert.Equal("815", seivdno);
+        Assert.Equal('5', bn);
+    }
 }
