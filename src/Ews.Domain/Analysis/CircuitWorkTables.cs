@@ -362,6 +362,13 @@ public sealed class EquipmentTableEntry
     public char BottomOutgoing { get; set; } = ' ';
 
     /// <summary>
+    /// タイプ(7 要素)。【C原典】DTYPE[7][7+1]。
+    /// 型式展開で機器のタイプ文字列を保持する。DType[1]="6A4K" は 6A リレーの判定に使用
+    /// (同一機器認識番号設定 SetCkikiDkkno の改訂&lt;26&gt;)。
+    /// </summary>
+    public string[] DType { get; } = new string[7] { "", "", "", "", "", "", "" };
+
+    /// <summary>
     /// kikitable_add() がタグ付きで設定する属性群。
     /// 【C原典】kikitable_add(tag, value, ...) の tag("0","1","11","CM","LN" 等)→value。
     /// </summary>
