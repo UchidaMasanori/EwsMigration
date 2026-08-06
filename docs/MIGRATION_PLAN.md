@@ -60,7 +60,7 @@
 | テスト成功数 | **2054** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **743** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k のインターロックキー設定 setInterlockToSkey(改訂<21>) を ControlInterlockKeyBuilder.AppendInterlockKeys として移植。制御仕様文字列を走査し制御機器テーブル(SGKK=ControlEquipmentEntry)へ <THR/<AL/<CR キーを追記。<THR は既存無しで nkosu=1、<AL はカンマ無し且つ既存無しで追加、その他の < は cr_cnt を数え 2 個以上で <CR を nkosu=cr_cnt-1 で追加。thr_flg/al_flg はループ内更新しない C原典を忠実再現。テスト+11(2043→2054)。 |
+| 直近コミット | `465375e` | Fyss1k のインターロックキー設定 setInterlockToSkey(改訂<21>) を ControlInterlockKeyBuilder.AppendInterlockKeys として移植。制御仕様文字列を走査し制御機器テーブル(SGKK=ControlEquipmentEntry)へ <THR/<AL/<CR キーを追記。<THR は既存無しで nkosu=1、<AL はカンマ無し且つ既存無しで追加、その他の < は cr_cnt を数え 2 個以上で <CR を nkosu=cr_cnt-1 で追加。thr_flg/al_flg はループ内更新しない C原典を忠実再現。テスト+11(2043→2054)。 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
