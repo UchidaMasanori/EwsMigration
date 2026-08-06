@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2009** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **734** | — |
+| テスト成功数 | **2016** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **735** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `2243439` | Fyss1k の制御機器テーブル(SGKK)重複可能判定 PropIsGNdiff を ControlEquipmentDuplicateChecker.IsDifferentData として移植。SGKK 2 エントリの予約語比較結果 ret≠0 で別データ(1)、予約語一致時は両方内部機器(nkosu>0)又は両方外部機器(gkosu>0)なら別データ(1)、それ以外は重複データ(0)。合わせて SGKK 最小 Domain モデル ControlEquipmentEntry(yoyaku/nkosu/gkosu = ReservedWord/InternalCount/ExternalCount) を新規導入。テスト+7 |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御機器テーブル(SGKK)ソート比較子 sortcmp2 を ControlEquipmentComparer(IComparer&lt;ControlEquipmentEntry&gt;) として移植。予約語を memcmp 16 バイト昇順→内部機器個数(nkosu)昇順→外部機器個数(gkosu)昇順で比較し -1/0/1 を返す。予約語は 16 バイト固定幅・'\0' 埋めで CompareOrdinal(接頭辞は短い方が先)。SgCheckRonriKM の Sgkk[] qsort に使用。テスト+7 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

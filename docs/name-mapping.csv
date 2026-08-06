@@ -732,3 +732,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),CheckTenmetu,ControlEquipmentScanner.CountAutoFlashEquipment,toku/sekkei/src/Fyss1k.c,制御機器データテーブル(Sgkk)の予約語にTSU/SSWUのいずれかを部分一致で含む自動点滅タイマー・増幅機の件数を数える。純粋関数として移植。
 構造体(追加),SGKK,ControlEquipmentEntry,toku/sekkei/src/Fyss1k.c,制御機器テーブル(Sgkk[50])の1行。予約語yoyaku=ReservedWord/内部機器個数nkosu=InternalCount/外部機器個数gkosu=ExternalCount。FySgCheckSgkkSet内部作業テーブル。
 関数(移植),PropIsGNdiff,ControlEquipmentDuplicateChecker.IsDifferentData,toku/sekkei/src/Fyss1k.c,SGKK2エントリの重複可能判定。予約語比較ret≠0で別データ(1)。予約語一致時は両方内部機器(nkosu>0)又は両方外部機器(gkosu>0)なら別データ(1)、それ以外は重複データ(0)。SgCheckRonriKMの予約語グループ畳込みで使用。
+関数(移植),sortcmp2,ControlEquipmentComparer.Compare,toku/sekkei/src/Fyss1k.c,SGKKのqsort比較子。予約語をmemcmp16バイト昇順→内部機器個数(nkosu)昇順→外部機器個数(gkosu)昇順で比較し-1/0/1を返す。SgCheckRonriKMでSgkk[]ソートに使用。IComparerとして移植。
