@@ -60,7 +60,7 @@
 | テスト成功数 | **1945** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **720** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の INV パターン判定 PropChkINVPtn を ControlSpecPatternChecker として移植。制御仕様文字列(FYRT820.Pcstrg)を解析し、INV 1機器のインターロック・制御対象機器なし・前置 OL 1種類で PTN=03(OL<CR)を返す。既移植の ControlSpecTextParser(GetIntrData/GetAtCharData)を合成する上位リーフ。C のポインタ書換('<' 位置での切詰め)を GetIntrData の前置部保持で忠実再現。テスト+10 |
+| 直近コミット | `79a3fa5` | Fyss1k の INV パターン判定 PropChkINVPtn を ControlSpecPatternChecker として移植。制御仕様文字列(FYRT820.Pcstrg)を解析し、INV 1機器のインターロック・制御対象機器なし・前置 OL 1種類で PTN=03(OL<CR)を返す。既移植の ControlSpecTextParser(GetIntrData/GetAtCharData)を合成する上位リーフ。C のポインタ書換('<' 位置での切詰め)を GetIntrData の前置部保持で忠実再現。テスト+10 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
