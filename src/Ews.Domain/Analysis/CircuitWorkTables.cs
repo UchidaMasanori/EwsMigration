@@ -385,7 +385,10 @@ public sealed class ControlSpecEntry
     /// <summary>系統番号。【C原典】K_No 相当。</summary>
     public short SystemNumber { get; set; }
 
-    /// <summary>制御仕様の生記述。【C原典】FYRT820 の記述領域。</summary>
+    /// <summary>制御回路仕様名称追番。【C原典】FYRT820.cnameno。</summary>
+    public short SpecNameSequence { get; set; }
+
+    /// <summary>制御仕様の生記述。【C原典】FYRT820.Pcstrg(制御仕様文字列)。</summary>
     public string RawText { get; set; } = string.Empty;
 }
 

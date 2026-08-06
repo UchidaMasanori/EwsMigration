@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1952** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **721** | — |
+| テスト成功数 | **1959** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **723** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `0ac1399` | Fyss1k の KIKITABLE パターン判定 PropChkKiKiPtn を ControlSpecPatternChecker.CheckEquipmentPattern として移植。対象機器 G3・用途 YOU の場合に、行種グループ内の全機器が特定パターン(予約語+個数の9種)に一致すれば -1(PTN 番号を変更しない)、一つでも非該当なら 0(変更可)を返す。既存の EquipmentTableEntry(KIKITABLE ドメインモデル)の GroupNumber/ReservedWord/Quantity を利用。テスト+7 |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御仕様テーブル横断検索 checkSameSgtkk を ControlSpecTableSearcher.HasSameControlTargetEquipment として移植。FYRT820 テーブルの各エントリの Pcstrg のコロン前(制御対象機器)をカンマ分割し(strtok 相当で空トークン除外)、自身(cnameno)以外に予約語完全一致する機器があれば true。既存 ControlSpecEntry(FYRT820 最小モデル)に cnameno(SpecNameSequence)を追加。テスト+7 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
