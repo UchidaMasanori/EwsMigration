@@ -60,7 +60,7 @@
 | テスト成功数 | **2022** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **736** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の SHORT 昇順ソート比較子 sgkkcmp を ControlTargetSequenceComparer(IComparer&lt;short&gt;) として移植。<c>*dat1 - *dat2</c> の差をそのまま返す(qsort と同じく符号のみ有意)。制御回路エリア生成 CreatControla で seikdno(制御対象機器データ追番)配列の qsort 昇順整列に使用。テスト+6 |
+| 直近コミット | `5925753` | Fyss1k の SHORT 昇順ソート比較子 sgkkcmp を ControlTargetSequenceComparer(IComparer&lt;short&gt;) として移植。<c>*dat1 - *dat2</c> の差をそのまま返す(qsort と同じく符号のみ有意)。制御回路エリア生成 CreatControla で seikdno(制御対象機器データ追番)配列の qsort 昇順整列に使用。テスト+6 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
