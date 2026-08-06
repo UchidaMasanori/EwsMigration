@@ -22,8 +22,8 @@ public static class ControlSpecDuplicateChecker
     {
         ArgumentNullException.ThrowIfNull(controlSpecs);
 
-        // 【C原典】制御対象機器重複チェックデータを収集。seikdno[200] を 0 終端まで。
-        var entries = new List<(short OiBan, short Row, short Column)>();
+        // 【C原典】制御対象機器重複チェックデータ(SGTCHK)を収集。seikdno[200] を 0 終端まで。
+        var entries = new List<ControlTargetCheckEntry>();
         foreach (ControlSpecEntry spec in controlSpecs)
         {
             int limit = Math.Min(spec.ControlTargetSequenceNumbers.Count, 200);
@@ -35,34 +35,24 @@ public static class ControlSpecDuplicateChecker
                     break;
                 }
 
-                entries.Add((oiban, spec.DescriptionRow, spec.DescriptionColumn));
+                entries.Add(new ControlTargetCheckEntry
+                {
+                    DataSequence = oiban,
+                    DescriptionRow = spec.DescriptionRow,
+                    DescriptionColumn = spec.DescriptionColumn,
+                });
             }
         }
 
-        // 【C原典】qsort(sckcmp): 追番→記述行→記述桁の昇順。
-        entries.Sort(static (a, b) =>
-        {
-            int r = a.OiBan - b.OiBan;
-            if (r != 0)
-            {
-                return r;
-            }
-
-            r = a.Row - b.Row;
-            if (r != 0)
-            {
-                return r;
-            }
-
-            return a.Column - b.Column;
-        });
+        // 【C原典】qsort(sck, setcnt, sizeof(SGTCHK), sckcmp): 追番→記述行→記述桁の昇順。
+        entries.Sort(ControlTargetCheckComparer.Instance);
 
         // 【C原典】隣接する追番が一致すれば重複エラー。
         for (int i = 0; i < entries.Count - 1; i++)
         {
-            if (entries[i].OiBan == entries[i + 1].OiBan)
+            if (entries[i].DataSequence == entries[i + 1].DataSequence)
             {
-                return new CircuitParseError("FY-904E", entries[i].Row, entries[i].Column, "FYMEE80");
+                return new CircuitParseError("FY-904E", entries[i].DescriptionRow, entries[i].DescriptionColumn, "FYMEE80");
             }
         }
 
