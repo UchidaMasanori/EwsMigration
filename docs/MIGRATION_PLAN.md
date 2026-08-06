@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1945** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **720** | — |
+| テスト成功数 | **1952** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **721** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `79a3fa5` | Fyss1k の INV パターン判定 PropChkINVPtn を ControlSpecPatternChecker として移植。制御仕様文字列(FYRT820.Pcstrg)を解析し、INV 1機器のインターロック・制御対象機器なし・前置 OL 1種類で PTN=03(OL<CR)を返す。既移植の ControlSpecTextParser(GetIntrData/GetAtCharData)を合成する上位リーフ。C のポインタ書換('<' 位置での切詰め)を GetIntrData の前置部保持で忠実再現。テスト+10 |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の KIKITABLE パターン判定 PropChkKiKiPtn を ControlSpecPatternChecker.CheckEquipmentPattern として移植。対象機器 G3・用途 YOU の場合に、行種グループ内の全機器が特定パターン(予約語+個数の9種)に一致すれば -1(PTN 番号を変更しない)、一つでも非該当なら 0(変更可)を返す。既存の EquipmentTableEntry(KIKITABLE ドメインモデル)の GroupNumber/ReservedWord/Quantity を利用。テスト+7 |
 | 最終更新 | 2026-08-06 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

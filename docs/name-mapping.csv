@@ -718,3 +718,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),GetSidouYouto,ControlReservedWordClassifier.GetStartCircuitUsage,toku/sekkei/src/Fyss1k.c,論理記述マスタの用途(始動回路用)を取得。MG有無(引数1)でMC系をMG系へ振替。該当なしは空文字。
 関数(移植),ChkInterp,ControlReservedWordClassifier.CheckInterlock,toku/sekkei/src/Fyss1k.c,インターロック記述の妥当性判定。'<'無し又は全て<THR/<ALで0・それ以外の'<'が現れたら1。
 関数(移植),PropChkINVPtn,ControlSpecPatternChecker.CheckInvPattern,toku/sekkei/src/Fyss1k.c,制御仕様文字列(FYRT820.Pcstrg)のINVパターン判定。INV1機器のインターロック・制御対象機器なし・前置OL1種類でPTN=03(OL<CR)を返す。GetIntrData/GetAtCharDataを合成。
+関数(移植),PropChkKiKiPtn,ControlSpecPatternChecker.CheckEquipmentPattern,toku/sekkei/src/Fyss1k.c,制御機器テーブル(KIKITABLE)のG3用途パターン判定。行種グループ内の全機器が特定パターン(予約語+個数)一致なら-1(PTN番号を変更しない)・非該当は0。
