@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1972** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **726** | — |
+| テスト成功数 | **1979** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **727** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `aa3c548` | Fyss1k の制御対象機器重複チェック SgtkkDoubleCheck を ControlSpecDuplicateChecker.CheckDuplicateControlTargets として移植。制御仕様テーブル(FYRT820)の制御対象機器データ追番(seikdno[200]・0 終端)を全エントリから収集し、追番→記述行(kgyo)→記述桁(keta)の昇順に整列後、隣接する追番が一致すれば FY-904E(mapid FYMEE80)を返す(重複なしは null=C return 0)。既存 ControlSpecEntry に seikdno/kgyo/keta を追加。テスト+7 |
-| 最終更新 | 2026-08-06 | — |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御電源データ上位検索 GetSeivdnoUp を ControlPowerSystemLocator.GetUpstreamControlPowerData として移植。制御文の記述行(kgyo)を "%03d" 相当で 3 桁整形し、主回路エリア(FYRT800)を末尾から遡って記述行 > 主回路行 gyo(memcmp>0)となる直近上位の主回路行を特定。そこからさらに遡り、行種コードが "UP " の行のデータ追番(datano)を制御電源データ、盤種類(ep[0].epabn)を bn として取得(0=成功、-1=直上主回路行が無い/UP 行が無い)。既存 ControlSpecEntry.DescriptionRow・MainCircuitResult(DescriptionRow/LineTypeCode/SequenceNumber/ElectricalParameterSlots[0].Bn)を使用。テスト+7 |
+| 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
