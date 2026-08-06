@@ -388,6 +388,15 @@ public sealed class ControlSpecEntry
     /// <summary>制御回路仕様名称追番。【C原典】FYRT820.cnameno。</summary>
     public short SpecNameSequence { get; set; }
 
+    /// <summary>記述行。【C原典】FYRT820.kgyo。</summary>
+    public short DescriptionRow { get; set; }
+
+    /// <summary>記述桁。【C原典】FYRT820.keta。</summary>
+    public short DescriptionColumn { get; set; }
+
+    /// <summary>制御対象機器データ追番(0 で終端、最大 200)。【C原典】FYRT820.seikdno[200]。</summary>
+    public List<short> ControlTargetSequenceNumbers { get; } = new();
+
     /// <summary>制御仕様の生記述。【C原典】FYRT820.Pcstrg(制御仕様文字列)。</summary>
     public string RawText { get; set; } = string.Empty;
 }

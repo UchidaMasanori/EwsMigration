@@ -722,3 +722,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数(移植),checkSameSgtkk,ControlSpecTableSearcher.HasSameControlTargetEquipment,toku/sekkei/src/Fyss1k.c,制御仕様テーブル(FYRT820)横断検索。自身(cnameno)以外のPcstrgのコロン前をカンマ分割し予約語一致機器があればtrue。strtok相当で空トークン除外・完全一致。
 構造体フィールド(追加),FYRT820.cnameno,ControlSpecEntry.SpecNameSequence,toku/include/sekkei/fyrt820.h,制御回路仕様名称追番。checkSameSgtkkの自身識別に使用。
 関数(移植),getCtlDenKno,ControlPowerSystemLocator.GetControlPowerSystemNumber,toku/sekkei/src/Fyss1k.c,主回路エリア(FYRT800)から制御電源番号(fpac)が検索キーと2バイト一致するレコードの系統番号(kno)を取得。0=成功/-1=該当なし。
+関数(移植),SgtkkDoubleCheck,ControlSpecDuplicateChecker.CheckDuplicateControlTargets,toku/sekkei/src/Fyss1k.c,制御仕様テーブル(FYRT820)のseikdno(0終端)を収集し追番→記述行→記述桁昇順に整列。隣接追番が一致でFY-904Eエラー(return2相当)・重複なしはnull。
+構造体フィールド(追加),FYRT820.seikdno/kgyo/keta,ControlSpecEntry.ControlTargetSequenceNumbers/DescriptionRow/DescriptionColumn,toku/include/sekkei/fyrt820.h,制御対象機器データ追番(0終端200)/記述行/記述桁。SgtkkDoubleCheckで使用。
