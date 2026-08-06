@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **1994** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **730** | — |
+| テスト成功数 | **2002** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **732** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `0aacc35` | Fyss1k の主回路制御電源データ検索 GetSeivdno を ControlPowerSystemLocator.GetControlPowerData として移植。主回路エリアから制御電源番号(fp.fpac[2])が行種番号(FYRT820.gyono)と一致する行を探し、ちょうど 1 件ならデータ追番(datano)/盤種類(ep[0].epabn)を返す。fpac="00" が複数かつ自 gyono="00" の場合は同一系統に限定(改訂&lt;8&gt;)。0 件時の救済として、自 gyono="00" なら別系統検索(GetControlPowerDataFromOtherSystem, 改訂&lt;15&gt;)、同一系統の MP 行(gyocd="MP"・予約語が "MP" 単独でない)、RRY が全て 6A リレー(6A4K/6A1K/6ALT)の場合(seivdno="999", 改訂&lt;26&gt;)を順に判定(0=成功、-1=0 件または複数件)。既存 ControlSpecEntry/MainCircuitData を使用。テスト+8 |
-| 最終更新 | 2026-08-07 | — |
+| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御機器データテーブル(SGKK)走査リーフ CheckRmKiki/CheckTenmetu を ControlEquipmentScanner.CountRemoteControlEquipment/CountAutoFlashEquipment として移植。各エントリの予約語(Sgkk[i].yoyaku)に、リモコン制御機器キーワード(RSW/TU/CU/PT)又は自動点滅タイマー・増幅機キーワード(TSU/SSWU)のいずれかを strstr(部分一致)で含むエントリ数を数える。SGKK 構造体は未移植のため予約語列(IReadOnlyList&lt;string?&gt;)を入力とする純粋関数として先行移植。テスト+8 |
+| 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
