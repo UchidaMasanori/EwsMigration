@@ -60,7 +60,7 @@
 | テスト成功数 | **2016** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **735** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | Fyss1k の制御機器テーブル(SGKK)ソート比較子 sortcmp2 を ControlEquipmentComparer(IComparer&lt;ControlEquipmentEntry&gt;) として移植。予約語を memcmp 16 バイト昇順→内部機器個数(nkosu)昇順→外部機器個数(gkosu)昇順で比較し -1/0/1 を返す。予約語は 16 バイト固定幅・'\0' 埋めで CompareOrdinal(接頭辞は短い方が先)。SgCheckRonriKM の Sgkk[] qsort に使用。テスト+7 |
+| 直近コミット | `2b30019` | Fyss1k の制御機器テーブル(SGKK)ソート比較子 sortcmp2 を ControlEquipmentComparer(IComparer&lt;ControlEquipmentEntry&gt;) として移植。予約語を memcmp 16 バイト昇順→内部機器個数(nkosu)昇順→外部機器個数(gkosu)昇順で比較し -1/0/1 を返す。予約語は 16 バイト固定幅・'\0' 埋めで CompareOrdinal(接頭辞は短い方が先)。SgCheckRonriKM の Sgkk[] qsort に使用。テスト+7 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
