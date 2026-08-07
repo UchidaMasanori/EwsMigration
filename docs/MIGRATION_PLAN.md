@@ -60,7 +60,7 @@
 | テスト成功数 | **2118** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **749** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | INVオプション機器判定 PropChkInvOPKiki(Fysk01.c:6282) を InverterOptionEquipmentChecker.IsInverterOptionEquipment として移植。直近上下位該当データ(FYDF812)の予約語 yoyaku が「PT 」始まり、かつ機器マスタ(FYDM805)品名 hinmei が「FR-」始まりのとき真(C原典 0)を返す。Make_Koukiki 本体(Fysk01.c:3593)が INV オプション専用登録経路へ振り分ける判定。strncmp 先頭3文字比較を固定長フィールドの空白埋め先頭3文字一致で表現。機器サーチ Fysk00_Kikisearch_SY へ向かうはしごの最下位リーフ。テスト+7(2111→ 2118)。 |
+| 直近コミット | `8cb7c63` | INVオプション機器判定 PropChkInvOPKiki(Fysk01.c:6282) を InverterOptionEquipmentChecker.IsInverterOptionEquipment として移植。直近上下位該当データ(FYDF812)の予約語 yoyaku が「PT 」始まり、かつ機器マスタ(FYDM805)品名 hinmei が「FR-」始まりのとき真(C原典 0)を返す。Make_Koukiki 本体(Fysk01.c:3593)が INV オプション専用登録経路へ振り分ける判定。strncmp 先頭3文字比較を固定長フィールドの空白埋め先頭3文字一致で表現。機器サーチ Fysk00_Kikisearch_SY へ向かうはしごの最下位リーフ。テスト+7(2111→ 2118)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
