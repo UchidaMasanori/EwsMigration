@@ -60,7 +60,7 @@
 | テスト成功数 | **2067** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **744** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | 共通トリム FyCpSpcutr(cpspcutr.c/libcompo.a) を CompoSpaceCutter.CutSpaces として移植。先頭は半角スペース(0x20)のみ読み飛ばし、末尾は半角スペースと改行を除去し内部は保持。全スペース又は start 以降が空白/改行のみ(C原典 e が NULL)なら空文字。PropTrimSpace とは先頭改行の扱い/末尾改行除去で別挙動。テスト+13(2054→ 2067)。 |
+| 直近コミット | `7ea8d1b` | 共通トリム FyCpSpcutr(cpspcutr.c/libcompo.a) を CompoSpaceCutter.CutSpaces として移植。先頭は半角スペース(0x20)のみ読み飛ばし、末尾は半角スペースと改行を除去し内部は保持。全スペース又は start 以降が空白/改行のみ(C原典 e が NULL)なら空文字。PropTrimSpace とは先頭改行の扱い/末尾改行除去で別挙動。テスト+13(2054→ 2067)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
