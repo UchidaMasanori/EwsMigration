@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2188** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **759** | — |
+| テスト成功数 | **2192** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **760** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | INV オプション kw→品名(定格値)選定 Fysk01_ChkInvKw_OP(Fysk01.c:5967) を InverterOptionKwSelector.SelectProductName として移植。invop_prm(改訂<11>) を新規モデル InverterOptionConstant として追加し、コンスタントを上から走査して入力 kw 以上となる最初の行の品名を返す(タイプ非照合・該当なしは null)。ISAM 非依存の純走査リーフ。テスト+5(2183→ 2188)。 |
+| 直近コミット | （git log 参照） | INV オプション機器(ラジオノイズフィルタ)の機器マスタ検索用データ Fysk01_Kiki_Set_INV_OP_teikaku_RN(Fysk01.c:6065) を InverterOptionRadioNoiseSearchKey.Apply として移植。FYDF812(=既存 NearestRankReference)へ予約語 PT・メーカーコード M 固定、パラメータタイプ全枠空白、定格キーは品名固定 FR-BIF の 80 桁空白埋めを設定する純セッタ(他フィールド不変)。テスト+4(2188→ 2192)。 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
