@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2111** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **748** | — |
+| テスト成功数 | **2118** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **749** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `f550928` | 構成機器エリア割り込み挿入 Fysk01_Mem_Control(Fysk01.c:4046) を ComponentBufferInserter.Insert として移植。構成機器エリア(FYRT804配列)の指定位置 wkkensu へ 1 レコードを割り込み挿入し、既存の [wkkensu..allkensu-1] を 1 つ後方へずらして buf1 を格納する、機器選定結果を定格キー順で保持するソート挿入の最下位ヘルパ。Make_Koukiki 系から呼ばれる。IList<T> 汎用実装で末尾を 1 件伸ばして空きを作りシフト。機器サーチ Fysk00_Kikisearch_SY 移植の第一歩。テスト+6(2105→ 2111)。 |
+| 直近コミット | `__FEATURE_HASH__` | INVオプション機器判定 PropChkInvOPKiki(Fysk01.c:6282) を InverterOptionEquipmentChecker.IsInverterOptionEquipment として移植。直近上下位該当データ(FYDF812)の予約語 yoyaku が「PT 」始まり、かつ機器マスタ(FYDM805)品名 hinmei が「FR-」始まりのとき真(C原典 0)を返す。Make_Koukiki 本体(Fysk01.c:3593)が INV オプション専用登録経路へ振り分ける判定。strncmp 先頭3文字比較を固定長フィールドの空白埋め先頭3文字一致で表現。機器サーチ Fysk00_Kikisearch_SY へ向かうはしごの最下位リーフ。テスト+7(2111→ 2118)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
