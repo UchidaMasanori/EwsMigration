@@ -754,3 +754,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数,Fysk01_Change_W_AT,WattToAmpereConverter.Convert,toku/sekkei/src/Fysk01.c,電力WをAT(アンペアトリップ)値へ変換する。相数souと定格電圧vで式を切替。三相220V以下は1000W以上でw^0.948*4.4・未満でw^0.945*(6.0-1.6w)。三相220V超は1500W以上でw^0.948*2.26・未満でw^0.948*(3.3-1.25w)。単相105V以下でw^0.71*18.3。それ以外はw^0.71*9.1。wはkW換算(w/1000)で計算
 関数,Fysk01_Area_Copy_SY,MainCircuitAreaCopier.CopyArea,toku/sekkei/src/Fysk01.c,主回路エリア(FYRT800)のfrom番目からto番目へ電気パラメータ ep[1]・ep[2] とタイプ datatype・定格容量 teiwva を値コピーする。ep[0] は複写しない
 関数,Fysk01_MakerCode_Check,MakerCodeSelector.Select,toku/sekkei/src/Fysk01.c,予約語に対するメーカーコード選定順位を作成する。指定メーカーコード dmc があればそれを1件・空白ならL/LGTは空白1件・それ以外はメーカー指定域FYDF802の予約語一致行の空白以外mkcdを順位表へ展開。一致行なしは空白1件
+関数,Fysk01_ChkInvKw,InverterKwSelector.SelectKw,toku/sekkei/src/Fysk01.c,INVコンスタント(inv_prm)を上から走査しタイプ2(dtype[1])一致行のうち入力kw以上となる最初のkwを返す。一致タイプ帯を通り過ぎたら打切り・該当なしは0.0(改訂28)
