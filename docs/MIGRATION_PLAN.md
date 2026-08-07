@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2139** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **752** | — |
+| テスト成功数 | **2150** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **753** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 機械連動子(MI)機器マスタ読込 Fysk01_Kiki_Read_MI(Fysk01.c:6444) を移植。予約語PT・メーカーコードM固定で容量AFが250以下なら MI-05SV3、超なら MI-4SW3 を定格キーとし FYDM805 を先頭1件読む。純キー生成部を MechanicalInterlockMasterKey.RatingKeyFor に切り出しテスト、SQL読込を SqlEquipmentMasterRepository.ReadMechanicalInterlock として追加。ERR_ISAM_NOTHING→NotFound(NOGOOD)/成功→Ok(GOOD)。テスト+6(2133→ 2139)。 |
+| 直近コミット | （git log 参照） | 機器サーチ結果フラグ作成 Fysk01_Get_Errflg(Fysk01.c:3928) を EquipmentSearchResultFlagResolver.Resolve として移植。エラー番号 eno(1-8) を switch でフラグ(空白/E1/E2/E3)・epno(1/2)・ret(0サーチする/1しない)へ振り分け。偶数側はエラーで ret=1。範囲外 eno は flg/epno 不変 ret=0 のため null を返し呼出側で 0 相当扱い。テスト+11(2139→ 2150)。 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
