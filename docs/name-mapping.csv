@@ -755,3 +755,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数,Fysk01_Area_Copy_SY,MainCircuitAreaCopier.CopyArea,toku/sekkei/src/Fysk01.c,主回路エリア(FYRT800)のfrom番目からto番目へ電気パラメータ ep[1]・ep[2] とタイプ datatype・定格容量 teiwva を値コピーする。ep[0] は複写しない
 関数,Fysk01_MakerCode_Check,MakerCodeSelector.Select,toku/sekkei/src/Fysk01.c,予約語に対するメーカーコード選定順位を作成する。指定メーカーコード dmc があればそれを1件・空白ならL/LGTは空白1件・それ以外はメーカー指定域FYDF802の予約語一致行の空白以外mkcdを順位表へ展開。一致行なしは空白1件
 関数,Fysk01_ChkInvKw,InverterKwSelector.SelectKw,toku/sekkei/src/Fysk01.c,INVコンスタント(inv_prm)を上から走査しタイプ2(dtype[1])一致行のうち入力kw以上となる最初のkwを返す。一致タイプ帯を通り過ぎたら打切り・該当なしは0.0(改訂28)
+関数,Fysk01_ChkInvKwPara,InverterKwSelector.SelectKwByParameter,toku/sekkei/src/Fysk01.c,別パラメータでのINV直近上位kw検索。タイプ1番目から一致桁数(i*7)をi=7から1と緩めながら走査し各段で入力kw以上の最初の行のkw/タイプで上書き(外側は打切らず最も緩い一致段が優先)。選択タイプも返す(改訂27)
