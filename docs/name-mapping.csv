@@ -758,3 +758,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数,Fysk01_ChkInvKwPara,InverterKwSelector.SelectKwByParameter,toku/sekkei/src/Fysk01.c,別パラメータでのINV直近上位kw検索。タイプ1番目から一致桁数(i*7)をi=7から1と緩めながら走査し各段で入力kw以上の最初の行のkw/タイプで上書き(外側は打切らず最も緩い一致段が優先)。選択タイプも返す(改訂27)
 関数,Fysk01_ChkInvKw_OP,InverterOptionKwSelector.SelectProductName,toku/sekkei/src/Fysk01.c,INVオプションコンスタント(invop_prm)を上から走査し入力kw以上となる最初の行の品名(定格値)を返す。タイプは照合しない・該当なしはnull(改訂11)
 関数,Fysk01_Kiki_Set_INV_OP_teikaku_RN,InverterOptionRadioNoiseSearchKey.Apply,toku/sekkei/src/Fysk01.c,INVオプション機器(ラジオノイズフィルタ)の機器マスタ検索用データ(FYDF812=NearestRankReference)を設定。予約語PT・メーカーコードM固定/パラメータタイプ全枠空白/定格キーは品名固定FR-BIFの80桁空白埋め。他フィールドは変更しない純セッター
+関数,Fysk01_Copy_Rec_Get,ComponentRecordFinder.FindByKey,toku/sekkei/src/Fysk01.c,構成機器エリア(FYRT804配列)の先頭n件を走査し検索キー先頭10バイトが一致する最初の位置を返す。該当なしは-1。FYRT804完全モデル未整備のためComponentBufferInserterと同じジェネリック+キー抽出関数で表現(固定長前方一致)
