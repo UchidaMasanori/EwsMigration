@@ -443,6 +443,33 @@ public sealed class ReservedNumberEntry
 }
 
 /// <summary>
+/// 制御対象機器データ(1 行=1 制御対象機器文字列)。
+/// 【C原典】Fyss1k.c の
+/// <c>typedef struct { CHAR yoyakugo[16]; CHAR yno[16]; CHAR yssfx[16]; SHORT K_Gyo; SHORT K_Ket; SHORT G_No; } SGTKK;</c>
+/// (グローバル <c>Sgtkk[30]</c>)。制御仕様データ作成(GetSgData)で制御仕様文字列から作業用に構築される。
+/// </summary>
+public sealed class ControlTargetEntry
+{
+    /// <summary>予約語(英字部)。【C原典】yoyakugo[16]。</summary>
+    public string ReservedWord { get; set; } = string.Empty;
+
+    /// <summary>予約語番号(数字部を "%02d" 整形)。【C原典】yno[16]。</summary>
+    public string ReservedWordNumber { get; set; } = string.Empty;
+
+    /// <summary>サフィックス。【C原典】yssfx[16]。番号以降の残り(無ければ半角スペース)。</summary>
+    public string Suffix { get; set; } = string.Empty;
+
+    /// <summary>記述行。【C原典】K_Gyo。</summary>
+    public short DescriptionRow { get; set; }
+
+    /// <summary>記述桁。【C原典】K_Ket。</summary>
+    public short DescriptionColumn { get; set; }
+
+    /// <summary>行種グループNo。【C原典】G_No。</summary>
+    public short GroupNumber { get; set; }
+}
+
+/// <summary>
 /// 制御対象機器重複チェックデータ(1 行=1 制御対象機器)。
 /// 【C原典】Fyss1k.c の <c>typedef struct { SHORT oiban; SHORT K_Gyo; SHORT K_Ket; } SGTCHK;</c>。
 /// 制御対象機器重複チェック(SgtkkDoubleCheck)で制御仕様テーブルから作業用に構築される。
