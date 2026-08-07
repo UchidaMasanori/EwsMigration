@@ -392,8 +392,20 @@ public sealed class ControlSpecEntry
     /// <summary>系統番号。【C原典】K_No 相当。</summary>
     public short SystemNumber { get; set; }
 
+    /// <summary>系統種別。【C原典】FYRT820.ksyubetu(' ':未定 '1':P系統 '2':UP系統)。</summary>
+    public char SystemKind { get; set; } = ' ';
+
+    /// <summary>行種コード。【C原典】FYRT820.gyocd[3](行種の英字部を左詰め・空白埋め)。</summary>
+    public string LineTypeCode { get; set; } = string.Empty;
+
     /// <summary>制御回路仕様名称追番。【C原典】FYRT820.cnameno。</summary>
     public short SpecNameSequence { get; set; }
+
+    /// <summary>制御仕様グループNo.。【C原典】FYRT820.seigno。</summary>
+    public short ControlSpecGroupNumber { get; set; }
+
+    /// <summary>行種グループNo.。【C原典】FYRT820.gno。</summary>
+    public short GroupNumber { get; set; }
 
     /// <summary>行種番号。【C原典】FYRT820.gyono。制御電源番号(fpac)との突合キー。</summary>
     public string LineTypeNumber { get; set; } = string.Empty;

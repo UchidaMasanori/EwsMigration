@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2092** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **746** | — |
+| テスト成功数 | **2105** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **747** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `9ae7c44` | 制御仕様データ作成 GetSgData(Fyss1k.c:643/改訂&lt;21&gt;) を ControlSpecDataBuilder.BuildSgData として移植。制御仕様文字列(FYRT820.Pcstrg)から制御対象機器(SGTKK=Sgtkk)と内部/外部制御機器(SGKK=Sgkk)テーブルを構築しパターン番号/インターロック指定フラグを確定。ChkInterp/GetIntrData/GetAtCharData/SpaceNeguri/PropChkINVPtn/PropChkKiKiPtn/Fysk11_FYDF805_GyoGet/FyCpSpcutr/setInterlockToSkey の既移植リーフを合成する中規模統合本体。テスト+15(2077→ 2092)。 |
+| 直近コミット | `__FEATURE_HASH__` | 制御仕様テーブル作成 MakeSgsTable(Fyss1k.c:254) を ControlSpecTableBuilder.MakeSgsTable として移植。系統(KEITOU)/行種(GYOSYU)/制御仕様文字列から制御仕様テーブル(FYRT820)の 1 レコードを構築。系統種別(1/3=P系統'1'/4=UP系統'2')、行種コード(左詰め空白埋め3桁)、行種番号(右詰め'0'埋め2桁)、記述行(atoi)、名称追番(追加後 1 始まり件数)を set。C の realloc は List 追加で表現。テスト+13(2092→ 2105)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
