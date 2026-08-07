@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2165** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **755** | — |
+| テスト成功数 | **2172** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **756** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 主回路エリアコピー Fysk01_Area_Copy_SY(Fysk01.c:3515) を MainCircuitAreaCopier.CopyArea として移植。from→to へ電気パラメータ ep[1]・ep[2](値コピー)とタイプ datatype・定格容量 teiwva を複写(ep[0] は非対象)。ElectricalParameters に全フィールド値コピー CopyFrom を追加。テスト+6(2159→ 2165)。 |
+| 直近コミット | （git log 参照） | メーカーコード選定 Fysk01_MakerCode_Check(Fysk01.c:2903) を MakerCodeSelector.Select として移植。指定メーカーコード dmc あり=1件/空白は L・LGT は空白1件/それ以外はメーカー指定域 FYDF802(MakerDesignation)の予約語一致行の空白以外 mkcd を順位表へ展開。一致行なしは空白1件。ISAM 非依存の純ロジックリーフ。テスト+7(2165→ 2172)。 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
