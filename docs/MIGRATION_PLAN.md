@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2054** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **743** | — |
+| テスト成功数 | **2067** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **744** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `465375e` | Fyss1k のインターロックキー設定 setInterlockToSkey(改訂<21>) を ControlInterlockKeyBuilder.AppendInterlockKeys として移植。制御仕様文字列を走査し制御機器テーブル(SGKK=ControlEquipmentEntry)へ <THR/<AL/<CR キーを追記。<THR は既存無しで nkosu=1、<AL はカンマ無し且つ既存無しで追加、その他の < は cr_cnt を数え 2 個以上で <CR を nkosu=cr_cnt-1 で追加。thr_flg/al_flg はループ内更新しない C原典を忠実再現。テスト+11(2043→2054)。 |
-| 最終更新 | 2026-08-06 | — |
+| 直近コミット | `__FEATURE_HASH__` | 共通トリム FyCpSpcutr(cpspcutr.c/libcompo.a) を CompoSpaceCutter.CutSpaces として移植。先頭は半角スペース(0x20)のみ読み飛ばし、末尾は半角スペースと改行を除去し内部は保持。全スペース又は start 以降が空白/改行のみ(C原典 e が NULL)なら空文字。PropTrimSpace とは先頭改行の扱い/末尾改行除去で別挙動。テスト+13(2054→ 2067)。 |
+| 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
