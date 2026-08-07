@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2159** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **754** | — |
+| テスト成功数 | **2165** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **755** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 電力(W)→AT変換 Fysk01_Change_W_AT(Fysk01.c:4524) を WattToAmpereConverter.Convert として移植。相数 sou と定格電圧 v で pow 近似式を切替(三相220V以下/超・単相105V以下/他)。w は kW 換算。既存の set_denryu 等インライン展開(別C原典)は変更せず独立ユニットとして追加。テスト+9(2150→ 2159)。 |
+| 直近コミット | （git log 参照） | 主回路エリアコピー Fysk01_Area_Copy_SY(Fysk01.c:3515) を MainCircuitAreaCopier.CopyArea として移植。from→to へ電気パラメータ ep[1]・ep[2](値コピー)とタイプ datatype・定格容量 teiwva を複写(ep[0] は非対象)。ElectricalParameters に全フィールド値コピー CopyFrom を追加。テスト+6(2159→ 2165)。 |
 | 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

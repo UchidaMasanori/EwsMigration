@@ -159,4 +159,57 @@ public sealed class ElectricalParameters
 
     /// <summary>設定範囲温度(Ｃ)。【C原典】epac2[3]。</summary>
     public string C2 { get; set; } = Zero(3);
+
+    /// <summary>
+    /// 他の電気パラメータの全フィールドを自身へ値コピーする(deep copy)。
+    /// 【C原典】memcpy による struct eparmg の値複写に相当。配列フィールドは要素複製する。
+    /// </summary>
+    public void CopyFrom(ElectricalParameters src)
+    {
+        Ph1 = src.Ph1;
+        Ph2 = (string[])src.Ph2.Clone();
+        Wr1 = src.Wr1;
+        Wr2 = (string[])src.Wr2.Clone();
+        Hz = src.Hz;
+        P = src.P;
+        E = src.E;
+        Af = src.Af;
+        At = src.At;
+        A1 = src.A1;
+        A2 = src.A2;
+        W1 = src.W1;
+        Va = src.Va;
+        Kvar = src.Kvar;
+        Uf = src.Uf;
+        Ma = (string[])src.Ma.Clone();
+        V1 = (string[])src.V1.Clone();
+        V1Idx = src.V1Idx;
+        V2 = (string[])src.V2.Clone();
+        V2Idx = src.V2Idx;
+        V2Kbn = src.V2Kbn;
+        Am = src.Am;
+        Vc = src.Vc;
+        VcKbn = src.VcKbn;
+        Sset = src.Sset;
+        Ss = src.Ss;
+        S = src.S;
+        Ac = src.Ac;
+        Bc = src.Bc;
+        Cc = src.Cc;
+        T = src.T;
+        K = src.K;
+        Qty = src.Qty;
+        Bn = src.Bn;
+        Sq = src.Sq;
+        Esq = src.Esq;
+        C = src.C;
+        Ksu = src.Ksu;
+        Mah = src.Mah;
+        O = src.O;
+        W2 = src.W2;
+        Ksize = src.Ksize;
+        Cset = src.Cset;
+        C1 = src.C1;
+        C2 = src.C2;
+    }
 }
