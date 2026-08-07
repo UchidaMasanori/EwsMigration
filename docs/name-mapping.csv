@@ -759,3 +759,5 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数,Fysk01_ChkInvKw_OP,InverterOptionKwSelector.SelectProductName,toku/sekkei/src/Fysk01.c,INVオプションコンスタント(invop_prm)を上から走査し入力kw以上となる最初の行の品名(定格値)を返す。タイプは照合しない・該当なしはnull(改訂11)
 関数,Fysk01_Kiki_Set_INV_OP_teikaku_RN,InverterOptionRadioNoiseSearchKey.Apply,toku/sekkei/src/Fysk01.c,INVオプション機器(ラジオノイズフィルタ)の機器マスタ検索用データ(FYDF812=NearestRankReference)を設定。予約語PT・メーカーコードM固定/パラメータタイプ全枠空白/定格キーは品名固定FR-BIFの80桁空白埋め。他フィールドは変更しない純セッター
 関数,Fysk01_Copy_Rec_Get,ComponentRecordFinder.FindByKey,toku/sekkei/src/Fysk01.c,構成機器エリア(FYRT804配列)の先頭n件を走査し検索キー先頭10バイトが一致する最初の位置を返す。該当なしは-1。FYRT804完全モデル未整備のためComponentBufferInserterと同じジェネリック+キー抽出関数で表現(固定長前方一致)
+関数,Fysk01_Copy_Check,MainCircuitCopyChecker.AreCopyEquivalent,toku/sekkei/src/Fysk01.c,主回路2レコード(FYRT800)が構成機器copyを共有できる同一データか判定。予約語/タイプ49バイト/行種コード/電気パラメータep[3]/付属パラメータ(負荷種類10バイト・メーカー・品名・封印区分)/回路電圧[0]/通電電流/負荷発生元/回路相数/始動回路区分の全一致で同一(C原典ret=0)をtrueで返す。ep比較用にElectricalParameters.ValueEquals(CopyFromと対の44フィールド値比較)を追加
+構造体/モデル,eparmg(値比較),ElectricalParameters.ValueEquals,toku/include/common/fycommon.h,電気パラメータeparmgのmemcmp相当。CopyFromと同じ44フィールド(配列はSequenceEqual)を値比較する追加メソッド

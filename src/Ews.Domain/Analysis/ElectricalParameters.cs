@@ -212,4 +212,59 @@ public sealed class ElectricalParameters
         C1 = src.C1;
         C2 = src.C2;
     }
+
+    /// <summary>
+    /// 他の電気パラメータと全フィールドが一致するか判定する。
+    /// 【C原典】memcmp(ep1, ep2, sizeof(struct eparmg))==0 に相当。配列フィールドは要素ごとに比較する。
+    /// </summary>
+    public bool ValueEquals(ElectricalParameters other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        return Ph1 == other.Ph1
+            && Ph2.AsSpan().SequenceEqual(other.Ph2)
+            && Wr1 == other.Wr1
+            && Wr2.AsSpan().SequenceEqual(other.Wr2)
+            && Hz == other.Hz
+            && P == other.P
+            && E == other.E
+            && Af == other.Af
+            && At == other.At
+            && A1 == other.A1
+            && A2 == other.A2
+            && W1 == other.W1
+            && Va == other.Va
+            && Kvar == other.Kvar
+            && Uf == other.Uf
+            && Ma.AsSpan().SequenceEqual(other.Ma)
+            && V1.AsSpan().SequenceEqual(other.V1)
+            && V1Idx == other.V1Idx
+            && V2.AsSpan().SequenceEqual(other.V2)
+            && V2Idx == other.V2Idx
+            && V2Kbn == other.V2Kbn
+            && Am == other.Am
+            && Vc == other.Vc
+            && VcKbn == other.VcKbn
+            && Sset == other.Sset
+            && Ss == other.Ss
+            && S == other.S
+            && Ac == other.Ac
+            && Bc == other.Bc
+            && Cc == other.Cc
+            && T == other.T
+            && K == other.K
+            && Qty == other.Qty
+            && Bn == other.Bn
+            && Sq == other.Sq
+            && Esq == other.Esq
+            && C == other.C
+            && Ksu == other.Ksu
+            && Mah == other.Mah
+            && O == other.O
+            && W2 == other.W2
+            && Ksize == other.Ksize
+            && Cset == other.Cset
+            && C1 == other.C1
+            && C2 == other.C2;
+    }
 }
