@@ -60,7 +60,7 @@
 | テスト成功数 | **2125** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **750** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | INV直近上位kw値チェック Fysk01_ChkInv_MC(Fysk01.c:6401) を InverterMcSelector.SelectProductName として移植。INV 対応 MC 選定コンスタント(inv003a/b.cns=invmc_prm 配列、タイプ・kw 昇順)を上から走査し、機器タイプ dtype が type の先頭に前方一致する帯の中で入力 kw 以上となる最初の行の MC 品名を返す。帯を通り過ぎたら打切り、一致無しは null。新モデル InverterMcConstant(=invmc_prm)追加。テスト+7(2118→ 2125)。 |
+| 直近コミット | `fcb5834` | INV直近上位kw値チェック Fysk01_ChkInv_MC(Fysk01.c:6401) を InverterMcSelector.SelectProductName として移植。INV 対応 MC 選定コンスタント(inv003a/b.cns=invmc_prm 配列、タイプ・kw 昇順)を上から走査し、機器タイプ dtype が type の先頭に前方一致する帯の中で入力 kw 以上となる最初の行の MC 品名を返す。帯を通り過ぎたら打切り、一致無しは null。新モデル InverterMcConstant(=invmc_prm)追加。テスト+7(2118→ 2125)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
