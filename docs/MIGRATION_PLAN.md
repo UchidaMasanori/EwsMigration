@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2133** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **751** | — |
+| テスト成功数 | **2139** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **752** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | INV対応MC機器検索用コンスタント読込 Fysk01_ReadCnstINV_MC(Fysk01.c:6314) を InverterMcConstantTableLoader.Parse として移植。acdc==1 で inv003b.cns(リアクトル有)、他で inv003a.cns(無)を CP932 で読み、コメント行(/*)を飛ばし strtok(カンマ)でタイプ(7桁)・kw(atof)・MC品名を取得し InverterMcConstant 一覧を生成。acdc 分岐は ResolveFileName。テスト+8(2125→ 2133)。 |
-| 最終更新 | 2026-08-07 | — |
+| 直近コミット | （git log 参照） | 機械連動子(MI)機器マスタ読込 Fysk01_Kiki_Read_MI(Fysk01.c:6444) を移植。予約語PT・メーカーコードM固定で容量AFが250以下なら MI-05SV3、超なら MI-4SW3 を定格キーとし FYDM805 を先頭1件読む。純キー生成部を MechanicalInterlockMasterKey.RatingKeyFor に切り出しテスト、SQL読込を SqlEquipmentMasterRepository.ReadMechanicalInterlock として追加。ERR_ISAM_NOTHING→NotFound(NOGOOD)/成功→Ok(GOOD)。テスト+6(2133→ 2139)。 |
+| 最終更新 | 2026-08-08 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 

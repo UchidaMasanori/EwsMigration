@@ -73,6 +73,40 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
             new { Prefix = reservedWordPrefix }).ToList();
     }
 
+    /// <summary>
+    /// 機械連動子(MI)の機器マスターを容量(AF)に応じて1件取得する。
+    /// 【C原典】Fysk01_Kiki_Read_MI(toku/sekkei/src/Fysk01.c:6444)。予約語 "PT"・
+    /// メーカーコード "M"・容量別定格キー(<see cref="MechanicalInterlockMasterKey"/>)で
+    /// FyIsamStartR し先頭 1 件を読む。ERR_ISAM_NOTHING は <see cref="IsamStatus.NotFound"/>
+    /// (=NOGOOD)、読込成功は <see cref="IsamStatus.Ok"/>(=GOOD)。
+    /// </summary>
+    public (IsamStatus Status, EquipmentMaster? Record) ReadMechanicalInterlock(double capacityAf)
+    {
+        string ratingKey = MechanicalInterlockMasterKey.RatingKeyFor(capacityAf);
+        using var connection = _factory.CreateOpen();
+        EquipmentMaster? record = connection.QueryFirstOrDefault<EquipmentMaster>(
+            """
+            SELECT  TOP 1
+                    ReservedWord, MakerCode, ParameterType, RatingKey,
+                    PartNumber, PartName, ElectricalParameters
+            FROM    EquipmentMaster
+            WHERE   ReservedWord = @ReservedWord
+              AND   MakerCode    = @MakerCode
+              AND   RatingKey    = @RatingKey
+            ORDER BY ReservedWord, MakerCode, ParameterType, RatingKey
+            """,
+            new
+            {
+                ReservedWord = MechanicalInterlockMasterKey.ReservedWord,
+                MakerCode = MechanicalInterlockMasterKey.MakerCode,
+                RatingKey = ratingKey,
+            });
+
+        return record is null
+            ? (IsamStatus.NotFound, null)
+            : (IsamStatus.Ok, record);
+    }
+
     /// <summary>【C原典】FyIsamAdd(機器マスター)。</summary>
     public IsamStatus Add(EquipmentMaster record)
     {
