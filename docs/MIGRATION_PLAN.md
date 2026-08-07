@@ -60,7 +60,7 @@
 | テスト成功数 | **2111** | 0 失敗 / 0 スキップを維持 |
 | 移植エントリ数（name-mapping.csv 行数） | **748** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | `__FEATURE_HASH__` | 構成機器エリア割り込み挿入 Fysk01_Mem_Control(Fysk01.c:4046) を ComponentBufferInserter.Insert として移植。構成機器エリア(FYRT804配列)の指定位置 wkkensu へ 1 レコードを割り込み挿入し、既存の [wkkensu..allkensu-1] を 1 つ後方へずらして buf1 を格納する、機器選定結果を定格キー順で保持するソート挿入の最下位ヘルパ。Make_Koukiki 系から呼ばれる。IList<T> 汎用実装で末尾を 1 件伸ばして空きを作りシフト。機器サーチ Fysk00_Kikisearch_SY 移植の第一歩。テスト+6(2105→ 2111)。 |
+| 直近コミット | `f550928` | 構成機器エリア割り込み挿入 Fysk01_Mem_Control(Fysk01.c:4046) を ComponentBufferInserter.Insert として移植。構成機器エリア(FYRT804配列)の指定位置 wkkensu へ 1 レコードを割り込み挿入し、既存の [wkkensu..allkensu-1] を 1 つ後方へずらして buf1 を格納する、機器選定結果を定格キー順で保持するソート挿入の最下位ヘルパ。Make_Koukiki 系から呼ばれる。IList<T> 汎用実装で末尾を 1 件伸ばして空きを作りシフト。機器サーチ Fysk00_Kikisearch_SY 移植の第一歩。テスト+6(2105→ 2111)。 |
 | 最終更新 | 2026-08-07 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
