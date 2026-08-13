@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2218** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **766** | — |
+| テスト成功数 | **2225** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **767** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 耐熱盤分類チェック Fysk01_Chk_TainetuBunrui(Fysk01.c:6615) を HeatResistantPanelClassifier.Classify として移植。自由文字(回路内容記述 FYDF805)からコンスタント(taiPT_prm)を突合し系統ごとに分類を決定。行種 P 記述で P 直前=相数/W 直前=線数/系統番号を更新し前系統の該当 1 件のみ確定。F1+BOX を含む行を先頭空白まで切詰め、コンスタント行番号 0 は 1 行一致・1 は次行と 2 行一致で判定。1 系統に 2 件以上該当は分類なし。taiPT_prm/taiPT_tmp を HeatResistantPanelClassificationConstant/Result として新設。テスト+8(2210→ 2218)。 |
+| 直近コミット | （git log 参照） | 耐熱盤部材判定コンスタント読込 Fysk01_ReadCnst_TainetuBOX(Fysk01.c:6521) を HeatResistantPanelConstantLoader.LoadFromFile/Parse として移植。tainetuPT.cns を CP932 で読み /* 始まり・85バイト以下を skip、固定バイト列(先頭2桁=行番号atoi/3バイト目から80バイト=自由文字(カンマ含む固定桁・先頭空白まで)/84バイト目=分類)で HeatResistantPanelClassificationConstant 一覧を生成。カンマ区切りではなくバイトオフセットで解釈する点が重要。テスト+7(2218→ 2225)。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
