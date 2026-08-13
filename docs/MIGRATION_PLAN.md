@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2240** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **769** | — |
+| テスト成功数 | **2248** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **770** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 耐熱盤BOX構成機器作成 Fysk01_Make_Koukiki_TainetuBox(Fysk01.c:6881) を HeatResistantBoxComponentBuilder.Build/Append として移植。機器マスタFYDM805から構成機器FYRT804レコードを組立て、キー部(FYRT804KEY=発生区分+追番3種=10バイト)昇順を保ち ComponentBufferInserter(=Mem_Control)で割り込み挿入し件数を返す。末尾の Make_Koukiki('S') は静的カウンタを件数へ同期するだけなので件数返却で等価。ComponentEquipment に生成フィールドを追加。テスト+9(2231→ 2240)。 |
+| 直近コミット | （git log 参照） | 機械連動子MI構成機器作成 Fysk01_Make_Koukiki_MI(Fysk01.c:3880) を MechanicalInterlockComponentBuilder.Build/Append として移植。Make_Koukiki_TainetuBox と同型でFYDM805から構成機器FYRT804を組立てて 10バイトキー昇順でソート挿入し件数を返す。相違はデータ追番/生成追番999・仕様名称追番/行種/扉取付区分はmemset空白のまま・末尾のMake_Koukiki(S)同期なし。モデル変更なし(ComponentEquipment既存拡張再利用)。テスト+8(2240→ 2248)。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
