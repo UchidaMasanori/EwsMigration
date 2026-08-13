@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2257** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **771** | — |
+| テスト成功数 | **2263** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **772** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 機器サーチ結果フラグ作成 Fysk01_Get_Errflg(Fysk01.c:3970) を EquipmentSearchFlagResolver.Resolve として移植。エラー番号eno(1-8)別に flg("  "/E1/E2/E3)・電気パラメータ番号epno[1・2]・戻り値ret(0=サーチする/1=しない)を返す純switch。1-4主複回路/5-6制御回路/7-8MP.SP回路PTでE1/E2/E3側はサーチしない。戻り値はEquipmentSearchFlag(ShouldSearch=ret0/Flag/ParameterNumber)。定義外enoはret0。テスト+9(2248→ 2257)。 |
+| 直近コミット | （git log 参照） | 品名チェック Fysk01_Check_Hinmei(Fysk01.c:4079) を PartNameChecker.Matches として移植。入力品名と直近上下位データ品名を照合。入力品名先頭10バイトが空白の時はチェックせずGOOD、それ以外は先頭25バイトをmemcmpし不一致でNOGOOD。GOOD(0)→true/NOGOOD(1)→false。純ロジック・依存ゼロ。テスト+6(2257→ 2263)。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
