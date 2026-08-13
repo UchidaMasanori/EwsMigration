@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2225** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **767** | — |
+| テスト成功数 | **2231** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **768** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 耐熱盤部材判定コンスタント読込 Fysk01_ReadCnst_TainetuBOX(Fysk01.c:6521) を HeatResistantPanelConstantLoader.LoadFromFile/Parse として移植。tainetuPT.cns を CP932 で読み /* 始まり・85バイト以下を skip、固定バイト列(先頭2桁=行番号atoi/3バイト目から80バイト=自由文字(カンマ含む固定桁・先頭空白まで)/84バイト目=分類)で HeatResistantPanelClassificationConstant 一覧を生成。カンマ区切りではなくバイトオフセットで解釈する点が重要。テスト+7(2218→ 2225)。 |
+| 直近コミット | （git log 参照） | 耐熱盤BOX機器サーチ Fysk01_Kiki_Read_TainetuBOX(Fysk01.c:6793) を HeatResistantBoxMasterKey(キー生成部) と SqlEquipmentMasterRepository.ReadHeatResistantBox(SQL読込) として移植。予約語PT・メーカーK固定・定格キー=機器品名で機器マスタFYDM805を引き先頭1件を読む。テスト+6(2225→ 2231)。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

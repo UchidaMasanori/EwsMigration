@@ -107,6 +107,40 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
             : (IsamStatus.Ok, record);
     }
 
+    /// <summary>
+    /// 耐熱盤BOX の機器マスターを機器品名で1件取得する。
+    /// 【C原典】Fysk01_Kiki_Read_TainetuBOX(toku/sekkei/src/Fysk01.c:6793)。予約語 "PT"・
+    /// メーカーコード "K"・パラメータタイプ空白・定格キー=機器品名(<see cref="HeatResistantBoxMasterKey"/>)で
+    /// FyIsamStartR し先頭 1 件を読む。ERR_ISAM_NOTHING は <see cref="IsamStatus.NotFound"/>
+    /// (=NOGOOD)、読込成功は <see cref="IsamStatus.Ok"/>(=GOOD)。
+    /// </summary>
+    public (IsamStatus Status, EquipmentMaster? Record) ReadHeatResistantBox(string partName)
+    {
+        string ratingKey = HeatResistantBoxMasterKey.RatingKeyFor(partName);
+        using var connection = _factory.CreateOpen();
+        EquipmentMaster? record = connection.QueryFirstOrDefault<EquipmentMaster>(
+            """
+            SELECT  TOP 1
+                    ReservedWord, MakerCode, ParameterType, RatingKey,
+                    PartNumber, PartName, ElectricalParameters
+            FROM    EquipmentMaster
+            WHERE   ReservedWord = @ReservedWord
+              AND   MakerCode    = @MakerCode
+              AND   RatingKey    = @RatingKey
+            ORDER BY ReservedWord, MakerCode, ParameterType, RatingKey
+            """,
+            new
+            {
+                ReservedWord = HeatResistantBoxMasterKey.ReservedWord,
+                MakerCode = HeatResistantBoxMasterKey.MakerCode,
+                RatingKey = ratingKey,
+            });
+
+        return record is null
+            ? (IsamStatus.NotFound, null)
+            : (IsamStatus.Ok, record);
+    }
+
     /// <summary>【C原典】FyIsamAdd(機器マスター)。</summary>
     public IsamStatus Add(EquipmentMaster record)
     {
