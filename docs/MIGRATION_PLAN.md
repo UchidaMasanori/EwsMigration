@@ -57,11 +57,11 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2210** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **763** | — |
+| テスト成功数 | **2218** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **766** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 主回路 2 レコード同一判定 Fysk01_Copy_Check(Fysk01.c:3385) を MainCircuitCopyChecker.AreCopyEquivalent として移植。予約語/タイプ 49 バイト/行種コード/電気パラメータ ep[3]/付属パラメータ(負荷種類 10 バイト・メーカー・品名・封印)/回路電圧[0]/通電電流/負荷発生元/回路相数/始動回路区分の全一致で同一(C 原典 ret=0)を true で返す。ep 比較用に ElectricalParameters.ValueEquals(CopyFrom と対の 44 フィールド値比較)を追加。テスト+12(2198→ 2210)。 |
-| 最終更新 | 2026-08-08 | — |
+| 直近コミット | （git log 参照） | 耐熱盤分類チェック Fysk01_Chk_TainetuBunrui(Fysk01.c:6615) を HeatResistantPanelClassifier.Classify として移植。自由文字(回路内容記述 FYDF805)からコンスタント(taiPT_prm)を突合し系統ごとに分類を決定。行種 P 記述で P 直前=相数/W 直前=線数/系統番号を更新し前系統の該当 1 件のみ確定。F1+BOX を含む行を先頭空白まで切詰め、コンスタント行番号 0 は 1 行一致・1 は次行と 2 行一致で判定。1 系統に 2 件以上該当は分類なし。taiPT_prm/taiPT_tmp を HeatResistantPanelClassificationConstant/Result として新設。テスト+8(2210→ 2218)。 |
+| 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
 
