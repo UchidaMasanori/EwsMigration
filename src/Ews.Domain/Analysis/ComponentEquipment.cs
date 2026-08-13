@@ -35,4 +35,53 @@ public sealed class ComponentEquipment
 
     /// <summary>機器マスターキー。【C原典】dt.km_key(struct p805_key)。</summary>
     public MachineMasterKey MachineKey { get; set; } = new();
+
+    // ---- 以下は構成機器生成(Fysk01_Make_Koukiki 系)が設定するフィールド。利用時に追加する方針 ----
+
+    /// <summary>機器発生区分。【C原典】key.kkhkbn(FYRT804KEY)。'4'=追加機器。</summary>
+    public char EquipmentOccurrenceKind { get; set; } = ' ';
+
+    /// <summary>制御回路仕様名称追番。【C原典】key.cnameno[3]。</summary>
+    public string ControlSpecNumber { get; set; } = "000";
+
+    /// <summary>生成追番。【C原典】key.seino[3]。</summary>
+    public string GenerationNumber { get; set; } = "000";
+
+    /// <summary>行種。【C原典】dt.gyo[5]。</summary>
+    public string LineType { get; set; } = string.Empty;
+
+    /// <summary>電気パラメータ文字列。【C原典】dt.pstring[64]。</summary>
+    public string ElectricalParameterString { get; set; } = string.Empty;
+
+    /// <summary>品名。【C原典】dt.hinmei[25]。</summary>
+    public string PartName { get; set; } = string.Empty;
+
+    /// <summary>機器サーチ結果コード。【C原典】dt.ksrhkcd[4][2]。</summary>
+    public string SearchResultCode { get; set; } = string.Empty;
+
+    /// <summary>手配数量(QTY)。【C原典】dt.epaqty。</summary>
+    public char OrderQuantity { get; set; } = ' ';
+
+    /// <summary>生産管理データ転送対象有無。【C原典】dt.btnkubn。'Y'=転送。</summary>
+    public char ProductionTransferKind { get; set; } = ' ';
+
+    /// <summary>扉取付区分。【C原典】dt.tikbn。'T'=扉/'I'=中。</summary>
+    public char DoorMountKind { get; set; } = ' ';
+
+    /// <summary>定格容量(AC) VA。【C原典】hojg.teiva[0][7](機器マスタ補助情報)。</summary>
+    public string RatedCapacityAcVa { get; set; } = string.Empty;
+
+    /// <summary>定格容量(DC) W。【C原典】hojg.teiw[7]。</summary>
+    public string RatedCapacityDcW { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 構成機器キー(FYRT804KEY=機器発生区分+データ追番+制御回路仕様名称追番+生成追番=10 バイト)。
+    /// 【C原典】memcmp(&amp;wk, *k_adr+i, sizeof(struct FYRT804KEY)) の比較対象。
+    /// </summary>
+    public string ComponentKey =>
+        $"{EquipmentOccurrenceKind}{PadField(DataNumber, 3)}{PadField(ControlSpecNumber, 3)}{PadField(GenerationNumber, 3)}";
+
+    private static string PadField(string value, int width) =>
+        (value ?? string.Empty).PadRight(width)[..width];
 }
+
