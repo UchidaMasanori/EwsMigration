@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2286** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **776** | — |
+| テスト成功数 | **2292** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **777** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | FYDF817 品名索引ローダー EquipmentNameIndexLoader を追加(hostdt/FYDF817.data の固定長184バイトレコードを EquipmentNameIndex へパース)。実データ17780件でオフセット不変条件とPT検索を検証。 |
+| 直近コミット | （git log 参照） | 機器マスタ基本検索 Fysk01_Kiki_Read を EquipmentMasterSearchKey.NormalizeParameterType(HL除去) / SqlEquipmentMasterRepository.ReadEquipmentMaster として移植。FYDF812主キーでFYDM805を1件読み、ptypeスロット先頭HLの空白化を純ロジック化して検証。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

@@ -141,6 +141,44 @@ public sealed class SqlEquipmentMasterRepository : IIsamTable<EquipmentMaster, s
             : (IsamStatus.Ok, record);
     }
 
+    /// <summary>
+    /// 直近上下位該当データ(FYDF812)の主キーで機器マスターを1件取得する。
+    /// 【C原典】Fysk01_Kiki_Read(toku/sekkei/src/Fysk01.c:2821)。予約語・メーカーコード・
+    /// パラメータタイプ・定格キーを FYDF812 から写して FyIsamStartR し先頭 1 件を読む。
+    /// パラメータタイプはハンドルロック指定 "HL" を除去(<see cref="EquipmentMasterSearchKey"/>)。
+    /// ERR_ISAM_NOTHING は <see cref="IsamStatus.NotFound"/>(=NOGOOD)、読込成功は
+    /// <see cref="IsamStatus.Ok"/>(=GOOD)。
+    /// </summary>
+    public (IsamStatus Status, EquipmentMaster? Record) ReadEquipmentMaster(
+        string reservedWord, string makerCode, string parameterType, string ratingKey)
+    {
+        string normalizedParameterType = EquipmentMasterSearchKey.NormalizeParameterType(parameterType).Trim();
+        using var connection = _factory.CreateOpen();
+        EquipmentMaster? record = connection.QueryFirstOrDefault<EquipmentMaster>(
+            """
+            SELECT  TOP 1
+                    ReservedWord, MakerCode, ParameterType, RatingKey,
+                    PartNumber, PartName, ElectricalParameters
+            FROM    EquipmentMaster
+            WHERE   ReservedWord  = @ReservedWord
+              AND   MakerCode     = @MakerCode
+              AND   ParameterType = @ParameterType
+              AND   RatingKey     = @RatingKey
+            ORDER BY ReservedWord, MakerCode, ParameterType, RatingKey
+            """,
+            new
+            {
+                ReservedWord = reservedWord,
+                MakerCode = makerCode,
+                ParameterType = normalizedParameterType,
+                RatingKey = ratingKey,
+            });
+
+        return record is null
+            ? (IsamStatus.NotFound, null)
+            : (IsamStatus.Ok, record);
+    }
+
     /// <summary>【C原典】FyIsamAdd(機器マスター)。</summary>
     public IsamStatus Add(EquipmentMaster record)
     {
