@@ -96,4 +96,73 @@ public sealed class LoadCurrentCalculatorTests
         double ibs = LoadCurrentCalculator.CalculateArcWelder("MCB   ", 200.0, "ST  ");
         Assert.Equal(expected, ibs, Tolerance);
     }
+
+    [Fact]
+    public void 電動機グループ未該当は負の1を返す()
+    {
+        double ibs = LoadCurrentCalculator.CalculateMotor("XXXX  ", 50.0, "KY  ", 5000.0, 3, 200.0, '1');
+        Assert.Equal(-1.0, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機三相220V以下始動1はyno0で計算する()
+    {
+        // MCB/KY→group L, p=5<11→tno0, 三相/220V以下/始動1→yno0: [1.06,2.20]
+        double expected = System.Math.Pow(50.0, 1.06) * 2.20;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KY  ", 5000.0, 3, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機三相220V超始動1はyno2で計算する()
+    {
+        // MCB/KY→group L, p=15>=11→tno1, 三相/220V超/始動1→yno2: [1.24,0.92]
+        double expected = System.Math.Pow(50.0, 1.24) * 0.92;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KY  ", 15000.0, 3, 400.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機単相105V以下はyno5で計算する()
+    {
+        // MCB/KM→group M, p=5<11→tno0, 単相/105V以下→yno5: [0.76,3.60]
+        double expected = System.Math.Pow(50.0, 0.76) * 3.60;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KM  ", 5000.0, 1, 100.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機単相105V超はyno4で計算する()
+    {
+        // MCB/KM→group M, p=15→tno1, 単相/105V超→yno4: [1.76,3.60]
+        double expected = System.Math.Pow(50.0, 1.76) * 3.60;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KM  ", 15000.0, 1, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機グループHの容量22から45はtno3で計算する()
+    {
+        // MCB/ST→group H, p=25(22<=p<45)→tno3, 三相/220V以下/始動1→yno0: [0.95,2.10]
+        double expected = System.Math.Pow(50.0, 0.95) * 2.10;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "ST  ", 25000.0, 3, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機グループMの容量90以上はtno5で計算する()
+    {
+        // MCB/KM→group M, p=100(>=90)→tno5, 三相/220V以下/始動1→yno0: [0.59,19.0]
+        double expected = System.Math.Pow(50.0, 0.59) * 19.0;
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KM  ", 100000.0, 3, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void 電動機の基準電流が15未満なら15に切り上げる()
+    {
+        // MCB/KM→group M tno0 yno0=[0.98,2.00], den=1 → pow(1,0.98)*2.0=2.0 → 15.0
+        double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 1.0, "KM  ", 5000.0, 3, 200.0, '1');
+        Assert.Equal(15.0, ibs, Tolerance);
+    }
 }
