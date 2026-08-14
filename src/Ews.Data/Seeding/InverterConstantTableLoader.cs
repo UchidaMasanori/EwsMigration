@@ -29,6 +29,9 @@ public static class InverterConstantTableLoader
     /// <summary>INV 直近上位検索用コンスタント(v1)のファイル名。</summary>
     public const string FileName = "inv001.cns";
 
+    /// <summary>INV 直近上位検索用コンスタント(v2)のファイル名。</summary>
+    public const string FileNameV2 = "inv002.cns";
+
     /// <summary>inv001.cns ファイルを CP932 として読み込み、コンスタントを返す。</summary>
     public static IReadOnlyList<InverterConstant> LoadInv001FromFile(string path)
     {
@@ -74,6 +77,68 @@ public static class InverterConstantTableLoader
             for (int i = 0; i < SlotCount; i++)
             {
                 slots[i] = typeField.Substring(i * SlotWidth, SlotWidth);
+            }
+
+            // 【C原典】kw=atof(str)。第2フィールドが無ければ 0.0。
+            double kw = tokens.Length > 1 ? Atof(tokens[1]) : 0.0;
+
+            entries.Add(new InverterConstant(slots, kw));
+        }
+
+        return entries;
+    }
+
+    /// <summary>inv002.cns ファイルを CP932 として読み込み、コンスタントを返す。</summary>
+    public static IReadOnlyList<InverterConstant> LoadInv002FromFile(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"INV直近上位検索コンスタントが見つかりません: {path}", path);
+        }
+
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        string content = File.ReadAllText(path, Encoding.GetEncoding(932));
+        return ParseInv002(content);
+    }
+
+    /// <summary>
+    /// inv002.cns のテキスト内容を解析してコンスタントを返す。
+    /// 【C原典】Fysk01_ReadCnstINV002(toku/sekkei/src/Fysk01.c:5659, 改訂&lt;28&gt;)。
+    ///   inv001 と異なりタイプは memcpy(type[0], str, 7) で先頭 1 スロット(7 バイト)のみ設定し、
+    ///   残り 6 スロットは calloc のゼロ埋め(=空白相当)のまま。
+    /// </summary>
+    public static IReadOnlyList<InverterConstant> ParseInv002(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var entries = new List<InverterConstant>();
+
+        foreach (string rawLine in content.Split('\n'))
+        {
+            string line = rawLine.EndsWith('\r') ? rawLine[..^1] : rawLine;
+
+            // 【C原典】strncmp(buff,"/*",2)==0 でコメント行を飛ばす。
+            if (line.StartsWith("/*", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // 【C原典】strtok(buff,","): タイプが取れなければ読込終了(EOF/空行)。
+            string[] tokens = line.Split(',');
+            if (tokens[0].Length == 0)
+            {
+                break;
+            }
+
+            // 【C原典】memcpy(type[0], str, 7): 先頭スロット(7 バイト)のみ設定、残りは空白。
+            string slot0 = tokens[0].Length >= SlotWidth
+                ? tokens[0][..SlotWidth]
+                : tokens[0].PadRight(SlotWidth);
+            var slots = new string[SlotCount];
+            slots[0] = slot0;
+            for (int i = 1; i < SlotCount; i++)
+            {
+                slots[i] = new string(' ', SlotWidth);
             }
 
             // 【C原典】kw=atof(str)。第2フィールドが無ければ 0.0。

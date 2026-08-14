@@ -70,4 +70,45 @@ public sealed class InverterConstantTableLoaderTests
         IReadOnlyList<InverterConstant> table = InverterConstantTableLoader.ParseInv001(content);
         Assert.Single(table);
     }
+
+    private const string SampleV2 =
+        "/* <Title> inv002.cns */\r\n" +
+        "INV1   ,05.50,\r\n" +
+        "INV1   ,07.50,\r\n";
+
+    [Fact]
+    public void V2はタイプ先頭スロットのみ設定し残りは空白()
+    {
+        IReadOnlyList<InverterConstant> table = InverterConstantTableLoader.ParseInv002(SampleV2);
+        Assert.Equal(2, table.Count);
+        InverterConstant first = table[0];
+        Assert.Equal(7, first.Types.Count);
+        Assert.Equal("INV1   ", first.Types[0]);
+        Assert.All(first.Types.Skip(1), slot => Assert.Equal("       ", slot));
+    }
+
+    [Fact]
+    public void V2はkwをatof相当で解釈する()
+    {
+        IReadOnlyList<InverterConstant> table = InverterConstantTableLoader.ParseInv002(SampleV2);
+        Assert.Equal(5.50, table[0].RatedKw);
+        Assert.Equal(7.50, table[1].RatedKw);
+    }
+
+    [Fact]
+    public void V2は7バイト超のタイプを先頭7バイトへ切り詰める()
+    {
+        IReadOnlyList<InverterConstant> table =
+            InverterConstantTableLoader.ParseInv002("ABCDEFGHIJ,03.70,\r\n");
+        Assert.Single(table);
+        Assert.Equal("ABCDEFG", table[0].Types[0]);
+    }
+
+    [Fact]
+    public void V2は空行で読込を終了する()
+    {
+        const string content = "INV1   ,05.50,\r\n\r\nINV2   ,07.50,\r\n";
+        IReadOnlyList<InverterConstant> table = InverterConstantTableLoader.ParseInv002(content);
+        Assert.Single(table);
+    }
 }
