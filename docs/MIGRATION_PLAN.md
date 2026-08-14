@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2299** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **779** | — |
+| テスト成功数 | **2305** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **780** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | INVオプション機器検索データ作成 Fysk01_Kiki_Set_INV_OP_teikaku を InverterOptionSearchKey.Apply として移植。入力kwから直近上位定格を選定しFYDF812検索キー(PT/M/空白/定格)を設定しGOOD/該当なしNOGOOD。RN版の兄弟。 |
+| 直近コミット | （git log 参照） | INV直近上位検索コンスタント Fysk01_ReadCnstINV001 を InverterConstantTableLoader.ParseInv001 として移植。inv001.cns をCP932読込しコメント行を除きタイプ49バイトを7スロット7桁へ展開しkw(atof)を格納。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
