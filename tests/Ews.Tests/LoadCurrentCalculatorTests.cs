@@ -165,4 +165,70 @@ public sealed class LoadCurrentCalculatorTests
         double ibs = LoadCurrentCalculator.CalculateMotor("MCB   ", 1.0, "KM  ", 5000.0, 3, 200.0, '1');
         Assert.Equal(15.0, ibs, Tolerance);
     }
+
+    [Fact]
+    public void ディスパッチ_予約語MMCBは通電電流を直返しする()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("H ", "MMCB  ", 80.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(80.0, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_ヒータHはden掛ける1_25()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("H ", "MCB   ", 80.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(80.0 * 1.25, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_水銀灯Sはden掛ける1_00()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("S ", "MCB   ", 50.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(50.0 * 1.00, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_蛍光灯FLはden掛ける1_40()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("FL", "MCB   ", 30.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(30.0 * 1.40, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_スポット溶接機YSはden掛ける1_25()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("YS", "MCB   ", 40.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(40.0 * 1.25, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_変圧器TRはCalculateTransformerに委譲する()
+    {
+        double expected = LoadCurrentCalculator.CalculateTransformer("MCB   ", 100.0, "KY  ", 5000.0, 1);
+        double ibs = LoadCurrentCalculator.Calculate("TR", "MCB   ", 100.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_アーク溶接機YAはCalculateArcWelderに委譲する()
+    {
+        double expected = LoadCurrentCalculator.CalculateArcWelder("MCB   ", 100.0, "KY  ");
+        double ibs = LoadCurrentCalculator.Calculate("YA", "MCB   ", 100.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_電動機MはCalculateMotorに委譲する()
+    {
+        double expected = LoadCurrentCalculator.CalculateMotor("MCB   ", 50.0, "KY  ", 5000.0, 3, 200.0, '1');
+        double ibs = LoadCurrentCalculator.Calculate("M ", "MCB   ", 50.0, "KY  ", 5000.0, 3, 200.0, '1');
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void ディスパッチ_負荷種類未該当は負の1を返す()
+    {
+        double ibs = LoadCurrentCalculator.Calculate("ZZ", "MCB   ", 100.0, "KY  ", 5000.0, 1, 200.0, '1');
+        Assert.Equal(-1.0, ibs, Tolerance);
+    }
 }

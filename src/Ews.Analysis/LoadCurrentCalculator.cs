@@ -33,6 +33,19 @@ public static class LoadCurrentCalculator
     /// <summary>電動機の基準電流下限。【C原典】ibs &lt; 15.0 なら 15.0。</summary>
     private const double MotorFloorCurrent = 15.0;
 
+    /// <summary>負荷種類が未該当のときの戻り値。【C原典】default: return(-1.0)。</summary>
+    private const double LoadKindNotFoundCurrent = -1.0;
+
+    /// <summary>予約語の固定幅。【C原典】memcmp(yo, "MMCB  ", 6)。</summary>
+    private const int ReservedWordWidth = 6;
+
+    /// <summary>負荷種類の照合幅。【C原典】memcmp(FLAG[i], syu, 2)。</summary>
+    private const int LoadKindWidth = 2;
+
+    // 【C原典】FLAG[9][3] = {"M ","H ","S ","HA","FL","NA","TR","YA","YS"}。
+    private static readonly string[] LoadKindFlags =
+        ["M ", "H ", "S ", "HA", "FL", "NA", "TR", "YA", "YS"];
+
     // 電動機テーブル(fyrt819.h grp_l/grp_m/grp_h)。[group-1][tno][yno] = {x(指数), y(係数)}。
     // grp_l は tno 0/1 のみ到達(gno==1 は p<11?0:1)、grp_m/grp_h は tno 0-5。
     private static readonly double[][][] MotorGroupL =
@@ -63,6 +76,67 @@ public static class LoadCurrentCalculator
 
     // 【C原典】g_tbl = { grp_l, grp_m, grp_h }。
     private static readonly double[][][][] MotorTables = [MotorGroupL, MotorGroupM, MotorGroupH];
+
+    /// <summary>
+    /// 負荷種類別に基準電流(Ibs)を振り分けて算出するディスパッチャ。
+    ///
+    /// 【C原典】Get_Ibs(toku/sekkei/src/Fysk01.c:4894, static DOUBLE)。
+    ///   予約語が MMCB/RMMCB/ELMB/RELMB なら通電電流 den を直返し。
+    ///   それ以外は負荷種類 syu を FLAG[9]={M/H/S/HA/FL/NA/TR/YA/YS} で先頭 2 バイト照合し、
+    ///   M=Get_Ibs_M、H/HA/YS=den*1.25、S=den*1.00、FL/NA=den*1.40、TR=Get_Ibs_TR、YA=Get_Ibs_YA、
+    ///   未該当(default)は -1.0 を返す。
+    /// </summary>
+    /// <param name="loadKind">負荷種類(syu)。</param>
+    /// <param name="reservedWord">予約語(yo)。</param>
+    /// <param name="energizingCurrent">通電電流値(den)。</param>
+    /// <param name="dataType">タイプパラメータ(type)。</param>
+    /// <param name="loadCapacity">負荷容量 W(fuka)。</param>
+    /// <param name="phaseCount">相数(sou)。</param>
+    /// <param name="voltage">電圧(vol)。</param>
+    /// <param name="startKind">始動開始区分(st)。</param>
+    public static double Calculate(
+        string loadKind,
+        string reservedWord,
+        double energizingCurrent,
+        string dataType,
+        double loadCapacity,
+        int phaseCount,
+        double voltage,
+        char startKind)
+    {
+        ArgumentNullException.ThrowIfNull(loadKind);
+        ArgumentNullException.ThrowIfNull(reservedWord);
+        ArgumentNullException.ThrowIfNull(dataType);
+
+        if (IsDirectReturnReservedWord(reservedWord))
+        {
+            return energizingCurrent;
+        }
+
+        int index = LoadKindFlags.Length;
+        for (int i = 0; i < LoadKindFlags.Length; i++)
+        {
+            if (FixedEquals(loadKind, LoadKindFlags[i], LoadKindWidth))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        return index switch
+        {
+            0 => CalculateMotor(reservedWord, energizingCurrent, dataType, loadCapacity, phaseCount, voltage, startKind), // 電動機(M)
+            1 => energizingCurrent * 1.25, // ヒータ(H)
+            2 => energizingCurrent > 36.0 ? energizingCurrent * 1.00 : energizingCurrent * 1.00, // 水銀灯(S)。ロジックは Fyss31.c に移動済
+            3 => energizingCurrent * 1.25, // 白熱灯(HA)
+            4 => energizingCurrent * 1.40, // 蛍光灯(FL)
+            5 => energizingCurrent * 1.40, // ナトリウム灯(NA)
+            6 => CalculateTransformer(reservedWord, energizingCurrent, dataType, loadCapacity, phaseCount), // 変圧器(TR)
+            7 => CalculateArcWelder(reservedWord, energizingCurrent, dataType), // アーク溶接機(YA)
+            8 => energizingCurrent * 1.25, // スポット溶接機(YS)
+            _ => LoadKindNotFoundCurrent,
+        };
+    }
 
     /// <summary>
     /// 変圧器(TR)の基準電流(Ibs)を算出する。
@@ -227,5 +301,30 @@ public static class LoadCurrentCalculator
         if (p < 45.0) return 3;
         if (p < 60.0) return 4;
         return 5;
+    }
+
+    // 【C原典】memcmp(yo,"MMCB  "/"RMMCB "/"ELMB  "/"RELMB ",6)==0 で den 直返しする予約語。
+    private static bool IsDirectReturnReservedWord(string reservedWord)
+    {
+        return FixedEquals(reservedWord, "MMCB", ReservedWordWidth)
+            || FixedEquals(reservedWord, "RMMCB", ReservedWordWidth)
+            || FixedEquals(reservedWord, "ELMB", ReservedWordWidth)
+            || FixedEquals(reservedWord, "RELMB", ReservedWordWidth);
+    }
+
+    // 固定幅バイト比較。不足文字は空白扱い(C の空白埋めバッファ memcmp 等価)。
+    private static bool FixedEquals(string value, string expected, int width)
+    {
+        for (int i = 0; i < width; i++)
+        {
+            char v = i < value.Length ? value[i] : ' ';
+            char e = i < expected.Length ? expected[i] : ' ';
+            if (v != e)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
