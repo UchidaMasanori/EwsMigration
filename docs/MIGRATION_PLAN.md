@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2370** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **790** | — |
+| テスト成功数 | **2378** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **791** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 基準電流のディスパッチャ Get_Ibs を LoadCurrentCalculator.Calculate として移植。予約語 MMCB 系は den 直返し、負荷種類 FLAG9 分岐で M/TR/YA を委譲し H/S/FL 等は係数乗算。 |
+| 直近コミット | （git log 参照） | 漏電ブレーカの感度電流設定(機器サーチ用) Fysk0e_SetELBkando2 を SearchElbSensitivityCurrentSetter.Apply として移植。フレーム容量・親相数・EV形判定で ep.Ma[0] を設定。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
