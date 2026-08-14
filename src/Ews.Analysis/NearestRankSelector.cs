@@ -14,6 +14,7 @@ public sealed record MainSelectionResult(int Status, NearestRankReference? Resul
 /// 束ねて、要求仕様から直近上下位参照ファイル(FYDF812)を検索する。
 /// 【C原典】(toku/sekkei/src/Fysk01.c)
 ///   - <see cref="SelectMain"/>  : Fysk01_Kikisearch_S1(:295)
+///   - <see cref="SelectMpSp"/>  : Fysk01_Kikisearch_P(:549, MP/SP 系統)
 ///   - <see cref="Dispatch"/>    : Fysk01_Chokisearch(:614, 予約語/proc_no で検索方式を分岐)
 ///   - <see cref="SearchGeneral"/>: Fysk01_Chokisearch_ALL(:1589, 汎用)
 /// 専門検索(BRK/MTG/CT/SC/PBS)は後続バッチで追加する。
@@ -70,6 +71,51 @@ public static class NearestRankSelector
         int status = epno == 1
             ? (result.Status == Good ? 1 : 2)
             : (result.Status == Good ? 3 : 4);
+
+        return new MainSelectionResult(status, result.Selected);
+    }
+
+    /// <summary>
+    /// 主/複合回路(MP/SP 系統)の機器選定。【C原典】Fysk01_Kikisearch_P(Fysk01.c:549)。
+    /// 電気パラメータ入力有無で入力項目フラグ(sfg)のみを求め(epno は使用しない)、
+    /// 常に接点計算なし(stn[0]=-1)・電気パラメータ 2 番目(sep[1])で直近上下位検索を行い、
+    /// 該当ありで 7、該当なしで 8 を返す。
+    /// </summary>
+    /// <param name="specKind">仕様(特注:0 コンポ:1)。【C原典】cpf。</param>
+    /// <param name="table">予約語別チェック情報。【C原典】tbl(TCHI_TBL)。</param>
+    /// <param name="parameters">電気パラメータ(自機/上位/下位の 3 組)。【C原典】sep[]。</param>
+    /// <param name="dataTypes">データタイプ(7枠)。【C原典】dtype。</param>
+    /// <param name="shapeTypes">変換形状タイプ一覧。【C原典】wtype(tsu 件)。</param>
+    /// <param name="shapeTypeIndex">変換タイプ位置。【C原典】ti。</param>
+    /// <param name="makerCodes">変換メーカーコード一覧。【C原典】mcod(msu 件, 各3桁)。</param>
+    /// <param name="productName">品名。【C原典】hinm。</param>
+    /// <param name="handleLockFlag">ハンドルロック有無チェックフラグ。【C原典】hfg。</param>
+    /// <param name="candidates">直近上下位参照ファイル全候補(キー順)。【C原典】FYDF812 ISAM。</param>
+    public static MainSelectionResult SelectMpSp(
+        int specKind,
+        RatingCheckTable table,
+        IReadOnlyList<NumericElectricalParameters> parameters,
+        string[] dataTypes,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        // 【C原典】ret = Fysk0a_EparInput_Check(sep[0], sfg)。戻り epno は破棄し sfg のみ使用。
+        ElectricalParameterInput input = ElectricalParameterInputChecker.Check(parameters[0]);
+
+        // 【C原典】stn[0]=-1、sep[1](電気パラメータ2番目)で検索。
+        NearestRankSearchResult result = Dispatch(
+            specKind, table, parameters[1], input.InputFlags, shapeTypes, shapeTypeIndex,
+            dataTypes, makerCodes, productName, handleLockFlag, -1, candidates);
+
+        // 【C原典】GOOD → 7、それ以外 → 8。
+        int status = result.Status == Good ? 7 : 8;
 
         return new MainSelectionResult(status, result.Selected);
     }

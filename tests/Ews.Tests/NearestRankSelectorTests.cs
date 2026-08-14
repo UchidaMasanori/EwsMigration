@@ -201,4 +201,47 @@ public sealed class NearestRankSelectorTests
 
         Assert.Equal(4, result.Status);
     }
+
+    // ---- Fysk01_Kikisearch_P(MP/SP 系統) → SelectMpSp ----
+
+    [Fact]
+    public void MpSp選定は該当ありでステータス7を返す()
+    {
+        var candidates = new List<NearestRankReference> { Candidate("TR ", "A", productName: "MPSP") };
+
+        MainSelectionResult result = NearestRankSelector.SelectMpSp(
+            0, Table(), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(7, result.Status);
+        Assert.Equal("MPSP", result.Result!.ProductName);
+    }
+
+    [Fact]
+    public void MpSp選定は該当なしでステータス8を返す()
+    {
+        var candidates = new List<NearestRankReference> { Candidate("ELB", "A") };  // 予約語違い
+
+        MainSelectionResult result = NearestRankSelector.SelectMpSp(
+            0, Table(), Params(new NumericElectricalParameters()), BlankTypes(),
+            [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(8, result.Status);
+    }
+
+    [Fact]
+    public void MpSp選定は電流入力有無に依らず電気パラメータ2番目で検索する()
+    {
+        // sep[0]=電流入力ありでも P は常に sep[1] を使う。sep[1] のみ候補と一致させる。
+        var self = new NumericElectricalParameters { Af = 100.0 };
+        var upper = new NumericElectricalParameters { V2Kbn = 'A' };
+        NumericElectricalParameters[] parameters = [self, upper, new NumericElectricalParameters()];
+        var candidates = new List<NearestRankReference> { Candidate("TR ", "A", mainAcDc: 'A', productName: "USE2ND") };
+
+        MainSelectionResult result = NearestRankSelector.SelectMpSp(
+            0, Table(), parameters, BlankTypes(), [""], 1, ["A  "], string.Empty, -1, candidates);
+
+        Assert.Equal(7, result.Status);
+        Assert.Equal("USE2ND", result.Result!.ProductName);
+    }
 }

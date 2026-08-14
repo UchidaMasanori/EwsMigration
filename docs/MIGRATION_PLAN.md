@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2292** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **777** | — |
+| テスト成功数 | **2295** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **778** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 機器マスタ基本検索 Fysk01_Kiki_Read を EquipmentMasterSearchKey.NormalizeParameterType(HL除去) / SqlEquipmentMasterRepository.ReadEquipmentMaster として移植。FYDF812主キーでFYDM805を1件読み、ptypeスロット先頭HLの空白化を純ロジック化して検証。 |
+| 直近コミット | （git log 参照） | 主/複合回路(MP/SP系統)機器選定 Fysk01_Kikisearch_P を NearestRankSelector.SelectMpSp として移植。stn0=-1・sep[1]固定でDispatchを呼び該当あ7/無し8を返す(SelectMainの兄弟)。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
