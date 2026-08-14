@@ -62,4 +62,38 @@ public sealed class LoadCurrentCalculatorTests
         double ibs = LoadCurrentCalculator.CalculateTransformer("MCB   ", 100.0, "KY  ", 5000.0, 2);
         Assert.Equal(expected, ibs, Tolerance);
     }
+
+    [Fact]
+    public void アーク溶接機グループ未該当は負の10を返す()
+    {
+        double ibs = LoadCurrentCalculator.CalculateArcWelder("XXXX  ", 200.0, "KY  ");
+        Assert.Equal(-10.0, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void アーク溶接機グループLは係数2_00で計算する()
+    {
+        // MCB/KY → group L(1): pow(den,0.92)*2.00
+        double expected = System.Math.Pow(200.0, 0.92) * 2.00;
+        double ibs = LoadCurrentCalculator.CalculateArcWelder("MCB   ", 200.0, "KY  ");
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void アーク溶接機グループMは係数1_33で計算する()
+    {
+        // MCB/KM → group M(2)
+        double expected = System.Math.Pow(200.0, 0.92) * 1.33;
+        double ibs = LoadCurrentCalculator.CalculateArcWelder("MCB   ", 200.0, "KM  ");
+        Assert.Equal(expected, ibs, Tolerance);
+    }
+
+    [Fact]
+    public void アーク溶接機グループHは係数1_19で計算する()
+    {
+        // MCB/ST → group H(3)
+        double expected = System.Math.Pow(200.0, 0.92) * 1.19;
+        double ibs = LoadCurrentCalculator.CalculateArcWelder("MCB   ", 200.0, "ST  ");
+        Assert.Equal(expected, ibs, Tolerance);
+    }
 }
