@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2289** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **775** | — |
+| テスト成功数 | **2248** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **770** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 直近上下位データ比較 Fysk01_Data_Cmp(Fysk01.c:2668) を NearestRankDataComparer.Compare として移植。特殊予約語THR(PC_1=11)/MG(PC_3=13)の今回/前回データを比較し採用可否(1/0)を返す。MGは今回値<前回値で1・差がTOL未満なら幅一致判定へ、THRは直接幅一致判定。幅一致時のみ定格値kteichi[50]をmemcmpし今回<前回で1・それ以外はChoki_Cmp1(RangeCenteringComparer)で中央寄りなら1。移植済RangeCenteringComparer利用。テスト+10(2279→ 2289)。 |
+| 直近コミット | （git log 参照） | 機械連動子MIの構成機器エリアFYRT804作成 Fysk01_Make_Koukiki_MI を MechanicalInterlockComponentBuilder.Build/Append として移植。FYDM805から構成機器を組立てキー部10バイト昇順でソート挿入し件数を返す。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
