@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2295** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **778** | — |
+| テスト成功数 | **2299** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **779** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 主/複合回路(MP/SP系統)機器選定 Fysk01_Kikisearch_P を NearestRankSelector.SelectMpSp として移植。stn0=-1・sep[1]固定でDispatchを呼び該当あ7/無し8を返す(SelectMainの兄弟)。 |
+| 直近コミット | （git log 参照） | INVオプション機器検索データ作成 Fysk01_Kiki_Set_INV_OP_teikaku を InverterOptionSearchKey.Apply として移植。入力kwから直近上位定格を選定しFYDF812検索キー(PT/M/空白/定格)を設定しGOOD/該当なしNOGOOD。RN版の兄弟。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
