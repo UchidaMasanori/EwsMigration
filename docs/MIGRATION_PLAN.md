@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2309** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **781** | — |
+| テスト成功数 | **2312** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **782** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | INV直近上位検索コンスタントv2 Fysk01_ReadCnstINV002 を InverterConstantTableLoader.ParseInv002 として移植。inv002.cns はinv001と異なりタイプを先頭1スロット7バイトのみ設定し残り6スロットは空白。 |
+| 直近コミット | （git log 参照） | INV機器選定エラー時表示用データ設定 PropSetInvErrEpstr を InverterErrorParameterSetter.SetWattFromKw として移植。設定kwをW値(kw*1000)へ換算し電気パラメータ先頭3要素の負荷容量へ書込。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
