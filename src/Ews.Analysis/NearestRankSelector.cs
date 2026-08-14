@@ -285,6 +285,132 @@ public static class NearestRankSelector
     }
 
     /// <summary>
+    /// 特別予約語(MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/NHMB/HPSB/HSB/CP/CKS)専用の
+    /// 直近上下位検索。【C原典】Fysk01_Chokisearch_T(Fysk01.c:4588, static SHORT)。
+    /// 二次形状(専用機能変換)→形状→メーカーの順に総当たりし、各組合せで電気値(AT/AF/MA/AM)を
+    /// 設定・三菱フレーム補完してから定格値キーを作り、直近上下位ファイルを検索して最初に該当した
+    /// 候補を採用する。電気値設定が負(SYS_ERR)なら即中断する。該当なしのときは先頭 dtype で電流値を
+    /// 再設定し、キーは先頭候補(定格値キーは空白化)を返す。【C原典】cpf は本関数では未使用、stn[0]=-1 固定。
+    /// </summary>
+    /// <param name="table">予約語別チェック情報。【C原典】tbl(TCHI_TBL)。</param>
+    /// <param name="electricalParameterNo">電気パラメータ番号(1 or 2)。【C原典】epno。</param>
+    /// <param name="parameters">電気パラメータ sep[0..2](設定先=sep[epno])。【C原典】sep[]。</param>
+    /// <param name="inputFlags">入力有無フラグ。【C原典】sfg[]。</param>
+    /// <param name="shapeTypes">変換形状タイプ一覧。【C原典】wtype(tsu 件)。</param>
+    /// <param name="shapeTypeIndex">変換タイプ位置。【C原典】ti。</param>
+    /// <param name="dataTypes">データタイプ(7枠)。【C原典】dtype。</param>
+    /// <param name="makerCodes">変換メーカーコード一覧。【C原典】mcod(msu 件, 各3桁)。</param>
+    /// <param name="productName">品名。【C原典】hinm。</param>
+    /// <param name="handleLockFlag">ハンドルロック有無チェックフラグ。【C原典】hfg。</param>
+    /// <param name="work">選定ワーク(負荷容量/通電電流等)。【C原典】wk1。</param>
+    /// <param name="flags">項目書替えフラグ。【C原典】wk3。</param>
+    /// <param name="candidates">直近上下位参照ファイル全候補(キー順)。【C原典】FYDF812 ISAM。</param>
+    public static NearestRankSearchResult SearchSpecialReservedWord(
+        RatingCheckTable table,
+        int electricalParameterNo,
+        NumericElectricalParameters[] parameters,
+        IReadOnlyList<int> inputFlags,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        string[] dataTypes,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        SelectionWorkParameters work,
+        AreaRewriteFlags flags,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(inputFlags);
+        ArgumentNullException.ThrowIfNull(shapeTypes);
+        ArgumentNullException.ThrowIfNull(dataTypes);
+        ArgumentNullException.ThrowIfNull(makerCodes);
+        ArgumentNullException.ThrowIfNull(work);
+        ArgumentNullException.ThrowIfNull(flags);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        string yo = table.ReservedWord;
+        NumericElectricalParameters working = parameters[electricalParameterNo];
+
+        // 【C原典】ck の第一キー: 電源 AC/DC 区分は sep[epno] からそのまま(DCPW 上書きなし)。
+        char mainAcDc = working.V2Kbn;
+        char controlAcDc = working.VcKbn;
+
+        // 【C原典】Fysk01_Type_Check2 → 二次形状タイプ(専用機能変換)。
+        ShapeTypeExpansion expansion = ShapeTypeExpander.Expand(yo, dataTypes);
+        IReadOnlyList<string> secondaryShapeTypes = expansion.ShapeTypes;
+        int secondaryIndex = expansion.TypeIndex;
+
+        // 【C原典】ptype 基底は dtype をそのまま(ALL と異なり WL/COS/WH 修正なし)。
+        string[] baseTypes = BaseDataTypes(dataTypes);
+
+        NearestRankReference? firstQuery = null;
+        string[]? firstDataTypes = null;
+
+        // 【C原典】二次形状(i)→形状(k)→メーカー(j)の順で総当たり(cpf 依存なし)。
+        for (int i = 0; i < secondaryShapeTypes.Count; i++)
+        {
+            for (int k = 0; k < shapeTypes.Count; k++)
+            {
+                for (int j = 0; j < makerCodes.Count; j++)
+                {
+                    string makerCode = Slot(makerCodes, j, 3);
+
+                    // 【C原典】dtype[ti2]=二次形状 / dtype[ti]=形状(ti==ti2 は形状優先)。
+                    string[] currentTypes = (string[])baseTypes.Clone();
+                    Assign(currentTypes, secondaryIndex, secondaryShapeTypes[i]);
+                    Assign(currentTypes, shapeTypeIndex, shapeTypes[k]);
+
+                    // 【C原典】ck の ptype/mkcd を設定。kteichi は Make_Teikakuchi 後に確定。
+                    NearestRankReference query = BuildQuery(
+                        yo, makerCode, baseTypes,
+                        shapeTypeIndex, Pad(shapeTypes[k]),
+                        secondaryIndex, Pad(secondaryShapeTypes[i]),
+                        mainAcDc, controlAcDc, string.Empty, shapeOverridesSecondary: true);
+
+                    firstQuery ??= query;
+                    firstDataTypes ??= currentTypes;
+
+                    // 【C原典】電流値等の設定。負なら SYS_ERR で即中断。
+                    short set = AtAfMaAmSetter.Apply(
+                        yo, electricalParameterNo, parameters, currentTypes, work, flags);
+                    if (set != 0)
+                    {
+                        return new NearestRankSearchResult(NearestRankSearch.SystemError, query);
+                    }
+
+                    // 【C原典】三菱製ブレーカのフレーム設定。
+                    MitsubishiFrameCurrentSetter.Apply(yo, makerCode, electricalParameterNo, parameters);
+
+                    // 【C原典】Fysk04_Make_Teikakuchi で定格値キー(kteichi)を作成。
+                    query.RatingKey = RatingKeyBuilder.MakeRatingKey(table.Entries, working);
+
+                    // 【C原典】直近上下位ファイル検索&チェック(stn[0]=-1)。
+                    NearestRankSearchResult r = NearestRankSearch.Search(
+                        table, query, candidates, productName, handleLockFlag, working, inputFlags, -1);
+
+                    if (r.Status == Good)
+                    {
+                        return r;
+                    }
+                }
+            }
+        }
+
+        // 【C原典】該当なし。先頭 dtype で電流値を再設定し、キーは先頭候補(定格値キーは空白)。
+        if (firstDataTypes is not null)
+        {
+            AtAfMaAmSetter.Apply(yo, electricalParameterNo, parameters, firstDataTypes, work, flags);
+        }
+        if (firstQuery is not null)
+        {
+            firstQuery.RatingKey = new string(' ', firstQuery.RatingKey.Length);
+        }
+        return new NearestRankSearchResult(NoGood, firstQuery);
+    }
+
+    /// <summary>
     /// 遮断器専用の直近上下位検索。【C原典】Fysk01_Chokisearch_BRK(Fysk01.c:1453)。
     /// 二次形状→形状→メーカーの順(特注/コンポ共通)で検索キーを組み立て、最初に該当した候補を採用する。
     /// ALL と異なり WL/COS/WH の特殊タイプ修正は行わず、ti==ti2 のときは形状タイプを優先する。
