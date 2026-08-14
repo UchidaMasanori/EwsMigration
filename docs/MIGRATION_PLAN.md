@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2325** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **784** | — |
+| テスト成功数 | **2332** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **785** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | INVオプション機器マスタ検索前提判定 Fysk01_Kiki_Read_INV_OP を InverterOptionReadPlanner.Plan として移植。opno別にパラメータ有無/KW入力有無を判定しinvAC/DC/LN/MC.cnsまたはRN専用処理へ振分け。ISAM読みはrepo委譲。 |
+| 直近コミット | （git log 参照） | 三菱製ブレーカ(MCB/ELB)フレーム電流補完 PropSetAfForMitsubishi を MitsubishiFrameCurrentSetter.Apply として移植。M/MN/MKYかつMCB/ELBでAF未入力・5<AT<=50のときsep[epno].AF=50を設定。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
