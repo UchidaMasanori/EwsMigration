@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2248** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **770** | — |
+| テスト成功数 | **2259** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **772** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 機械連動子MIの構成機器エリアFYRT804作成 Fysk01_Make_Koukiki_MI を MechanicalInterlockComponentBuilder.Build/Append として移植。FYDM805から構成機器を組立てキー部10バイト昇順でソート挿入し件数を返す。 |
+| 直近コミット | （git log 参照） | INVオプション機器の構成機器エリアFYRT804作成 Fysk01_Make_Koukiki_INV_OP を InverterOptionComponentBuilder として移植（+SET_INV_OPNO=InverterOptionState.Set）。キー部/行種は引数、機器マスタキーは直近上下位ck、定格/品名/補助情報は機器マスタkkから採る。手配数量はオプション番号3かつ負荷容量15kW超で4。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

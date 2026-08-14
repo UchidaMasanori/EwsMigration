@@ -68,6 +68,9 @@ public sealed class ComponentEquipment
     /// <summary>”àæ•t‹æ•ªByCŒ´“Tzdt.tikbnB'T'=”à/'I'=’†B</summary>
     public char DoorMountKind { get; set; } = ' ';
 
+    /// <summary>“dŒ¹Œn“”Ô†ByCŒ´“Tzdt.kno[3]B</summary>
+    public string PowerSystemNumber { get; set; } = string.Empty;
+
     /// <summary>’èŠi—e—Ê(AC) VAByCŒ´“Tzhojg.teiva[0][7](‹@Šíƒ}ƒXƒ^•â•î•ñ)B</summary>
     public string RatedCapacityAcVa { get; set; } = string.Empty;
 
