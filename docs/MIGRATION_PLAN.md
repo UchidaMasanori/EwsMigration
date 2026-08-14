@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2276** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **774** | — |
+| テスト成功数 | **2283** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **776** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 接点GoodData選定 Fysk01_Get_Seten_GoodData を ContactGoodDataSelector として移植。選定済みレコードのKEY部62+定格値有効桁sizeバイトで直近上下位参照ファイルを前方一致再検索し該当群から使用ａ/ｂ/ｃ接点数に対し接点数がよりよい1件を選定。該当複数はBest_Cont_Count・1件は先頭・0件はNOGOODで元の選定を保持。 |
+| 直近コミット | （git log 参照） | 品名索引検索 Fysk01_Kikisearch_PT/PT2 を EquipmentNameIndexSearch.SearchByDataNo/SearchPt として移植(FYDF817モデルEquipmentNameIndex新設)。品名+データ追番で索引を照合し7(有り)/8(無し)を返し、PT2は追番を1から進め予約語PTを探す。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
