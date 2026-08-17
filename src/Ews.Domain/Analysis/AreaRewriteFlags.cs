@@ -28,4 +28,14 @@ public sealed class AreaRewriteFlags
 
     /// <summary>ƒ[ƒ^[’èŠi(‚`‚l)‚ğ‘‚«–ß‚·‚©ByCŒ´“Tz<c>am[2]</c>B</summary>
     public bool[] Am { get; } = new bool[2];
+
+    /// <summary>‘Sƒtƒ‰ƒO‚ğ false ‚É–ß‚·ByCŒ´“Tzmemset(wk3, 0, sizeof(WK_STRUCT3))B</summary>
+    public void Reset()
+    {
+        Array.Clear(At);
+        Array.Clear(A2);
+        Array.Clear(Af);
+        Array.Clear(Ma);
+        Array.Clear(Am);
+    }
 }

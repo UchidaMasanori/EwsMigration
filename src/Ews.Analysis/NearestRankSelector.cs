@@ -121,6 +121,76 @@ public static class NearestRankSelector
     }
 
     /// <summary>
+    /// 特別予約語(MCB/ELB/MMCB/ELMB/SB/RMCB/RELB/RMMCB/RELMB/NHMB/HPSB/HSB/CP/CKS)の機器選定。
+    /// 【C原典】Fysk01_Kikisearch_T(Fysk01.c:4467)。電気パラメータ入力有無で epno を求め、まず下位機器
+    /// (epno=2)検索で下位パラメータを設定し、電流系入力があれば(epno==1)上位機器(epno=1)検索を行って
+    /// その結果を採用する。戻り: epno==1 は 1(該当)/2(なし)、epno==2 は 3(該当)/4(なし)。
+    /// 【C原典】cpf は下請け Chokisearch_T が未使用のため省略。
+    /// </summary>
+    /// <param name="table">予約語別チェック情報。【C原典】tbl(TCHI_TBL)。</param>
+    /// <param name="parameters">電気パラメータ sep[0..2]。【C原典】sep[]。</param>
+    /// <param name="dataTypes">データタイプ(7枠)。【C原典】dtype。</param>
+    /// <param name="shapeTypes">変換形状タイプ一覧。【C原典】wtype(tsu 件)。</param>
+    /// <param name="shapeTypeIndex">変換タイプ位置。【C原典】ti。</param>
+    /// <param name="makerCodes">変換メーカーコード一覧。【C原典】mcod(msu 件, 各3桁)。</param>
+    /// <param name="productName">品名。【C原典】hinm。</param>
+    /// <param name="handleLockFlag">ハンドルロック有無チェックフラグ。【C原典】hfg。</param>
+    /// <param name="work">選定ワーク(負荷容量/通電電流等)。【C原典】wk1。</param>
+    /// <param name="flags">項目書替えフラグ(初期化してから設定)。【C原典】wk3。</param>
+    /// <param name="candidates">直近上下位参照ファイル全候補(キー順)。【C原典】FYDF812 ISAM。</param>
+    public static MainSelectionResult SelectSpecialReservedWord(
+        RatingCheckTable table,
+        NumericElectricalParameters[] parameters,
+        string[] dataTypes,
+        IReadOnlyList<string> shapeTypes,
+        int shapeTypeIndex,
+        IReadOnlyList<string> makerCodes,
+        string productName,
+        short handleLockFlag,
+        SelectionWorkParameters work,
+        AreaRewriteFlags flags,
+        IReadOnlyList<NearestRankReference> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentNullException.ThrowIfNull(flags);
+
+        // 【C原典】memset(wk3, 0, ...)。項目書替えフラグを初期化。
+        flags.Reset();
+
+        // 【C原典】epno = Fysk0a_EparInput_Check(sep[0], sfg)。
+        ElectricalParameterInput input = ElectricalParameterInputChecker.Check(parameters[0]);
+        int epno = input.ParameterNumber;
+        int[] sfg = [.. input.InputFlags];
+
+        // 【C原典】epno==1 は第1入力フラグを退避し 0 にして先に下位検索。
+        int savedFirst = sfg[0];
+        if (epno == 1)
+        {
+            sfg[0] = 0;
+        }
+
+        // 【C原典】直近上下位検索(電気パラメータ3番目=sep[2], epno=2)。
+        NearestRankSearchResult lower = SearchSpecialReservedWord(
+            table, 2, parameters, sfg, shapeTypes, shapeTypeIndex, dataTypes,
+            makerCodes, productName, handleLockFlag, work, flags, candidates);
+
+        if (epno != 1)
+        {
+            // 【C原典】epno==2: GOOD→3 / それ以外→4。
+            return new MainSelectionResult(lower.Status == Good ? 3 : 4, lower.Selected);
+        }
+
+        // 【C原典】epno==1: 第1フラグを戻し、上位(epno=1)検索の結果を採用。
+        sfg[0] = savedFirst;
+        NearestRankSearchResult upper = SearchSpecialReservedWord(
+            table, 1, parameters, sfg, shapeTypes, shapeTypeIndex, dataTypes,
+            makerCodes, productName, handleLockFlag, work, flags, candidates);
+
+        return new MainSelectionResult(upper.Status == Good ? 1 : 2, upper.Selected);
+    }
+
+    /// <summary>
     /// 予約語/proc_no で検索方式を分岐する。【C原典】Fysk01_Chokisearch(Fysk01.c:614)。
     /// </summary>
     public static NearestRankSearchResult Dispatch(
