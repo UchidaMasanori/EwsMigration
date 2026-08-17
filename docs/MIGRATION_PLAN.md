@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2417** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **795** | — |
+| テスト成功数 | **2425** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **796** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 特別予約語の機器選定 Fysk01_Kikisearch_T を NearestRankSelector.SelectSpecialReservedWord として移植。入力有無で epno を求め下位機器検索で下位パラメータを設定し電流系入力ありなら上位機器検索の結果を採用。境界 Fysk00_Kikisearch_SY_Sub の直下。 |
+| 直近コミット | （git log 参照） | 特殊処理チェック Fysk0c_Check_Tokusyu を SpecialProcessingChecker.Check として移植。WH/CT/TS の予約語で表示タイプを上書きし特殊処理フラグを返す純粋 leaf。境界 Fysk00_Kikisearch_SY_Sub の直接 callee。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。
