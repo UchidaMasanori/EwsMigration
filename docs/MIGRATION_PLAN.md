@@ -57,10 +57,10 @@
 
 | 指標 | 現在値 | 総量/目標 |
 |---|---|---|
-| テスト成功数 | **2425** | 0 失敗 / 0 スキップを維持 |
-| 移植エントリ数（name-mapping.csv 行数） | **796** | — |
+| テスト成功数 | **2433** | 0 失敗 / 0 スキップを維持 |
+| 移植エントリ数（name-mapping.csv 行数） | **797** | — |
 | 推定移植率（libfysek.a ~110k + libfysgy.a ~67k ≒ 177k 行） | **~14〜17%** | 100% |
-| 直近コミット | （git log 参照） | 特殊処理チェック Fysk0c_Check_Tokusyu を SpecialProcessingChecker.Check として移植。WH/CT/TS の予約語で表示タイプを上書きし特殊処理フラグを返す純粋 leaf。境界 Fysk00_Kikisearch_SY_Sub の直接 callee。 |
+| 直近コミット | （git log 参照） | 動力MG回路3.7KWのMG選定 PropMGSentei を MotorMagnetSelectionAdjuster.Apply として移植。公共建築仕様(02)のMGで同一系統に動力3相電源があれば空きタイプ枠に2ETを設定する純粋 leaf。境界 Fysk00_Kikisearch_SY_Sub の直接 callee。 |
 | 最終更新 | 2026-08-13 | — |
 
 > フェーズ別の詳細状況は §4 のフェーズ表（✅/🟡/❌）で管理し、フェーズ/マイルストーン達成時に併せて更新する。

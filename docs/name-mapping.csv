@@ -794,3 +794,4 @@ Fyss15_Make_LowerParm,LowerParameterGenerator.MakeLowerParameters,LowerParameter
 関数,Fysk01_Chokisearch_T,NearestRankSelector.SearchSpecialReservedWord,toku/sekkei/src/Fysk01.c,特別予約語(MCB/ELB/SB/CP/CKS等)専用の直近上下位検索。二次形状・形状・メーカーを総当たりし各組合せで電気値(AT/AF/MA/AM)設定後に定格キーを作り最初の該当候補を採用
 関数,Fysk01_Kikisearch_T,NearestRankSelector.SelectSpecialReservedWord,toku/sekkei/src/Fysk01.c,特別予約語の機器選定/入力有無でepnoを求め下位検索後に電流系入力ありなら上位検索の結果を採用
 関数,Fysk0c_Check_Tokusyu,SpecialProcessingChecker.Check,toku/sekkei/src/Fysk0c.c,WH/CT/TSの特殊処理要否チェック/WHはSP枠かつ封印orメータ封印でタイプ2出力(スマートメータ除外)・CTはBOXでタイプ1・TSはSINでタイプ2を出力
+関数,PropMGSentei,MotorMagnetSelectionAdjuster.Apply,toku/sekkei/src/Fysk00.c,動力MG回路3.7KWのMG選定/公共建築仕様(02)のMGで同一系統に動力3相電源があれば空きタイプ枠(NOTHING)に2ETを設定
